@@ -6,7 +6,7 @@ import {
   PromptInputTextarea,
   PromptInputToolbar,
 } from '@/components/ai-elements/prompt-input';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import {
   Conversation,
@@ -90,7 +90,7 @@ export default function Chat({ className }: ChatProps) {
           <PromptInput onSubmit={handleSubmit} className="mt-0 max-w-3xl">
             <div className="flex items-center gap-2 p-2">
               <PromptInputTextarea
-                autoFocus={hasMessages}
+                autoFocus
                 onChange={(e) => setText(e.target.value)}
                 value={text}
                 placeholder="Type your message..."
@@ -110,7 +110,7 @@ export default function Chat({ className }: ChatProps) {
           <PromptInput onSubmit={handleSubmit} className="w-full max-w-2xl">
             <div className="flex items-center gap-2 p-2">
               <PromptInputTextarea
-                autoFocus={hasMessages}
+                autoFocus
                 onChange={(e) => setText(e.target.value)}
                 value={text}
                 placeholder="Type your message..."
