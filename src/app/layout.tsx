@@ -1,5 +1,13 @@
 import "./globals.css";
 
+import { Inter } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
 
 
 export default function RootLayout({
@@ -10,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`antialiased h-screen flex flex-col`}
+        className={`${inter.variable} font-sans antialiased h-screen flex flex-col`}
       >
         <nav className="h-16 flex items-center px-6 flex-shrink-0">
           <span className="text-xl font-semibold">AV</span>
