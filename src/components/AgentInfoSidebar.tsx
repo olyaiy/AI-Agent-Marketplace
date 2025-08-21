@@ -2,172 +2,215 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, ChevronRight, Sparkles, Brain, Settings, Info, Zap, Globe, Shield } from 'lucide-react';
+import { 
+  Heart,
+  Star,
+  MessageCircle,
+  Smile,
+  Coffee,
+  BookOpen,
+  Users,
+  Calendar,
+  ChevronRight,
+  MoreHorizontal
+} from 'lucide-react';
 
 export default function AgentInfoSidebar() {
-  const [isCapabilitiesOpen, setIsCapabilitiesOpen] = useState(true);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(true);
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState({
+    about: true,
+    personality: true,
+    preferences: false
+  });
 
   return (
-    <div className="w-80 h-full bg-white/50 backdrop-blur-sm border-l border-gray-200/50 overflow-y-auto">
-      <div className="p-6 space-y-6">
-        {/* Agent Header */}
-        <div className="space-y-4">
-          <div className="relative h-32 bg-gradient-to-br from-violet-500/20 via-blue-500/20 to-cyan-500/20 rounded-lg overflow-hidden">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-30"></div>
-            <div className="absolute bottom-4 left-4 bg-white rounded-full p-3 shadow-lg">
-              <Brain className="w-8 h-8 text-violet-600" />
+    <div className="w-80 h-full bg-white border-l border-gray-200 flex flex-col">
+      {/* Agent Profile Header */}
+      <div className="p-6 border-b border-gray-100">
+        <div className="flex items-start gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center">
+            <Smile className="w-8 h-8 text-amber-600" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-medium text-gray-900">Dr. Sarah Chen</h2>
+            <p className="text-sm text-gray-500">Life Coach & Therapist</p>
+            <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-1">
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                <span className="text-xs text-gray-600">4.9</span>
+              </div>
+              <span className="text-xs text-gray-400">•</span>
+              <span className="text-xs text-gray-600">2.3k sessions</span>
             </div>
           </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Research Assistant</h2>
-              <Badge variant="secondary" className="bg-green-100 text-green-700 border-0">
-                Active
-              </Badge>
-            </div>
-            <p className="text-sm text-gray-600">Advanced AI agent specialized in deep research, analysis, and knowledge synthesis</p>
+        </div>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 space-y-6">
+          {/* About Section */}
+          <div>
+            <button
+              onClick={() => setIsExpanded(prev => ({ ...prev, about: !prev.about }))}
+              className="flex items-center justify-between w-full text-left mb-3 group"
+            >
+              <span className="text-sm font-medium text-gray-900">About</span>
+              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded.about ? 'rotate-90' : ''}`} />
+            </button>
+            
+            {isExpanded.about && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  I&apos;m here to help you navigate life&apos;s challenges with empathy and wisdom. 
+                  Together, we&apos;ll work on building resilience, finding clarity, and creating 
+                  positive change in your life.
+                </p>
+                
+                <div className="flex flex-wrap gap-2">
+                  {['Mindfulness', 'Goal Setting', 'Stress Management', 'Relationships'].map((tag) => (
+                    <span key={tag} className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex gap-2">
-            <Badge variant="outline" className="text-xs">GPT-4 Turbo</Badge>
-            <Badge variant="outline" className="text-xs">Context: 128k</Badge>
-            <Badge variant="outline" className="text-xs">v2.1.4</Badge>
+          {/* Personality Section */}
+          <div>
+            <button
+              onClick={() => setIsExpanded(prev => ({ ...prev, personality: !prev.personality }))}
+              className="flex items-center justify-between w-full text-left mb-3"
+            >
+              <span className="text-sm font-medium text-gray-900">Personality</span>
+              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded.personality ? 'rotate-90' : ''}`} />
+            </button>
+            
+            {isExpanded.personality && (
+              <div className="space-y-3">
+                <div className="space-y-3">
+                  {[
+                    { icon: Heart, label: 'Empathetic', desc: 'Understanding and compassionate' },
+                    { icon: Coffee, label: 'Warm', desc: 'Friendly and approachable' },
+                    { icon: BookOpen, label: 'Knowledgeable', desc: 'Evidence-based guidance' },
+                    { icon: Users, label: 'Supportive', desc: 'Non-judgmental and encouraging' }
+                  ].map((trait) => {
+                    const Icon = trait.icon;
+                    return (
+                      <div key={trait.label} className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center mt-0.5">
+                          <Icon className="w-4 h-4 text-gray-600" strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{trait.label}</p>
+                          <p className="text-xs text-gray-500">{trait.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Preferences Section */}
+          <div>
+            <button
+              onClick={() => setIsExpanded(prev => ({ ...prev, preferences: !prev.preferences }))}
+              className="flex items-center justify-between w-full text-left mb-3"
+            >
+              <span className="text-sm font-medium text-gray-900">Your Preferences</span>
+              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded.preferences ? 'rotate-90' : ''}`} />
+            </button>
+            
+            {isExpanded.preferences && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tone" className="text-xs text-gray-600">Conversation style</Label>
+                  <Select defaultValue="supportive">
+                    <SelectTrigger id="tone" className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="professional">Professional</SelectItem>
+                      <SelectItem value="supportive">Supportive</SelectItem>
+                      <SelectItem value="casual">Casual</SelectItem>
+                      <SelectItem value="motivational">Motivational</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="checkins" className="text-sm text-gray-700">Regular check-ins</Label>
+                      <p className="text-xs text-gray-500 mt-0.5">Get gentle reminders</p>
+                    </div>
+                    <Switch id="checkins" />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="exercises" className="text-sm text-gray-700">Practice exercises</Label>
+                      <p className="text-xs text-gray-500 mt-0.5">Homework & activities</p>
+                    </div>
+                    <Switch id="exercises" defaultChecked />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="summaries" className="text-sm text-gray-700">Session notes</Label>
+                      <p className="text-xs text-gray-500 mt-0.5">Save key insights</p>
+                    </div>
+                    <Switch id="summaries" defaultChecked />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Recent Sessions */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-gray-900">Recent Sessions</span>
+              <button className="text-xs text-gray-500 hover:text-gray-700">View all</button>
+            </div>
+            <div className="space-y-2">
+              {[
+                { date: 'Today', topic: 'Managing work stress', mood: '😊' },
+                { date: 'Yesterday', topic: 'Setting boundaries', mood: '🤔' },
+                { date: 'Dec 20', topic: 'Self-care routine', mood: '😌' }
+              ].map((session, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-900">{session.topic}</p>
+                    <p className="text-xs text-gray-500">{session.date}</p>
+                  </div>
+                  <span className="text-lg">{session.mood}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+      </div>
 
-        <Separator className="bg-gray-200/50" />
-
-        {/* Capabilities Section */}
-        <div className="space-y-3">
-          <button
-            onClick={() => setIsCapabilitiesOpen(!isCapabilitiesOpen)}
-            className="flex items-center gap-2 w-full text-left hover:opacity-70 transition-opacity"
-          >
-            {isCapabilitiesOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            <span className="text-sm font-medium text-gray-700">Capabilities</span>
-          </button>
-          
-          {isCapabilitiesOpen && (
-            <div className="space-y-2 pl-6">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-yellow-600" />
-                <span className="text-sm text-gray-600">Real-time web search</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-blue-600" />
-                <span className="text-sm text-gray-600">Multi-language support</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-green-600" />
-                <span className="text-sm text-gray-600">Data privacy protection</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-600" />
-                <span className="text-sm text-gray-600">Creative synthesis</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Separator className="bg-gray-200/50" />
-
-        {/* Settings Section */}
-        <div className="space-y-3">
-          <button
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className="flex items-center gap-2 w-full text-left hover:opacity-70 transition-opacity"
-          >
-            {isSettingsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            <span className="text-sm font-medium text-gray-700">Settings</span>
-          </button>
-          
-          {isSettingsOpen && (
-            <div className="space-y-4 pl-6">
-              <div className="space-y-2">
-                <Label htmlFor="temperature" className="text-xs text-gray-600">Response Style</Label>
-                <Select defaultValue="balanced">
-                  <SelectTrigger id="temperature" className="h-8 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="precise">Precise</SelectItem>
-                    <SelectItem value="balanced">Balanced</SelectItem>
-                    <SelectItem value="creative">Creative</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="streaming" className="text-sm text-gray-600">Stream responses</Label>
-                <Switch id="streaming" defaultChecked />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="memory" className="text-sm text-gray-600">Memory enabled</Label>
-                <Switch id="memory" defaultChecked />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="citations" className="text-sm text-gray-600">Show citations</Label>
-                <Switch id="citations" />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Separator className="bg-gray-200/50" />
-
-        {/* About Section */}
-        <div className="space-y-3">
-          <button
-            onClick={() => setIsAboutOpen(!isAboutOpen)}
-            className="flex items-center gap-2 w-full text-left hover:opacity-70 transition-opacity"
-          >
-            {isAboutOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            <span className="text-sm font-medium text-gray-700">About</span>
-          </button>
-          
-          {isAboutOpen && (
-            <div className="space-y-3 pl-6">
-              <p className="text-xs text-gray-600 leading-relaxed">
-                This agent leverages advanced language models to provide comprehensive research assistance, 
-                fact-checking, and analytical support across various domains.
-              </p>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Created</span>
-                  <span className="text-gray-700">Dec 15, 2024</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Last updated</span>
-                  <span className="text-gray-700">2 hours ago</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Total interactions</span>
-                  <span className="text-gray-700">1,247</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="pt-4 space-y-2">
-          <Button variant="outline" className="w-full text-sm" size="sm">
-            <Settings className="w-4 h-4 mr-2" />
-            Advanced Settings
+      {/* Footer Actions */}
+      <div className="border-t border-gray-100 p-4 bg-gray-50/50">
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1 text-xs">
+            <Calendar className="w-3.5 h-3.5 mr-1.5" />
+            Schedule
           </Button>
-          <Button variant="outline" className="w-full text-sm" size="sm">
-            <Info className="w-4 h-4 mr-2" />
-            Documentation
+          <Button variant="outline" size="sm" className="flex-1 text-xs">
+            <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
+            Feedback
+          </Button>
+          <Button variant="ghost" size="sm" className="px-2">
+            <MoreHorizontal className="w-4 h-4" />
           </Button>
         </div>
       </div>
