@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm add:*)",
+      "Bash(npx ai-elements@latest add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
