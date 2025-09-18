@@ -1,4 +1,5 @@
 import "./globals.css";
+import Link from "next/link";
 
 import { Inter } from "next/font/google";
 
@@ -21,7 +22,9 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased h-screen flex flex-col`}
       >
         <nav className="h-16 flex items-center px-6 flex-shrink-0">
-          <span className="text-xl font-semibold">AV</span>
+          <Link href="/" className="text-xl font-semibold">
+            AV
+          </Link>
         </nav>
         
         <div className="flex-1 overflow-hidden mb-8 mx-8">

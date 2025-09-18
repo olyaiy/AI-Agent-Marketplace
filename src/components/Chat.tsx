@@ -41,7 +41,7 @@ export default function Chat({ className }: ChatProps) {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className={`flex flex-col h-full ${className || ''}`}>
+    <div className={`flex max-w-3xl flex-col h-full ${className || ''}`}>
       {hasMessages ? (
         <>
           <Conversation>
@@ -87,7 +87,7 @@ export default function Chat({ className }: ChatProps) {
           </Conversation>
 
       <div className="flex flex-col  items-center justify-center  py-4 ">
-          <PromptInput onSubmit={handleSubmit} className="mt-0 max-w-3xl">
+          <PromptInput onSubmit={handleSubmit} className="mt-0 max-w-3xl ">
             <div className="flex items-center gap-2 p-2">
               <PromptInputTextarea
                 autoFocus
