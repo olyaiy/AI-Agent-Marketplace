@@ -11,6 +11,11 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ChevronDown, X, Filter } from "lucide-react"
 
 function tokenize(input: string): string[] {
   const base = input.toLowerCase()
@@ -85,6 +90,9 @@ export function ModelSelect({ models, value, onChange, showLogos = true }: Props
   const [selected, setSelected] = React.useState<string | undefined>(value)
   const [open, setOpen] = React.useState(false)
   const [hovered, setHovered] = React.useState<string | undefined>(undefined)
+  const [selectedProviders, setSelectedProviders] = React.useState<string[]>([])
+  const [filtersOpen, setFiltersOpen] = React.useState(false)
+  const [filtersVisible, setFiltersVisible] = React.useState(false)
 
   React.useEffect(() => setSelected(value), [value])
 
@@ -158,12 +166,130 @@ export function ModelSelect({ models, value, onChange, showLogos = true }: Props
     return `$${formatted} / 1M tokens`
   }
 
+  function toPricePerMillion(input: number | string | undefined): number | undefined {
+    if (input === undefined || input === null) return undefined
+    const n = typeof input === "string" ? Number(input) : input
+    if (!isFinite(n)) return undefined
+    return n * 1_000_000
+  }
+
   function getProviderIdForLogo(model: ModelOption): string {
     const fullId = typeof model.specification?.modelId === "string" ? model.specification.modelId : undefined
     const fromFull = fullId && fullId.includes("/") ? fullId.split("/")[0] : undefined
     const fallback = (model.provider || "").split("/")[0]
     return (fromFull || fallback).trim().toLowerCase()
   }
+
+  const allProviderIds = React.useMemo(() => {
+    const s = new Set<string>()
+    for (const m of models) s.add(getProviderIdForLogo(m))
+    return Array.from(s).sort((a, b) => a.localeCompare(b))
+  }, [models])
+
+  const inputMinMax = React.useMemo(() => {
+    let min = Number.POSITIVE_INFINITY
+    let max = 0
+    for (const m of models) {
+      const v = toPricePerMillion(m.pricing?.input)
+      if (v === undefined) continue
+      if (v < min) min = v
+      if (v > max) max = v
+    }
+    if (!isFinite(min)) min = 0
+    if (max < min) max = min
+    return [min, max] as [number, number]
+  }, [models])
+
+  const outputMinMax = React.useMemo(() => {
+    let min = Number.POSITIVE_INFINITY
+    let max = 0
+    for (const m of models) {
+      const v = toPricePerMillion(m.pricing?.output)
+      if (v === undefined) continue
+      if (v < min) min = v
+      if (v > max) max = v
+    }
+    if (!isFinite(min)) min = 0
+    if (max < min) max = min
+    return [min, max] as [number, number]
+  }, [models])
+
+  const [inputRange, setInputRange] = React.useState<[number, number]>([inputMinMax[0], inputMinMax[1]])
+  const [outputRange, setOutputRange] = React.useState<[number, number]>([outputMinMax[0], outputMinMax[1]])
+
+  React.useEffect(() => {
+    setInputRange([inputMinMax[0], inputMinMax[1]])
+  }, [inputMinMax])
+  React.useEffect(() => {
+    setOutputRange([outputMinMax[0], outputMinMax[1]])
+  }, [outputMinMax])
+
+  function isRangeActive(range: [number, number], minMax: [number, number]): boolean {
+    const [min, max] = minMax
+    return Math.abs(range[0] - min) > 1e-9 || Math.abs(range[1] - max) > 1e-9
+  }
+
+  const providerFilterActive = selectedProviders.length > 0
+  const inputFilterActive = isRangeActive(inputRange, inputMinMax)
+  const outputFilterActive = isRangeActive(outputRange, outputMinMax)
+  const anyFilterActive = providerFilterActive || inputFilterActive || outputFilterActive
+
+  const filteredModels = React.useMemo(() => {
+    return models.filter((m) => {
+      const providerId = getProviderIdForLogo(m)
+      if (providerFilterActive && !selectedProviders.includes(providerId)) return false
+      if (inputFilterActive) {
+        const val = toPricePerMillion(m.pricing?.input)
+        if (val === undefined) return false
+        if (val < inputRange[0] - 1e-9 || val > inputRange[1] + 1e-9) return false
+      }
+      if (outputFilterActive) {
+        const val = toPricePerMillion(m.pricing?.output)
+        if (val === undefined) return false
+        if (val < outputRange[0] - 1e-9 || val > outputRange[1] + 1e-9) return false
+      }
+      return true
+    })
+  }, [models, providerFilterActive, selectedProviders, inputFilterActive, inputRange, outputFilterActive, outputRange])
+
+  const modelsByProviderFiltered = React.useMemo(() => {
+    const grouped: Record<string, ModelOption[]> = {}
+    for (const m of filteredModels) {
+      if (!grouped[m.provider]) grouped[m.provider] = []
+      grouped[m.provider].push(m)
+    }
+    for (const key of Object.keys(grouped)) {
+      grouped[key].sort((a, b) => a.name.localeCompare(b.name))
+    }
+    const priority: Record<string, number> = { openai: 0, anthropic: 1, google: 2 }
+    return Object.entries(grouped).sort((a, b) => {
+      const pa = priority[a[0]] ?? 99
+      const pb = priority[b[0]] ?? 99
+      if (pa !== pb) return pa - pb
+      return a[0].localeCompare(b[0])
+    })
+  }, [filteredModels])
+
+  function resetFilters() {
+    setSelectedProviders([])
+    setInputRange([inputMinMax[0], inputMinMax[1]])
+    setOutputRange([outputMinMax[0], outputMinMax[1]])
+  }
+
+  // Auto-show filters when any become active
+  React.useEffect(() => {
+    if (anyFilterActive && !filtersVisible) {
+      setFiltersVisible(true)
+    }
+  }, [anyFilterActive, filtersVisible])
+
+  function formatCompactPrice(value: number): string {
+    if (value === 0) return "$0"
+    if (value < 1) return `$${value.toFixed(2)}`
+    if (value < 10) return `$${value.toFixed(1)}`
+    return `$${Math.round(value).toLocaleString()}`
+  }
+
 
   return (
     <div className="flex items-center gap-2">
@@ -197,12 +323,212 @@ export function ModelSelect({ models, value, onChange, showLogos = true }: Props
             <svg className="size-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
         </PopoverTrigger>
-        <PopoverContent className="p-0 w-[520px]">
+        <PopoverContent className="p-0 w-[600px]">
           <Command filter={filterFn}>
-            <CommandInput placeholder="Search models by name, id, or provider..." />
+            <div className="relative">
+              <CommandInput placeholder="Search models by name, id, or provider..." className="pr-10" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted transition-all duration-200 ${
+                      filtersVisible || anyFilterActive ? 'bg-muted text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    onClick={() => setFiltersVisible(!filtersVisible)}
+                    aria-label={filtersVisible ? "Hide filters" : "Show filters"}
+                  >
+                    <Filter className={`size-4 transition-transform duration-200 ${filtersVisible ? 'rotate-0' : ''}`} />
+                    {anyFilterActive && (
+                      <div className="absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full animate-pulse" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="text-xs">
+                  {filtersVisible ? "Hide filters" : anyFilterActive ? "Filters active - click to manage" : "Show filters"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <CommandList>
               <CommandEmpty>No models found.</CommandEmpty>
-              {modelsByProvider.map(([provider, items]) => (
+              {/* Filter Section */}
+              {!filtersVisible && anyFilterActive && (
+                <div className="border-b bg-primary/5 px-4 py-2 text-center">
+                  <span className="text-xs text-muted-foreground">
+                    {[providerFilterActive, inputFilterActive, outputFilterActive].filter(Boolean).length} filter(s) active
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="h-auto p-0 ml-1 text-xs text-primary"
+                      onClick={() => setFiltersVisible(true)}
+                    >
+                      Show
+                    </Button>
+                  </span>
+                </div>
+              )}
+              {filtersVisible && (
+                <div className="border-b bg-muted/30 animate-in slide-in-from-top-2 duration-200">
+                <div className="p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Filter className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Filters</span>
+                      {anyFilterActive && (
+                        <Badge variant="secondary" className="h-5 text-xs">
+                          {[providerFilterActive, inputFilterActive, outputFilterActive].filter(Boolean).length}
+                        </Badge>
+                      )}
+                    </div>
+                    {anyFilterActive && (
+                      <Button variant="ghost" size="sm" onClick={resetFilters} className="h-7 px-2 text-xs">
+                        Clear all
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Active Filters Pills */}
+                  {anyFilterActive && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {providerFilterActive && (
+                        <Badge variant="outline" className="h-6 gap-1 pr-1">
+                          Providers: {selectedProviders.length}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0 hover:bg-destructive/20"
+                            onClick={() => setSelectedProviders([])}
+                          >
+                            <X className="size-3" />
+                          </Button>
+                        </Badge>
+                      )}
+                      {inputFilterActive && (
+                        <Badge variant="outline" className="h-6 gap-1 pr-1">
+                          Input: {formatCompactPrice(inputRange[0])}–{formatCompactPrice(inputRange[1])}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0 hover:bg-destructive/20"
+                            onClick={() => setInputRange([inputMinMax[0], inputMinMax[1]])}
+                          >
+                            <X className="size-3" />
+                          </Button>
+                        </Badge>
+                      )}
+                      {outputFilterActive && (
+                        <Badge variant="outline" className="h-6 gap-1 pr-1">
+                          Output: {formatCompactPrice(outputRange[0])}–{formatCompactPrice(outputRange[1])}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0 hover:bg-destructive/20"
+                            onClick={() => setOutputRange([outputMinMax[0], outputMinMax[1]])}
+                          >
+                            <X className="size-3" />
+                          </Button>
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Filter Controls */}
+                  <div className="grid grid-cols-3 gap-4">
+                    {/* Provider Filter */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">Providers</label>
+                      <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-full justify-between h-8 text-xs">
+                            {selectedProviders.length === 0 ? (
+                              "All providers"
+                            ) : selectedProviders.length === 1 ? (
+                              <span className="capitalize">{selectedProviders[0]}</span>
+                            ) : (
+                              `${selectedProviders.length} selected`
+                            )}
+                            <ChevronDown className="size-3 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search providers..." className="h-8" />
+                            <CommandList>
+                              <CommandEmpty>No providers found.</CommandEmpty>
+                              <CommandGroup>
+                                {allProviderIds.map((pid) => (
+                                  <CommandItem
+                                    key={pid}
+                                    onSelect={() => {
+                                      setSelectedProviders((prev) =>
+                                        prev.includes(pid) ? prev.filter((p) => p !== pid) : [...prev, pid]
+                                      )
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2 w-full">
+                                      <input
+                                        type="checkbox"
+                                        readOnly
+                                        checked={selectedProviders.includes(pid)}
+                                        className="size-3"
+                                      />
+                                      <span className="capitalize flex-1">{pid}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Input Price Filter */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-muted-foreground">Input Price/1M</label>
+                        <span className="text-xs text-muted-foreground">
+                          {formatCompactPrice(inputRange[0])}–{formatCompactPrice(inputRange[1])}
+                        </span>
+                      </div>
+                      <div className="px-2">
+                        <Slider
+                          min={inputMinMax[0]}
+                          max={inputMinMax[1] || 1}
+                          value={[inputRange[0], inputRange[1]]}
+                          onValueChange={(vals) =>
+                            setInputRange([Number(vals[0]), Number(vals[1] ?? vals[0])])
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Output Price Filter */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-muted-foreground">Output Price/1M</label>
+                        <span className="text-xs text-muted-foreground">
+                          {formatCompactPrice(outputRange[0])}–{formatCompactPrice(outputRange[1])}
+                        </span>
+                      </div>
+                      <div className="px-2">
+                        <Slider
+                          min={outputMinMax[0]}
+                          max={outputMinMax[1] || 1}
+                          value={[outputRange[0], outputRange[1]]}
+                          onValueChange={(vals) =>
+                            setOutputRange([Number(vals[0]), Number(vals[1] ?? vals[0])])
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              )}
+              {(providerFilterActive || inputFilterActive || outputFilterActive ? modelsByProviderFiltered : modelsByProvider).map(([provider, items]) => (
                 <CommandGroup key={provider} heading={provider}>
                   {items.map((m) => {
                     const composite = `${m.provider}:${m.id}`
