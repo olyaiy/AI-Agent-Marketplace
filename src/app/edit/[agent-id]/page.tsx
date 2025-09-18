@@ -44,7 +44,7 @@ export default async function EditAgentPage({ params }: { params: { 'agent-id': 
         </label>
         <div className="flex items-center gap-3">
           <button type="submit" className="border p-2">Save</button>
-          <button formAction={deleteAction} formMethod="post" className="border p-2">Delete</button>
+          <button formAction={deleteAction} className="border p-2">Delete</button>
         </div>
       </form>
     </div>
