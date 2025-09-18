@@ -3,8 +3,9 @@ import AgentInfoSidebar from '@/components/AgentInfoSidebar';
 import { getAgentByTag } from '@/actions/agents';
 import { notFound } from 'next/navigation';
 
-export default async function AgentPage({ params }: { params: { 'agent-id': string } }) {
-  const tag = `@${params['agent-id']}`;
+export default async function AgentPage({ params }: { params: Promise<{ 'agent-id': string }> }) {
+  const { 'agent-id': id } = await params;
+  const tag = `@${id}`;
   const found = await getAgentByTag(tag);
   if (!found) notFound();
 

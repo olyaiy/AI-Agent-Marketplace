@@ -22,6 +22,20 @@
       "when": 1758154122823,
       "tag": "0002_early_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1758156522027,
+      "tag": "0003_dusty_white_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1758156753355,
+      "tag": "0004_nice_ben_parker",
+      "breakpoints": true
     }
   ]
 }

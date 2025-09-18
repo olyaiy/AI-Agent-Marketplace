@@ -19,8 +19,8 @@ async function deleteAction(formData: FormData) {
   redirect(`/`);
 }
 
-export default async function EditAgentPage({ params }: { params: { 'agent-id': string } }) {
-  const id = params['agent-id'];
+export default async function EditAgentPage({ params }: { params: Promise<{ 'agent-id': string }> }) {
+  const { 'agent-id': id } = await params;
   const tag = `@${id}`;
   const a = await getAgentByTag(tag);
   if (!a) notFound();
