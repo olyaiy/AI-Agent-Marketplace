@@ -1,16 +1,10 @@
 import Link from 'next/link';
 import { listAgents } from '@/actions/agents';
-import { fetchAllModels } from '@/lib/models-dev';
-import { ModelSelect } from '@/components/ModelSelect';
 
-export default async function Home() {
-  const models = await fetchAllModels();
+export default function Home() {
   return (
     <main className="h-full px-4">
       <div className="h-full mx-auto max-w-2xl py-8">
-        <div className="mb-6">
-          <ModelSelect models={models} />
-        </div>
         <h1 className="text-xl mb-4">Agents</h1>
         {/* Server Component: fetch and render agents */}
         <AgentsList />
