@@ -4,7 +4,6 @@ import {
   PromptInput,
   PromptInputSubmit,
   PromptInputTextarea,
-  PromptInputToolbar,
 } from '@/components/ai-elements/prompt-input';
 import { useState } from 'react';
 import { useChat } from '@ai-sdk/react';
@@ -24,9 +23,10 @@ import {
 
 interface ChatProps {
   className?: string;
+  systemPrompt?: string;
 }
 
-export default function Chat({ className }: ChatProps) {
+export default function Chat({ className, systemPrompt }: ChatProps) {
   const [text, setText] = useState<string>('');
   const { messages, status, sendMessage } = useChat();
 
@@ -34,7 +34,7 @@ export default function Chat({ className }: ChatProps) {
     e.preventDefault();
     if (!text.trim()) return;
     
-    sendMessage({ text: text });
+    sendMessage({ text: text }, { body: { systemPrompt } });
     setText('');
   };
 

@@ -27,9 +27,14 @@ async function AgentsList() {
               <div className="font-medium">{a.name}</div>
               <div className="text-xs text-gray-500">{a.tag}</div>
             </div>
-            <Link href={`/agent/${encodeURIComponent(a.tag.replace(/^@/, ''))}`} className="underline text-sm">
-              Open
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link href={`/agent/${encodeURIComponent(a.tag.replace(/^@/, ''))}`} className="underline text-sm">
+                Open
+              </Link>
+              <Link href={`/edit/${encodeURIComponent(a.tag.replace(/^@/, ''))}`} className="underline text-sm">
+                Edit
+              </Link>
+            </div>
           </div>
         </li>
       ))}

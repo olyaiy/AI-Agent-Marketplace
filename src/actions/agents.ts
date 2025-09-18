@@ -26,3 +26,26 @@ export async function getAgentByTag(tag: string) {
 export async function listAgents() {
   return db.select().from(agent);
 }
+
+export interface UpdateAgentInput {
+  tag: string;
+  name?: string;
+  systemPrompt?: string;
+}
+
+export async function updateAgent(input: UpdateAgentInput) {
+  const { tag, name, systemPrompt } = input;
+  if (!tag) return { ok: false, error: 'Missing tag' };
+  const values: { name?: string; systemPrompt?: string } = {};
+  if (typeof name === 'string') values.name = name;
+  if (typeof systemPrompt === 'string') values.systemPrompt = systemPrompt;
+  if (!Object.keys(values).length) return { ok: true };
+  await db.update(agent).set(values).where(eq(agent.tag, tag));
+  return { ok: true };
+}
+
+export async function deleteAgent(tag: string) {
+  if (!tag) return { ok: false, error: 'Missing tag' };
+  await db.delete(agent).where(eq(agent.tag, tag));
+  return { ok: true };
+}

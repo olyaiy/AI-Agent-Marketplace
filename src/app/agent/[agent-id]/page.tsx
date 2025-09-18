@@ -1,7 +1,13 @@
 import Chat from '@/components/Chat';
 import AgentInfoSidebar from '@/components/AgentInfoSidebar';
+import { getAgentByTag } from '@/actions/agents';
+import { notFound } from 'next/navigation';
 
-export default function AgentPage() {
+export default async function AgentPage({ params }: { params: { 'agent-id': string } }) {
+  const tag = `@${params['agent-id']}`;
+  const found = await getAgentByTag(tag);
+  if (!found) notFound();
+
   return (
     <main className="h-full px-4">
       <div className="h-full mx-auto flex gap-4">
@@ -9,7 +15,7 @@ export default function AgentPage() {
           <AgentInfoSidebar />
         </div>
         <div className="flex-1 max-w-3/4 items-center justify-center r-auto ">
-          <Chat className=' mx-auto' />
+          <Chat className=' mx-auto' systemPrompt={found.systemPrompt} />
         </div>
       </div>
     </main>
