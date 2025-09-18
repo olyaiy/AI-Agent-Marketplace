@@ -12,6 +12,47 @@ import {
   CommandList,
 } from "@/components/ui/command"
 
+function tokenize(input: string): string[] {
+  const base = input.toLowerCase()
+  const parts = base.split(/[^a-z0-9]+/g).filter(Boolean)
+  const collapsed = base.replace(/[^a-z0-9]/g, "")
+  return collapsed ? [...new Set([...parts, collapsed])] : parts
+}
+
+// subsequence matching intentionally disabled to avoid false positives
+
+function expandAliases(tokens: string[]): string[] {
+  const aliasMap: Record<string, string[]> = {
+    chatgpt: ["chat", "gpt", "openai"],
+    openai: ["gpt"],
+    anthropic: ["claude"],
+    claude: ["anthropic"],
+    google: ["gemini"],
+    gemini: ["google"],
+    meta: ["llama", "meta-llama"],
+    llama: ["meta", "meta-llama"],
+    xai: ["grok"],
+    grok: ["xai"],
+    mistral: ["mistralai"],
+    mistralai: ["mistral"],
+  }
+  const out = new Set(tokens)
+  for (const t of tokens) {
+    const aliases = aliasMap[t]
+    if (aliases) for (const a of aliases) out.add(a)
+  }
+  return [...out]
+}
+
+function buildKeywords(provider: string, name: string, id: string): string[] {
+  const tokens = [
+    ...tokenize(provider),
+    ...tokenize(name),
+    ...tokenize(id),
+  ]
+  return expandAliases(tokens)
+}
+
 export interface ModelOption {
   id: string
   name: string
@@ -40,9 +81,20 @@ export function ModelSelect({ models, value, onChange }: Props) {
     (value: string, search: string, keywords?: string[]) => {
       const q = search.trim().toLowerCase()
       if (!q) return 1
-      if (value.toLowerCase().includes(q)) return 1
-      if (keywords && keywords.some((k) => k.includes(q))) return 1
-      return -1
+      const hayTokens = (keywords ?? []).map((k) => k.toLowerCase())
+      const hayStr = (value + " " + hayTokens.join(" ")).toLowerCase()
+
+      // Build query tokens: allow aliases and collapsed variant
+      const qTokens = expandAliases(tokenize(q))
+      if (!qTokens.length) return -1
+
+      // Require every query token to appear as a substring of some keyword
+      for (const t of qTokens) {
+        const has = hayTokens.some((k) => k.includes(t)) || hayStr.includes(t)
+        if (!has) return -1
+      }
+      // Optional boost if full phrase appears
+      return hayStr.includes(q) ? 10 : 1
     },
     []
   )
@@ -105,11 +157,12 @@ export function ModelSelect({ models, value, onChange }: Props) {
                 <CommandGroup key={provider} heading={provider}>
                   {items.map((m) => {
                     const composite = `${m.provider}:${m.id}`
+                    const kws = buildKeywords(m.provider, m.name, m.id)
                     return (
                       <CommandItem
                         key={composite}
                         value={composite}
-                        keywords={[m.name.toLowerCase(), m.id.toLowerCase(), m.provider.toLowerCase()]}
+                        keywords={kws}
                         onSelect={setSelection}
                       >
                         <div className="flex items-center gap-2">
