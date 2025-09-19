@@ -36,14 +36,16 @@ export interface UpdateAgentInput {
   tag: string;
   name?: string;
   systemPrompt?: string;
+  model?: string;
 }
 
 export async function updateAgent(input: UpdateAgentInput) {
-  const { tag, name, systemPrompt } = input;
+  const { tag, name, systemPrompt, model } = input;
   if (!tag) return { ok: false, error: 'Missing tag' };
-  const values: { name?: string; systemPrompt?: string } = {};
+  const values: { name?: string; systemPrompt?: string; model?: string } = {};
   if (typeof name === 'string') values.name = name;
   if (typeof systemPrompt === 'string') values.systemPrompt = systemPrompt;
+  if (typeof model === 'string' && model.trim().length > 0) values.model = model.trim();
   if (!Object.keys(values).length) return { ok: true };
   await db.update(agent).set(values).where(eq(agent.tag, tag));
   return { ok: true };

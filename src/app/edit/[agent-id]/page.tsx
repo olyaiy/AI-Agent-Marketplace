@@ -1,13 +1,16 @@
 import { getAgentByTag, updateAgent, deleteAgent } from '@/actions/agents';
 import { notFound, redirect } from 'next/navigation';
+import { fetchGatewayLanguageModels } from '@/lib/gateway-models';
+import { EditAgentClient } from './EditAgentClient';
 
 async function saveAction(formData: FormData) {
   'use server';
   const id = (formData.get('id') as string)?.trim();
   const name = (formData.get('name') as string)?.trim();
   const systemPrompt = (formData.get('systemPrompt') as string)?.trim();
+  const model = (formData.get('model') as string | undefined)?.trim();
   const tag = `@${id}`;
-  await updateAgent({ tag, name, systemPrompt });
+  await updateAgent({ tag, name, systemPrompt, model });
   redirect(`/agent/${encodeURIComponent(id)}`);
 }
 
@@ -24,12 +27,17 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
   const tag = `@${id}`;
   const a = await getAgentByTag(tag);
   if (!a) notFound();
+  const models = await fetchGatewayLanguageModels();
 
   return (
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl mb-4">Edit Agent</h1>
       <form action={saveAction} className="flex flex-col gap-3">
         <input type="hidden" name="id" value={id} />
+        <div>
+          <label className="block mb-2">Model</label>
+          <EditAgentClient models={models} initialModel={a.model} />
+        </div>
         <label className="flex flex-col gap-1">
           <span>Agent name</span>
           <input name="name" defaultValue={a.name} className="border p-2" />
