@@ -8,13 +8,18 @@ export interface CreateAgentInput {
   tag: string;
   name: string;
   systemPrompt: string;
+  model?: string;
 }
 
 export async function createAgent(input: CreateAgentInput) {
-  const { tag, name, systemPrompt } = input;
+  const { tag, name, systemPrompt, model } = input;
   if (!tag || !name || !systemPrompt) return { ok: false, error: 'Missing fields' };
 
-  await db.insert(agent).values({ tag, name, systemPrompt });
+  const values: { tag: string; name: string; systemPrompt: string; model?: string } = { tag, name, systemPrompt };
+  if (typeof model === 'string' && model.trim().length > 0) {
+    values.model = model.trim();
+  }
+  await db.insert(agent).values(values);
   return { ok: true };
 }
 

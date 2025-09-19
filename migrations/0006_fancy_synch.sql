@@ -1,0 +1,1 @@
+ALTER TABLE "agent" ADD COLUMN "model" varchar(128) DEFAULT 'openai/gpt-5-mini' NOT NULL;

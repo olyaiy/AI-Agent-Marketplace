@@ -16,7 +16,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
           <AgentInfoSidebar />
         </div>
         <div className="flex-1 max-w-3/4 items-center justify-center r-auto ">
-          <Chat className=' mx-auto' systemPrompt={found.systemPrompt} />
+          <Chat className=' mx-auto' systemPrompt={found.systemPrompt} model={found.model} />
         </div>
       </div>
     </main>

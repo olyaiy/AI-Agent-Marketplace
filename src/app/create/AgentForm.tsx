@@ -12,7 +12,11 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-export function AgentForm() {
+interface AgentFormProps {
+  model?: string;
+}
+
+export function AgentForm({ model }: AgentFormProps) {
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [isTagEdited, setIsTagEdited] = useState(false);
@@ -27,7 +31,12 @@ export function AgentForm() {
     e.preventDefault();
     const cleanTag = tag.startsWith('@') ? tag : `@${tag}`;
     const normalizedTag = cleanTag.replace(/\s+/g, '').toLowerCase();
-    const res = await createAgent({ tag: normalizedTag, name: name.trim(), systemPrompt: systemPrompt.trim() });
+    const res = await createAgent({
+      tag: normalizedTag,
+      name: name.trim(),
+      systemPrompt: systemPrompt.trim(),
+      model,
+    });
     if (res?.ok) {
       // rely on server redirect pattern in RSC layer
       window.location.assign(`/agent/${encodeURIComponent(normalizedTag.slice(1))}`);

@@ -24,9 +24,10 @@ import {
 interface ChatProps {
   className?: string;
   systemPrompt?: string;
+  model?: string;
 }
 
-export default function Chat({ className, systemPrompt }: ChatProps) {
+export default function Chat({ className, systemPrompt, model }: ChatProps) {
   const [text, setText] = useState<string>('');
   const { messages, status, sendMessage } = useChat();
 
@@ -34,7 +35,7 @@ export default function Chat({ className, systemPrompt }: ChatProps) {
     e.preventDefault();
     if (!text.trim()) return;
     
-    sendMessage({ text: text }, { body: { systemPrompt } });
+    sendMessage({ text: text }, { body: { systemPrompt, model } });
     setText('');
   };
 

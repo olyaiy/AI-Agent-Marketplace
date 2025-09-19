@@ -36,6 +36,20 @@
       "when": 1758156753355,
       "tag": "0004_nice_ben_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1758319424511,
+      "tag": "0005_smart_glorian",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1758319564327,
+      "tag": "0006_fancy_synch",
+      "breakpoints": true
     }
   ]
 }

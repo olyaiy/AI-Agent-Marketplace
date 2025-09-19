@@ -3,11 +3,25 @@ import { streamText, UIMessage, convertToModelMessages } from 'ai';
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const qpSystem = url.searchParams.get('systemPrompt') || undefined;
-  const { messages, systemPrompt: bodySystem }: { messages: UIMessage[]; systemPrompt?: string } = await req.json().catch(() => ({ messages: [], systemPrompt: undefined }));
+  const qpModel = url.searchParams.get('model') || undefined;
+  const { messages, systemPrompt: bodySystem, model: bodyModel }: { messages: UIMessage[]; systemPrompt?: string; model?: string } = await req.json().catch(() => ({ messages: [], systemPrompt: undefined, model: undefined }));
   const systemPrompt = bodySystem ?? qpSystem;
+  
+  function normalizeModelId(input?: string | null): string | undefined {
+    if (!input) return undefined;
+    let raw = String(input).trim();
+    if (!raw) return undefined;
+    raw = raw.replace(/\s+/g, '');
+    raw = raw.replace(':', '/');
+    const slashIndex = raw.indexOf('/');
+    if (slashIndex <= 0 || slashIndex === raw.length - 1) return undefined;
+    return raw;
+  }
+  
+  const modelId = normalizeModelId(bodyModel ?? qpModel) ?? 'openai/gpt-5-nano';
 
   const result = streamText({
-    model: 'openai/gpt-5-nano',
+    model: modelId,
     providerOptions: {
       openai: {
         reasoningEffort: 'minimal',
@@ -17,6 +31,8 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: convertToModelMessages(messages),
   });
+
+  console.log(`[Chat] Using model: ${modelId}`);
 
   return result.toUIMessageStreamResponse({
     sendReasoning: true,
