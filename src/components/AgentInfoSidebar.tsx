@@ -19,7 +19,12 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 
-export default function AgentInfoSidebar() {
+interface AgentInfoSidebarProps {
+  name: string;
+  avatarUrl?: string;
+}
+
+export default function AgentInfoSidebar({ name, avatarUrl }: AgentInfoSidebarProps) {
   const [isExpanded, setIsExpanded] = useState({
     about: true,
     capabilities: true,
@@ -33,18 +38,20 @@ export default function AgentInfoSidebar() {
       <div className="bg-rose-200 px-5 py-5 rounded-xl ">
         <div className="flex items-center gap-4">
           {/* Avatar on left */}
-          <Image 
-            src="/avatar/woman.png" 
-            alt="Agent Avatar" 
-            width={72} 
-            height={72}
-            className="rounded-xl"
-          />
+          {avatarUrl ? (
+            <Image 
+              src={avatarUrl} 
+              alt="Agent Avatar" 
+              width={72} 
+              height={72}
+              className="rounded-xl"
+            />
+          ) : null}
           
           {/* Name and description on right */}
           <div className="flex-1">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Luna</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{name}</h2>
               <p className="text-sm text-gray-700 mt-0.5">Your creative thinking partner</p>
             </div>
           </div>
@@ -83,7 +90,7 @@ export default function AgentInfoSidebar() {
             {isExpanded.about && (
               <div className="mt-3 space-y-3">
                 <p className="text-[13px] text-gray-600 leading-relaxed">
-                  Hi there! I&apos;m Luna, your friendly AI companion. I love helping with creative projects, 
+                  Hi there! I&apos;m {name}, your friendly AI companion. I love helping with creative projects, 
                   brainstorming wild ideas, and turning thoughts into reality. Think of me as your enthusiastic 
                   collaborator who&apos;s always excited to explore new possibilities with you! 🌟
                 </p>

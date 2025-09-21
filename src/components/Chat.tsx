@@ -25,6 +25,7 @@ interface ChatProps {
   className?: string;
   systemPrompt?: string;
   model?: string;
+  avatarUrl?: string; // optional avatar URL like /avatar/filename.png
 }
 
 export default function Chat({ className, systemPrompt, model }: ChatProps) {
