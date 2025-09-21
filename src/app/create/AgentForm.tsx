@@ -14,9 +14,10 @@ function slugify(value: string): string {
 
 interface AgentFormProps {
   model?: string;
+  avatar?: string; // filename from /public/avatar
 }
 
-export function AgentForm({ model }: AgentFormProps) {
+export function AgentForm({ model, avatar }: AgentFormProps) {
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [isTagEdited, setIsTagEdited] = useState(false);
@@ -36,6 +37,7 @@ export function AgentForm({ model }: AgentFormProps) {
       name: name.trim(),
       systemPrompt: systemPrompt.trim(),
       model,
+      avatar,
     });
     if (res?.ok) {
       // rely on server redirect pattern in RSC layer

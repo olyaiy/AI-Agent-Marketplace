@@ -1,12 +1,31 @@
 import { fetchGatewayLanguageModels } from '@/lib/gateway-models';
 import { CreateAgentClient } from './CreateAgentClient';
+import { readdir } from 'node:fs/promises';
+import path from 'node:path';
+
+async function readAvatarUrls(): Promise<string[]> {
+  const folder = path.join(process.cwd(), 'public', 'avatar');
+  try {
+    const entries = await readdir(folder, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .filter((name) => /\.(png|jpe?g|webp|gif)$/i.test(name))
+      .map((name) => `/avatar/${name}`);
+  } catch {
+    return [];
+  }
+}
 
 export default async function CreateAgentPage() {
-  const models = await fetchGatewayLanguageModels();
+  const [models, avatars] = await Promise.all([
+    fetchGatewayLanguageModels(),
+    readAvatarUrls(),
+  ]);
   return (
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl mb-4">Create Agent</h1>
-      <CreateAgentClient models={models} />
+      <CreateAgentClient models={models} avatars={avatars} />
     </div>
   );
 }

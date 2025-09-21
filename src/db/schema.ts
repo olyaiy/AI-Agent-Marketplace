@@ -5,4 +5,5 @@ export const agent = pgTable('agent', {
   name: text('name').notNull(),
   systemPrompt: text('system_prompt').notNull(),
   model: varchar('model', { length: 128 }).notNull().default('openai/gpt-5-mini'),
+  avatar: varchar('avatar', { length: 256 }),
 });

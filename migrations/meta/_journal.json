@@ -50,6 +50,13 @@
       "when": 1758319564327,
       "tag": "0006_fancy_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1758326691932,
+      "tag": "0007_stale_christian_walker",
+      "breakpoints": true
     }
   ]
 }
