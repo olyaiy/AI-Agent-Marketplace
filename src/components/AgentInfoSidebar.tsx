@@ -35,7 +35,7 @@ export default function AgentInfoSidebar({ name, avatarUrl }: AgentInfoSidebarPr
   return (
     <div className="w-full h-full bg-white rounded-xl   border-gray-200 flex flex-col overflow-hidden">
       {/* Header with Avatar and Info */}
-      <div className="bg-rose-200 px-5 py-5 rounded-xl ">
+      <div className="bg-white border border-rose-200 px-5 py-5 rounded-xl ">
         <div className="flex items-center gap-4">
           {/* Avatar on left */}
           {avatarUrl ? (

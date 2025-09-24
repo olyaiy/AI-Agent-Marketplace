@@ -1,59 +1,61 @@
-import Link from 'next/link';
-import Image from 'next/image';
-import { listAgents } from '@/actions/agents';
+// src/app/page.tsx
+// Main home page component for the AI Agents application
+// This is the root page that displays a list of all available AI agents
 
+import Link from 'next/link';
+import { listAgents } from '@/actions/agents';
+import { AgentGrid } from '@/components/AgentGrid';
+import { HeroCards } from '@/components/HeroCards';
+
+/**
+ * Home page component that serves as the main entry point for the application
+ * Displays a header with title and "Create Agent" button, followed by the agents list
+ * This is a server component that renders the AgentsList server component
+ */
 export default function Home() {
   return (
-    <main className="h-full px-4">
-      <div className="h-full mx-auto max-w-2xl py-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl">Agents</h1>
-          <Link href="/create" className="border px-3 py-1.5 text-sm rounded-md hover:bg-gray-50 transition-colors">Create Agent</Link>
+    // Main container with minimum full screen height and horizontal padding
+    <main className="min-h-screen  px-4">
+      {/* Content wrapper with max-width and vertical spacing */}
+      <div className="mx-auto max-w-5xl py-8">
+        {/* Header section with title and create button */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            {/* Main page title */}
+            <h1 className="text-3xl font-semibold text-gray-900">Agents</h1>
+            {/* Subtitle describing the page purpose */}
+            <p className="text-gray-600 mt-1">Discover and manage your AI agents</p>
+          </div>
+          {/* Navigation link to create new agent page */}
+          <Link 
+            href="/create" 
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm"
+          >
+            Create Agent
+          </Link>
         </div>
+        
+        {/* Hero Cards Section */}
+        <HeroCards />
+        
         {/* Server Component: fetch and render agents */}
+        {/* This component handles data fetching on the server side */}
         <AgentsList />
       </div>
     </main>
   );
 }
 
+/**
+ * Server component responsible for fetching and displaying the list of agents
+ * This component runs on the server and handles the async data fetching
+ * It calls the listAgents action to get all agents from the database
+ * and passes them to the AgentGrid component for rendering
+ */
 async function AgentsList() {
+  // Fetch all agents from the database using the server action
   const agents = await listAgents();
-  if (!agents.length) {
-    return <p className="text-sm text-gray-500">No agents yet. Create one at /create.</p>;
-  }
-  return (
-    <ul className="flex flex-col gap-2">
-      {agents.map((a) => (
-        <li key={a.tag} className="border p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {a.avatar ? (
-                <Image
-                  src={`/avatar/${a.avatar}`}
-                  alt={`${a.name} avatar`}
-                  width={40}
-                  height={40}
-                  className="rounded-md"
-                  quality={90}
-                />
-              ) : null}
-              <div>
-                <div className="font-medium">{a.name}</div>
-                <div className="text-xs text-gray-500">{a.tag}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href={`/agent/${encodeURIComponent(a.tag.replace(/^@/, ''))}`} className="underline text-sm">
-                Open
-              </Link>
-              <Link href={`/edit/${encodeURIComponent(a.tag.replace(/^@/, ''))}`} className="underline text-sm">
-                Edit
-              </Link>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
+  
+  // Render the AgentGrid component with the fetched agents
+  return <AgentGrid agents={agents} />;
 }
