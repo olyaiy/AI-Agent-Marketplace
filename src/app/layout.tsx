@@ -2,8 +2,9 @@ import "./globals.css";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
-import { AccountNavActions } from "@/components/AccountNavActions";
+
 import { auth } from "@/lib/auth";
+import { AccountNavActions } from "@/components/AccountNavActions";
 
 const inter = Inter({
   subsets: ["latin"],

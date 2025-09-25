@@ -8,6 +8,6 @@ import { auth } from '@/lib/auth';
 export async function signOutAction(): Promise<void> {
   const headerList = await headers();
   await auth.api.signOut({ headers: headerList }).catch(() => null);
-  redirect('/sign-in');
+  redirect('/');
 }
 
