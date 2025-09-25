@@ -15,9 +15,10 @@ function slugify(value: string): string {
 interface AgentFormProps {
   model?: string;
   avatar?: string; // filename from /public/avatar
+  onSystemPromptChange?: (systemPrompt: string) => void;
 }
 
-export function AgentForm({ model, avatar }: AgentFormProps) {
+export function AgentForm({ model, avatar, onSystemPromptChange }: AgentFormProps) {
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [isTagEdited, setIsTagEdited] = useState(false);
@@ -66,7 +67,16 @@ export function AgentForm({ model, avatar }: AgentFormProps) {
       </label>
       <label className="flex flex-col gap-1">
         <span>System prompt</span>
-        <textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={8} className="border p-2" />
+        <textarea
+          value={systemPrompt}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSystemPrompt(value);
+            onSystemPromptChange && onSystemPromptChange(value);
+          }}
+          rows={8}
+          className="border p-2"
+        />
       </label>
       <button type="submit" className="border p-2">Create</button>
     </form>

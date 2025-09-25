@@ -9,9 +9,10 @@ import { authClient } from '@/lib/auth-client';
 
 interface AccountNavActionsProps {
   userEmail?: string | null;
+  callbackURL?: string;
 }
 
-export function AccountNavActions({ userEmail }: AccountNavActionsProps) {
+export function AccountNavActions({ userEmail, callbackURL }: AccountNavActionsProps) {
   const [isPending, startTransition] = useTransition();
 
   if (!userEmail) {
@@ -21,7 +22,7 @@ export function AccountNavActions({ userEmail }: AccountNavActionsProps) {
         className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition hover:bg-white"
         onClick={() => {
           startTransition(async () => {
-            await authClient.signIn.social({ provider: 'google', callbackURL: '/' });
+            await authClient.signIn.social({ provider: 'google', callbackURL: callbackURL ?? '/' });
           });
         }}
       >

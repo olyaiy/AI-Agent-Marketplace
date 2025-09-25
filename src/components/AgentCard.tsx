@@ -7,20 +7,28 @@ interface AgentCardProps {
   name: string;
   avatar?: string | null;
   systemPrompt: string;
+  tagline?: string | null;
 }
 
-export function AgentCard({ tag, name, avatar, systemPrompt }: AgentCardProps) {
+export function AgentCard({ tag, name, avatar, systemPrompt, tagline }: AgentCardProps) {
   const agentId = encodeURIComponent(tag.replace(/^@/, ''));
 
   return (
     <div className="relative group h-full overflow-hidden border-black">
       <Card className="h-44 overflow-hidden hover:shadow-md transition-all duration-200 border-grey-200   hover:border-gray-900 bg-white p-4 relative">
         <div className="flex flex-col h-full justify-between">
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-1 truncate">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-gray-900 text-base truncate">
               {name}
             </h3>
-            <p className="text-xs text-gray-500">
+            {tagline && (
+              <p className="text-sm text-gray-600 line-clamp-2 leading-tight">
+                {tagline}
+              </p>
+            )}
+          </div>
+          <div className="mt-auto">
+            <p className="text-xs text-gray-500 font-mono">
               {tag}
             </p>
           </div>

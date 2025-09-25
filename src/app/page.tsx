@@ -26,7 +26,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
             {/* Main page title */}
             <h1 className="text-3xl font-semibold text-gray-900">Agents</h1>
             {/* Subtitle describing the page purpose */}
-            <p className="text-gray-600 mt-1">Discover and manage your AI agents</p>
+            <p className="text-gray-600 mt-1">Discover and create your AI agents</p>
           </div>
           {/* Search bar */}
           <AgentSearch className="w-80" />

@@ -58,7 +58,7 @@ export function HeroCards() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600 text-xs leading-relaxed">
+          <p className="text-gray-600 text-xs leading-relaxed w-[60%]">
             Make money from your agents by sharing them with others or offering premium features.
           </p>
         </CardContent>

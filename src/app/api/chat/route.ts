@@ -1,4 +1,5 @@
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import { auth } from '@/lib/auth';
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
@@ -19,6 +20,14 @@ export async function POST(req: Request) {
   }
   
   const modelId = normalizeModelId(bodyModel ?? qpModel) ?? 'openai/gpt-5-nano';
+
+  const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
+  if (!session?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
   const result = streamText({
     model: modelId,

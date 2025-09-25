@@ -6,7 +6,7 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from '@/components/ai-elements/prompt-input';
-import { useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useChat } from '@ai-sdk/react';
 import {
   Conversation,
@@ -21,6 +21,11 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from '@/components/ai-elements/reasoning';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import Image from 'next/image';
+import { authClient } from '@/lib/auth-client';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 interface ChatProps {
   className?: string;
@@ -28,24 +33,108 @@ interface ChatProps {
   model?: string;
   avatarUrl?: string; // optional avatar URL like /avatar/filename.png
   getChatContext?: () => { systemPrompt?: string; model?: string } | null;
+  isAuthenticated?: boolean;
 }
 
-const Chat = React.memo(function Chat({ className, systemPrompt, model, getChatContext }: ChatProps) {
+const Chat = React.memo(function Chat({
+  className,
+  systemPrompt,
+  model,
+  getChatContext,
+  isAuthenticated = false,
+}: ChatProps) {
   const [text, setText] = useState<string>('');
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+  const [isSignInPending, startSignInTransition] = useTransition();
   const { messages, status, sendMessage } = useChat();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const searchString = useMemo(() => searchParams?.toString() ?? '', [searchParams]);
+
+  const draftKey = useMemo(() => {
+    if (!pathname) return null;
+    return searchString ? `chat-draft:${pathname}?${searchString}` : `chat-draft:${pathname}`;
+  }, [pathname, searchString]);
+
+  useEffect(() => {
+    if (!draftKey || typeof window === 'undefined') return;
+    const storedDraft = window.sessionStorage.getItem(draftKey);
+    if (storedDraft && !text) {
+      setText(storedDraft);
+    }
+  }, [draftKey, text]);
+
+  useEffect(() => {
+    if (!draftKey || typeof window === 'undefined') return;
+    if (text) {
+      window.sessionStorage.setItem(draftKey, text);
+    } else {
+      window.sessionStorage.removeItem(draftKey);
+    }
+  }, [draftKey, text]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setIsDialogOpen(false);
+    }
+  }, [isAuthenticated]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    if (!isAuthenticated) {
+      setIsDialogOpen(true);
+      return;
+    }
+
     const ctx = getChatContext ? getChatContext() || undefined : undefined;
-    sendMessage({ text: text }, { body: { systemPrompt: ctx?.systemPrompt ?? systemPrompt, model: ctx?.model ?? model } });
+    sendMessage({ text: trimmed }, { body: { systemPrompt: ctx?.systemPrompt ?? systemPrompt, model: ctx?.model ?? model } });
     setText('');
+    if (draftKey && typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(draftKey);
+    }
+  };
+
+  const handleSignIn = () => {
+    startSignInTransition(async () => {
+      const redirectUrl = typeof window !== 'undefined' ? window.location.href : pathname ?? '/';
+      await authClient.signIn.social({ provider: 'google', callbackURL: redirectUrl });
+    });
   };
 
   const hasMessages = messages.length > 0;
 
   return (
     <div className={`flex max-w-3xl flex-col h-full ${className || ''}`}>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sign in to continue</DialogTitle>
+            <DialogDescription>
+              You need to sign in with Google before you can send messages to this agent.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={handleSignIn}
+              disabled={isSignInPending}
+            >
+              <Image
+                src="https://www.gstatic.com/images/branding/product/2x/googleg_64dp.png"
+                alt="Google"
+                width={18}
+                height={18}
+              />
+              {isSignInPending ? 'Redirecting…' : 'Sign in with Google'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {hasMessages ? (
         <>
           <Conversation>

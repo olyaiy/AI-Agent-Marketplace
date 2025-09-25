@@ -1,10 +1,9 @@
 import "./globals.css";
-import Link from "next/link";
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 
 import { auth } from "@/lib/auth";
-import { AccountNavActions } from "@/components/AccountNavActions";
+import { Navbar } from "@/components/Navbar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,12 +28,7 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} font-sans antialiased h-screen flex flex-col`}
       >
-        <nav className="h-16 flex items-center justify-between px-6 flex-shrink-0">
-          <Link href="/" className="text-xl font-semibold">
-            AV
-          </Link>
-          <AccountNavActions userEmail={currentUser?.email} />
-        </nav>
+        <Navbar userEmail={currentUser?.email} />
         <div className="flex-1 min-h-0 overflow-y-scroll mb-8 mx-8">
           {children}
         </div>

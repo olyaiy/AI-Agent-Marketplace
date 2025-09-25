@@ -23,7 +23,7 @@ export default async function CreateAgentPage() {
     readAvatarUrls(),
   ]);
   return (
-    <div className="max-w-xl mx-auto p-6">
+    <div className="mx-auto max-w-6xl p-6">
       <h1 className="text-2xl mb-4">Create Agent</h1>
       <CreateAgentClient models={models} avatars={avatars} />
     </div>

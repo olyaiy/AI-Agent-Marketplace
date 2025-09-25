@@ -54,75 +54,44 @@ function LeftForm({
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl mb-4">Edit Agent</h1>
-      <form action={onSave} className="flex flex-col gap-3">
+      <form action={onSave} className="flex flex-col gap-4">
         <input type="hidden" name="id" value={id} />
 
-        <div>
-          <label className="block mb-2">Avatar</label>
-          <EditAvatarClient avatars={avatars} initialAvatar={initialAvatar} />
+        {/* Top: Avatar (left) and Name/Tag (right) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div>
+            <label className="block mb-2">Avatar</label>
+            <EditAvatarClient avatars={avatars} initialAvatar={initialAvatar} />
+          </div>
+          <div className="space-y-3">
+            <label className="flex flex-col gap-1">
+              <span>Agent name</span>
+              <input name="name" defaultValue={initialName} className="border p-2" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span>Tag</span>
+              <input disabled value={tag} className="border p-2 bg-gray-50" />
+            </label>
+          </div>
         </div>
 
-        <div>
-          <label className="block mb-2">Model</label>
-          <EditAgentClient
-            models={models}
-            initialModel={initialModel}
-            onChange={(value) => {
-              sendContextRef.current.model = value;
-            }}
-          />
-        </div>
-
-        <label className="flex flex-col gap-1">
-          <span>Agent name</span>
-          <input name="name" defaultValue={initialName} className="border p-2" />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span>Tag</span>
-          <input disabled value={tag} className="border p-2 bg-gray-50" />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span>Tagline</span>
-          <input
-            name="tagline"
-            defaultValue={initialTagline}
-            onInput={(e) => {
-              const el = e.currentTarget as HTMLInputElement;
-              sendContextRef.current.tagline = el.value;
-            }}
-            className="border p-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span>Description</span>
-          <textarea
-            name="description"
-            defaultValue={initialDescription}
-            onInput={(e) => {
-              const el = e.currentTarget as HTMLTextAreaElement;
-              sendContextRef.current.description = el.value;
-            }}
-            rows={6}
-            className="border p-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span>System prompt</span>
-          <textarea
-            name="systemPrompt"
-            defaultValue={initialSystemPrompt}
-            onInput={(e) => {
-              const el = e.currentTarget as HTMLTextAreaElement;
-              sendContextRef.current.systemPrompt = el.value;
-            }}
-            rows={8}
-            className="border p-2"
-          />
-        </label>
+        {/* Model + Tabs (Behaviour / Details) */}
+        <EditAgentClient
+          models={models}
+          initialModel={initialModel}
+          initialSystemPrompt={initialSystemPrompt}
+          initialTagline={initialTagline}
+          initialDescription={initialDescription}
+          onChange={(value) => {
+            sendContextRef.current.model = value;
+          }}
+          onContextChange={(u) => {
+            if (u.model !== undefined) sendContextRef.current.model = u.model;
+            if (u.systemPrompt !== undefined) sendContextRef.current.systemPrompt = u.systemPrompt;
+            if (u.tagline !== undefined) sendContextRef.current.tagline = u.tagline;
+            if (u.description !== undefined) sendContextRef.current.description = u.description;
+          }}
+        />
 
         <div className="flex items-center gap-3">
           <button type="submit" className="border p-2">Save</button>
