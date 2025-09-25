@@ -32,7 +32,7 @@ export function AgentCard({ tag, name, avatar, systemPrompt }: AgentCardProps) {
             alt={`${name} avatar`}
             width={90}
             height={90}
-            className="absolute bottom-0 right-0 rounded-lg scale-x-[-1] -mr-4 -mb-4 group-hover:scale-y-110 group-hover:-scale-x-110 group-hover:scale-y-110 transition-transform duration-200"
+            className="absolute bottom-0 right-0 rounded-lg scale-x-[-1] -mr-2 -mb-4 group-hover:scale-y-110 group-hover:-scale-x-110 group-hover:scale-y-110 transition-transform duration-200"
             quality={90}
           />
         )}

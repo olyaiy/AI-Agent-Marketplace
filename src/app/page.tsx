@@ -2,14 +2,15 @@
 // Main home page component for the AI Agents application
 // This is the root page that displays a list of all available AI agents
 
-import Link from 'next/link';
 import { listAgents } from '@/actions/agents';
 import { AgentGrid } from '@/components/AgentGrid';
 import { HeroCards } from '@/components/HeroCards';
+import { Input } from '@/components/ui/input';
+import { SearchIcon } from 'lucide-react';
 
 /**
  * Home page component that serves as the main entry point for the application
- * Displays a header with title and "Create Agent" button, followed by the agents list
+ * Displays a header with title and search bar, followed by the agents list
  * This is a server component that renders the AgentsList server component
  */
 export default function Home() {
@@ -18,7 +19,7 @@ export default function Home() {
     <main className="min-h-screen  px-4">
       {/* Content wrapper with max-width and vertical spacing */}
       <div className="mx-auto max-w-5xl py-8">
-        {/* Header section with title and create button */}
+        {/* Header section with title and search bar */}
         <div className="mb-8 flex items-center justify-between">
           <div>
             {/* Main page title */}
@@ -26,13 +27,15 @@ export default function Home() {
             {/* Subtitle describing the page purpose */}
             <p className="text-gray-600 mt-1">Discover and manage your AI agents</p>
           </div>
-          {/* Navigation link to create new agent page */}
-          <Link 
-            href="/create" 
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm"
-          >
-            Create Agent
-          </Link>
+          {/* Search bar */}
+          <div className="relative w-80">
+            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search agents..."
+              className="pl-9 pr-4 w-full"
+            />
+          </div>
         </div>
         
         {/* Hero Cards Section */}
