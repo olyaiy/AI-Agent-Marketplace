@@ -2,7 +2,7 @@
 
 import { db } from '@/db/drizzle';
 import { agent } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, ilike, or } from 'drizzle-orm';
 
 export interface CreateAgentInput {
   tag: string;
@@ -32,8 +32,21 @@ export async function getAgentByTag(tag: string) {
   return rows[0] ?? null;
 }
 
-export async function listAgents() {
-  return db.select().from(agent);
+export async function listAgents(query?: string) {
+  const trimmed = typeof query === 'string' ? query.trim() : '';
+  if (!trimmed) return db.select().from(agent);
+
+  const pattern = `%${trimmed}%`;
+  return db
+    .select()
+    .from(agent)
+    .where(
+      or(
+        ilike(agent.name, pattern),
+        ilike(agent.tag, pattern),
+        ilike(agent.systemPrompt, pattern)
+      )
+    );
 }
 
 export interface UpdateAgentInput {
