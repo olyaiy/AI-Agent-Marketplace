@@ -7,9 +7,10 @@ import type { ModelOption } from "@/components/ModelSelect";
 interface Props {
   models: ModelOption[];
   initialModel: string | undefined;
+  onChange?: (model: string | undefined) => void;
 }
 
-export function EditAgentClient({ models, initialModel }: Props) {
+export function EditAgentClient({ models, initialModel, onChange }: Props) {
   // incoming model may be provider/model-id, convert to provider:model-id for ModelSelect value
   const initialComposite = React.useMemo(() => {
     if (!initialModel) return undefined;
@@ -29,6 +30,10 @@ export function EditAgentClient({ models, initialModel }: Props) {
     if (!provider || !modelId) return initialModel;
     return `${provider}/${modelId}`;
   }, [composite, initialModel]);
+
+  React.useEffect(() => {
+    if (onChange) onChange(persistedModel || undefined);
+  }, [persistedModel, onChange]);
 
   return (
     <div className="space-y-2">
