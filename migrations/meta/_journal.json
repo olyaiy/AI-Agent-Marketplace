@@ -64,6 +64,13 @@
       "when": 1758772317858,
       "tag": "0008_lumpy_bloodaxe",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1758773832012,
+      "tag": "0009_daffy_smasher",
+      "breakpoints": true
     }
   ]
 }
