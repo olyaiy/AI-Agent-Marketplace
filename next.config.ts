@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "models.dev",
       },
+      {
+        protocol: "https",
+        hostname: "img.logo.dev",
+      },
+      {
+        protocol: "https",
+        hostname: "www.gstatic.com",
+      },
     ],
   },
 };

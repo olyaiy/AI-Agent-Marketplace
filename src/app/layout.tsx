@@ -1,7 +1,9 @@
 import "./globals.css";
 import Link from "next/link";
-
+import { headers } from "next/headers";
 import { Inter } from "next/font/google";
+import { AccountNavActions } from "@/components/AccountNavActions";
+import { auth } from "@/lib/auth";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -9,24 +11,29 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-
-
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headerList = await headers();
+  const session = await auth.api
+    .getSession({ headers: headerList })
+    .catch(() => null);
+
+  const currentUser = session?.user ?? null;
+
   return (
     <html lang="en">
       <body
         className={`${inter.variable} font-sans antialiased h-screen flex flex-col`}
       >
-        <nav className="h-16 flex items-center px-6 flex-shrink-0">
+        <nav className="h-16 flex items-center justify-between px-6 flex-shrink-0">
           <Link href="/" className="text-xl font-semibold">
             AV
           </Link>
+          <AccountNavActions userEmail={currentUser?.email} />
         </nav>
-        
         <div className="flex-1 min-h-0 overflow-y-scroll mb-8 mx-8">
           {children}
         </div>
