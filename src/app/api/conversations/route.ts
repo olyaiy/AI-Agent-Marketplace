@@ -12,11 +12,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const {
-    agentTag,
-    systemPrompt,
-    model,
-  }: { agentTag: string; systemPrompt?: string; model?: string } = await req.json().catch(() => ({ agentTag: 'unknown' } as any));
+  const { agentTag, model }: { agentTag: string; model?: string } = await req.json().catch(() => ({ agentTag: 'unknown' } as any));
 
   if (!agentTag || typeof agentTag !== 'string') {
     return new Response(JSON.stringify({ error: 'agentTag is required' }), {
@@ -31,7 +27,6 @@ export async function POST(req: Request) {
     id,
     userId: session.user.id,
     agentTag,
-    systemPrompt,
     modelId: (model && String(model)) || 'openai/gpt-5-nano',
   });
 

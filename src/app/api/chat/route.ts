@@ -50,7 +50,6 @@ export async function POST(req: Request) {
         id: ensuredConversationId,
         userId: session.user.id,
         agentTag: agentTag || 'unknown',
-        systemPrompt: systemPrompt,
         modelId,
       });
     } catch {

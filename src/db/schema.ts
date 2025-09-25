@@ -92,7 +92,6 @@ export const conversation = pgTable('conversation', {
     .notNull()
     .references(() => agent.tag, { onDelete: 'restrict' }),
   title: text('title'),
-  systemPrompt: text('system_prompt_snapshot'),
   modelId: varchar('model_id', { length: 128 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

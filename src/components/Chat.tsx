@@ -123,7 +123,7 @@ const Chat = React.memo(function Chat({
         const res = await fetch('/api/conversations', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ agentTag, systemPrompt, model }),
+          body: JSON.stringify({ agentTag, model }),
         });
         if (res.ok) {
           const data = (await res.json()) as { id: string };
