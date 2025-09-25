@@ -1,11 +1,23 @@
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
 import { auth } from '@/lib/auth';
+import { db } from '@/db/drizzle';
+import { conversation, message } from '@/db/schema';
+import { sql } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const qpSystem = url.searchParams.get('systemPrompt') || undefined;
   const qpModel = url.searchParams.get('model') || undefined;
-  const { messages, systemPrompt: bodySystem, model: bodyModel }: { messages: UIMessage[]; systemPrompt?: string; model?: string } = await req.json().catch(() => ({ messages: [], systemPrompt: undefined, model: undefined }));
+  const {
+    messages,
+    systemPrompt: bodySystem,
+    model: bodyModel,
+    conversationId: bodyConversationId,
+    agentTag,
+  }: { messages: UIMessage[]; systemPrompt?: string; model?: string; conversationId?: string; agentTag?: string } = await req
+    .json()
+    .catch(() => ({ messages: [], systemPrompt: undefined, model: undefined }));
   const systemPrompt = bodySystem ?? qpSystem;
   
   function normalizeModelId(input?: string | null): string | undefined {
@@ -29,6 +41,66 @@ export async function POST(req: Request) {
     });
   }
 
+  // Ensure conversation exists or create one on-demand
+  let ensuredConversationId = bodyConversationId;
+  if (!ensuredConversationId) {
+    ensuredConversationId = randomUUID();
+    try {
+      await db.insert(conversation).values({
+        id: ensuredConversationId,
+        userId: session.user.id,
+        agentTag: agentTag || 'unknown',
+        systemPrompt: systemPrompt,
+        modelId,
+      });
+    } catch {
+      // noop
+    }
+  } else {
+    // Optional: assert ownership using raw SQL where due to typed helpers not imported
+    const existing = await db
+      .select({ id: conversation.id })
+      .from(conversation)
+      .where(sql`${conversation.id} = ${ensuredConversationId} AND ${conversation.userId} = ${session.user.id}`)
+      .limit(1);
+    if (existing.length === 0) {
+      return new Response(JSON.stringify({ error: 'Conversation not found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+  }
+
+  // Persist the latest user message idempotently (if present)
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (lastUser) {
+    const textPreview = (lastUser.parts as Array<{ type: string; text?: string }>)
+      .filter((p) => p.type === 'text' && typeof p.text === 'string')
+      .map((p) => p.text as string)
+      .join(' ')
+      .slice(0, 280);
+    try {
+      await db
+        .insert(message)
+        .values({
+          id: lastUser.id,
+          conversationId: ensuredConversationId!,
+          role: 'user',
+          uiParts: lastUser.parts as unknown as any,
+          textPreview,
+          hasToolCalls: false,
+        })
+        .onConflictDoNothing();
+      // Update conversation timestamps
+      await db
+        .update(conversation)
+        .set({ updatedAt: new Date(), lastMessageAt: new Date() })
+        .where(sql`${conversation.id} = ${ensuredConversationId!}`);
+    } catch {
+      // ignore duplicate insert errors
+    }
+  }
+
   const result = streamText({
     model: modelId,
     providerOptions: {
@@ -43,7 +115,10 @@ export async function POST(req: Request) {
 
   console.log(`[Chat] Using model: ${modelId}`);
 
-  return result.toUIMessageStreamResponse({
+  // Attach conversation id header so clients can capture it if they didn't have one
+  const response = result.toUIMessageStreamResponse({
     sendReasoning: true,
   });
+  response.headers.set('x-conversation-id', ensuredConversationId!);
+  return response;
 }

@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const agent = pgTable('agent', {
@@ -79,5 +79,56 @@ export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
     references: [user.id],
+  }),
+}));
+
+// Conversations
+export const conversation = pgTable('conversation', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  agentTag: varchar('agent_tag', { length: 64 })
+    .notNull()
+    .references(() => agent.tag, { onDelete: 'restrict' }),
+  title: text('title'),
+  systemPrompt: text('system_prompt_snapshot'),
+  modelId: varchar('model_id', { length: 128 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  lastMessageAt: timestamp('last_message_at'),
+  archivedAt: timestamp('archived_at'),
+});
+
+// Messages (persist UIMessage parts as canonical)
+export const message = pgTable('message', {
+  id: text('id').primaryKey(),
+  conversationId: text('conversation_id')
+    .notNull()
+    .references(() => conversation.id, { onDelete: 'cascade' }),
+  role: varchar('role', { length: 16 }).notNull(), // 'user' | 'assistant' | 'system'
+  uiParts: jsonb('ui_parts').notNull(), // Array<UIMessagePart>
+  textPreview: text('text_preview'),
+  hasToolCalls: boolean('has_tool_calls').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Relations
+export const conversationRelations = relations(conversation, ({ one, many }) => ({
+  user: one(user, {
+    fields: [conversation.userId],
+    references: [user.id],
+  }),
+  agent: one(agent, {
+    fields: [conversation.agentTag],
+    references: [agent.tag],
+  }),
+  messages: many(message),
+}));
+
+export const messageRelations = relations(message, ({ one }) => ({
+  conversation: one(conversation, {
+    fields: [message.conversationId],
+    references: [conversation.id],
   }),
 }));

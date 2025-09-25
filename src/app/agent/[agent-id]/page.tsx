@@ -22,7 +22,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
           <AgentInfoSidebar name={found.name} avatarUrl={found.avatar ? `/avatar/${found.avatar}` : undefined} tagline={found.tagline} description={found.description} />
         </div>
         <div className="flex-1 max-w-3/4 items-center justify-center r-auto ">
-          <Chat className=' mx-auto' systemPrompt={found.systemPrompt} model={found.model} avatarUrl={found.avatar ? `/avatar/${found.avatar}` : undefined} isAuthenticated={isAuthenticated} />
+          <Chat className=' mx-auto' systemPrompt={found.systemPrompt} model={found.model} avatarUrl={found.avatar ? `/avatar/${found.avatar}` : undefined} isAuthenticated={isAuthenticated} agentTag={found.tag} />
         </div>
       </div>
     </main>

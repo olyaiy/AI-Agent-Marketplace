@@ -34,6 +34,8 @@ interface ChatProps {
   avatarUrl?: string; // optional avatar URL like /avatar/filename.png
   getChatContext?: () => { systemPrompt?: string; model?: string } | null;
   isAuthenticated?: boolean;
+  agentTag?: string;
+  initialConversationId?: string;
 }
 
 const Chat = React.memo(function Chat({
@@ -42,11 +44,27 @@ const Chat = React.memo(function Chat({
   model,
   getChatContext,
   isAuthenticated = false,
+  agentTag,
+  initialConversationId,
 }: ChatProps) {
   const [text, setText] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isSignInPending, startSignInTransition] = useTransition();
-  const { messages, status, sendMessage } = useChat();
+  const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
+  const { messages, status, sendMessage } = useChat({
+    onFinish: async ({ message }) => {
+      try {
+        if (!conversationId || message.role !== 'assistant') return;
+        await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ conversationId, message }),
+        });
+      } catch {
+        // ignore
+      }
+    },
+  });
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -80,7 +98,7 @@ const Chat = React.memo(function Chat({
     }
   }, [isAuthenticated]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -90,8 +108,35 @@ const Chat = React.memo(function Chat({
       return;
     }
 
+    // Ensure conversation exists before sending first message if agentTag is known
+    if (!conversationId && agentTag) {
+      try {
+        const res = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ agentTag, systemPrompt, model }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { id: string };
+          setConversationId(data.id);
+        }
+      } catch {
+        // ignore and continue; server will still create on-demand
+      }
+    }
+
     const ctx = getChatContext ? getChatContext() || undefined : undefined;
-    sendMessage({ text: trimmed }, { body: { systemPrompt: ctx?.systemPrompt ?? systemPrompt, model: ctx?.model ?? model } });
+    sendMessage(
+      { text: trimmed },
+      {
+        body: {
+          systemPrompt: ctx?.systemPrompt ?? systemPrompt,
+          model: ctx?.model ?? model,
+          conversationId: conversationId,
+          agentTag,
+        },
+      }
+    );
     setText('');
     if (draftKey && typeof window !== 'undefined') {
       window.sessionStorage.removeItem(draftKey);
