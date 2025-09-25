@@ -10,7 +10,7 @@ interface Props {
   onChange?: (model: string | undefined) => void;
 }
 
-export function EditAgentClient({ models, initialModel, onChange }: Props) {
+export const EditAgentClient = React.memo(function EditAgentClient({ models, initialModel, onChange }: Props) {
   // incoming model may be provider/model-id, convert to provider:model-id for ModelSelect value
   const initialComposite = React.useMemo(() => {
     if (!initialModel) return undefined;
@@ -41,6 +41,6 @@ export function EditAgentClient({ models, initialModel, onChange }: Props) {
       <input type="hidden" name="model" value={persistedModel || ""} />
     </div>
   );
-}
+});
 
 

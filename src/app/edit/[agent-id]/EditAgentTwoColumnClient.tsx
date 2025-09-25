@@ -5,7 +5,6 @@ import Chat from "@/components/Chat";
 import { EditAgentClient } from "./EditAgentClient";
 import { EditAvatarClient } from "./EditAvatarClient";
 import type { ModelOption } from "@/components/ModelSelect";
-import { LiveEditProvider, useLiveEdit } from "./LiveEditProvider";
 
 interface ServerAction {
   (formData: FormData): Promise<void>;
@@ -24,6 +23,15 @@ interface Props {
   onDelete: ServerAction;
 }
 
+interface SendContext {
+  model?: string;
+  systemPrompt?: string;
+}
+
+interface LeftFormProps extends Props {
+  sendContextRef: React.MutableRefObject<SendContext>;
+}
+
 function LeftForm({
   id,
   tag,
@@ -35,32 +43,8 @@ function LeftForm({
   avatars,
   onSave,
   onDelete,
-}: Props) {
-  const { model, systemPrompt, setModel, setSystemPrompt } = useLiveEdit();
-  const [systemPromptDraft, setSystemPromptDraft] = React.useState<string>(initialSystemPrompt || "");
-
-  React.useEffect(() => {
-    // initialize context on mount
-    if (initialModel && !model) setModel(initialModel);
-    if (initialSystemPrompt && !systemPrompt) setSystemPrompt(initialSystemPrompt);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // keep local draft in sync if context changes externally (e.g., initial load)
-  React.useEffect(() => {
-    // only update draft if it differs to avoid cursor jumps
-    if ((systemPrompt || "") !== systemPromptDraft) {
-      setSystemPromptDraft(systemPrompt || "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [systemPrompt]);
-
-  // debounce pushing draft to context so Chat doesn't re-render on every keystroke
-  React.useEffect(() => {
-    const id = setTimeout(() => setSystemPrompt(systemPromptDraft), 300);
-    return () => clearTimeout(id);
-  }, [systemPromptDraft, setSystemPrompt]);
-
+  sendContextRef,
+}: LeftFormProps) {
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl mb-4">Edit Agent</h1>
@@ -74,7 +58,13 @@ function LeftForm({
 
         <div>
           <label className="block mb-2">Model</label>
-          <EditAgentClient models={models} initialModel={initialModel} onChange={setModel} />
+          <EditAgentClient
+            models={models}
+            initialModel={initialModel}
+            onChange={(value) => {
+              sendContextRef.current.model = value;
+            }}
+          />
         </div>
 
         <label className="flex flex-col gap-1">
@@ -91,8 +81,11 @@ function LeftForm({
           <span>System prompt</span>
           <textarea
             name="systemPrompt"
-            value={systemPromptDraft}
-            onChange={(e) => setSystemPromptDraft(e.target.value)}
+            defaultValue={initialSystemPrompt}
+            onInput={(e) => {
+              const el = e.currentTarget as HTMLTextAreaElement;
+              sendContextRef.current.systemPrompt = el.value;
+            }}
             rows={8}
             className="border p-2"
           />
@@ -108,20 +101,22 @@ function LeftForm({
 }
 
 export default function EditAgentTwoColumnClient(props: Props) {
-  return (
-    <LiveEditProvider initialModel={props.initialModel} initialSystemPrompt={props.initialSystemPrompt}>
-      <TwoColumn {...props} />
-    </LiveEditProvider>
-  );
+  return <TwoColumn {...props} />;
 }
 
 function TwoColumn(props: Props) {
-  const { model, systemPrompt } = useLiveEdit();
+  const sendContextRef = React.useRef<SendContext>({
+    model: props.initialModel,
+    systemPrompt: props.initialSystemPrompt,
+  });
+
+  const getChatContext = React.useCallback(() => sendContextRef.current, []);
+
   return (
     <div className="mx-auto p-6 h-full grid grid-cols-1 gap-6 lg:grid-cols-2 max-w-6xl">
-      <LeftForm {...props} />
+      <LeftForm {...props} sendContextRef={sendContextRef} />
       <div className="min-h-[60vh] h-full border rounded-md p-2">
-        <Chat className="h-full" systemPrompt={systemPrompt} model={model} />
+        <Chat className="h-full" getChatContext={getChatContext} />
       </div>
     </div>
   );

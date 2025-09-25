@@ -27,17 +27,18 @@ interface ChatProps {
   systemPrompt?: string;
   model?: string;
   avatarUrl?: string; // optional avatar URL like /avatar/filename.png
+  getChatContext?: () => { systemPrompt?: string; model?: string } | null;
 }
 
-const Chat = React.memo(function Chat({ className, systemPrompt, model }: ChatProps) {
+const Chat = React.memo(function Chat({ className, systemPrompt, model, getChatContext }: ChatProps) {
   const [text, setText] = useState<string>('');
   const { messages, status, sendMessage } = useChat();
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!text.trim()) return;
-    
-    sendMessage({ text: text }, { body: { systemPrompt, model } });
+    const ctx = getChatContext ? getChatContext() || undefined : undefined;
+    sendMessage({ text: text }, { body: { systemPrompt: ctx?.systemPrompt ?? systemPrompt, model: ctx?.model ?? model } });
     setText('');
   };
 

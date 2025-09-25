@@ -8,7 +8,7 @@ interface Props {
   initialAvatar?: string; // filename only
 }
 
-export function EditAvatarClient({ avatars, initialAvatar }: Props) {
+export const EditAvatarClient = React.memo(function EditAvatarClient({ avatars, initialAvatar }: Props) {
   const initialUrl = React.useMemo(() => (initialAvatar ? `/avatar/${initialAvatar}` : undefined), [initialAvatar]);
   const [selectedUrl, setSelectedUrl] = React.useState<string | undefined>(initialUrl);
 
@@ -24,6 +24,6 @@ export function EditAvatarClient({ avatars, initialAvatar }: Props) {
       <input type="hidden" name="avatar" value={selectedFileName} />
     </div>
   );
-}
+});
 
 

@@ -47,15 +47,15 @@ export async function fetchGatewayLanguageModels(): Promise<ModelOption[]> {
     // Detailed console output for debugging model metadata
     try {
       const count = models.length;
-      console.log(`[Gateway] Discovered ${count} model(s)`);
+      // console.log(`[Gateway] Discovered ${count} model(s)`);
       for (const model of models) {
-        console.log(`• ${model.id}${model.name ? ` — ${model.name}` : ""}${model.modelType ? ` [${model.modelType}]` : ""}`);
-        if (model.description) console.log(`  Description: ${model.description}`);
+        // console.log(`• ${model.id}${model.name ? ` — ${model.name}` : ""}${model.modelType ? ` [${model.modelType}]` : ""}`);
+        if (model.description) // console.log(`  Description: ${model.description}`);
         if (model.pricing) {
-          console.log(`  Pricing: ${safeStringify(model.pricing)}`);
+          // console.log(`  Pricing: ${safeStringify(model.pricing)}`);
         }
         if (model.specification) {
-          console.log(`  Specification: ${safeStringify(model.specification)}`);
+          // console.log(`  Specification: ${safeStringify(model.specification)}`);
         }
       }
     } catch {}
