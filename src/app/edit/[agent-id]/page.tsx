@@ -12,8 +12,10 @@ async function saveAction(formData: FormData) {
   const systemPrompt = (formData.get('systemPrompt') as string)?.trim();
   const model = (formData.get('model') as string | undefined)?.trim();
   const avatar = (formData.get('avatar') as string | undefined)?.trim();
+  const tagline = (formData.get('tagline') as string | undefined)?.trim();
+  const description = (formData.get('description') as string | undefined)?.trim();
   const tag = `@${id}`;
-  await updateAgent({ tag, name, systemPrompt, model, avatar });
+  await updateAgent({ tag, name, systemPrompt, model, avatar, tagline: tagline ?? null, description: description ?? null });
   redirect(`/agent/${encodeURIComponent(id)}`);
 }
 
@@ -53,6 +55,8 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       initialSystemPrompt={a.systemPrompt || undefined}
       initialModel={a.model || undefined}
       initialAvatar={a.avatar || undefined}
+      initialTagline={a.tagline || undefined}
+      initialDescription={a.description || undefined}
       models={models}
       avatars={avatars}
       onSave={saveAction}

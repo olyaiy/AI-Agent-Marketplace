@@ -22,15 +22,24 @@ import Image from 'next/image';
 interface AgentInfoSidebarProps {
   name: string;
   avatarUrl?: string;
+  tagline?: string | null;
+  description?: string | null;
 }
 
-export default function AgentInfoSidebar({ name, avatarUrl }: AgentInfoSidebarProps) {
+export default function AgentInfoSidebar({ name, avatarUrl, tagline, description }: AgentInfoSidebarProps) {
   const [isExpanded, setIsExpanded] = useState({
     about: true,
     capabilities: true,
     settings: false,
     overview: true
   });
+
+  const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your creative thinking partner';
+  const effectiveDescription = (description && description.trim().length > 0)
+    ? description
+    : `Hi there! I m ${name}, your friendly AI companion. I love helping with creative projects, 
+      brainstorming wild ideas, and turning thoughts into reality. Think of me as your enthusiastic 
+      collaborator who s always excited to explore new possibilities with you! 31F`;
 
   return (
     <div className="w-full h-full bg-white rounded-xl   border-gray-200 flex flex-col overflow-hidden">
@@ -52,7 +61,7 @@ export default function AgentInfoSidebar({ name, avatarUrl }: AgentInfoSidebarPr
           <div className="flex-1">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{name}</h2>
-              <p className="text-sm text-gray-700 mt-0.5">Your creative thinking partner</p>
+              <p className="text-sm text-gray-700 mt-0.5">{effectiveTagline}</p>
             </div>
           </div>
         </div>
@@ -90,18 +99,16 @@ export default function AgentInfoSidebar({ name, avatarUrl }: AgentInfoSidebarPr
             {isExpanded.about && (
               <div className="mt-3 space-y-3">
                 <p className="text-[13px] text-gray-600 leading-relaxed">
-                  Hi there! I&apos;m {name}, your friendly AI companion. I love helping with creative projects, 
-                  brainstorming wild ideas, and turning thoughts into reality. Think of me as your enthusiastic 
-                  collaborator who&apos;s always excited to explore new possibilities with you! 🌟
+                  {effectiveDescription}
                 </p>
                 
                 {/* Personality traits */}
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    { label: '🎨 Creative', color: 'bg-rose-50 text-rose-700' },
-                    { label: '💡 Curious', color: 'bg-pink-50 text-pink-700' },
-                    { label: '🤝 Supportive', color: 'bg-rose-100 text-rose-800' },
-                    { label: '✨ Imaginative', color: 'bg-pink-100 text-pink-800' }
+                    { label: ' 3A8 Creative', color: 'bg-rose-50 text-rose-700' },
+                    { label: ' 4A1 Curious', color: 'bg-pink-50 text-pink-700' },
+                    { label: ' 91D Supportive', color: 'bg-rose-100 text-rose-800' },
+                    { label: ' 4AB Imaginative', color: 'bg-pink-100 text-pink-800' }
                   ].map((tag) => (
                     <span key={tag.label} className={`px-2.5 py-1 text-xs font-medium rounded-full ${tag.color}`}>
                       {tag.label}
@@ -202,10 +209,10 @@ export default function AgentInfoSidebar({ name, avatarUrl }: AgentInfoSidebarPr
             </div>
             <div className="space-y-1.5">
               {[
-                { time: '2 hours ago', title: 'Logo design brainstorm 🎨', status: 'completed', icon: CheckCircle2 },
-                { time: '5 hours ago', title: 'Writing blog post ideas 📝', status: 'completed', icon: CheckCircle2 },
-                { time: 'Yesterday', title: 'Product naming session 💡', status: 'in-progress', icon: Circle },
-                { time: '2 days ago', title: 'Marketing strategy chat 🚀', status: 'completed', icon: CheckCircle2 }
+                { time: '2 hours ago', title: 'Logo design brainstorm  3A8', status: 'completed', icon: CheckCircle2 },
+                { time: '5 hours ago', title: 'Writing blog post ideas  4DD', status: 'completed', icon: CheckCircle2 },
+                { time: 'Yesterday', title: 'Product naming session  4A1', status: 'in-progress', icon: Circle },
+                { time: '2 days ago', title: 'Marketing strategy chat  680', status: 'completed', icon: CheckCircle2 }
               ].map((item, i) => {
                 const StatusIcon = item.icon;
                 return (

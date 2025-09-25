@@ -17,6 +17,8 @@ interface Props {
   initialSystemPrompt?: string;
   initialModel?: string;
   initialAvatar?: string;
+  initialTagline?: string;
+  initialDescription?: string;
   models: ModelOption[];
   avatars: string[];
   onSave: ServerAction;
@@ -26,6 +28,8 @@ interface Props {
 interface SendContext {
   model?: string;
   systemPrompt?: string;
+  tagline?: string;
+  description?: string;
 }
 
 interface LeftFormProps extends Props {
@@ -39,6 +43,8 @@ function LeftForm({
   initialSystemPrompt,
   initialModel,
   initialAvatar,
+  initialTagline,
+  initialDescription,
   models,
   avatars,
   onSave,
@@ -78,6 +84,33 @@ function LeftForm({
         </label>
 
         <label className="flex flex-col gap-1">
+          <span>Tagline</span>
+          <input
+            name="tagline"
+            defaultValue={initialTagline}
+            onInput={(e) => {
+              const el = e.currentTarget as HTMLInputElement;
+              sendContextRef.current.tagline = el.value;
+            }}
+            className="border p-2"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span>Description</span>
+          <textarea
+            name="description"
+            defaultValue={initialDescription}
+            onInput={(e) => {
+              const el = e.currentTarget as HTMLTextAreaElement;
+              sendContextRef.current.description = el.value;
+            }}
+            rows={6}
+            className="border p-2"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
           <span>System prompt</span>
           <textarea
             name="systemPrompt"
@@ -108,6 +141,8 @@ function TwoColumn(props: Props) {
   const sendContextRef = React.useRef<SendContext>({
     model: props.initialModel,
     systemPrompt: props.initialSystemPrompt,
+    tagline: props.initialTagline,
+    description: props.initialDescription,
   });
 
   const getChatContext = React.useCallback(() => sendContextRef.current, []);
