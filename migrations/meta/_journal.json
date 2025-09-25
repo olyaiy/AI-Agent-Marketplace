@@ -71,6 +71,13 @@
       "when": 1758773832012,
       "tag": "0009_daffy_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1758828719479,
+      "tag": "0010_panoramic_blade",
+      "breakpoints": true
     }
   ]
 }

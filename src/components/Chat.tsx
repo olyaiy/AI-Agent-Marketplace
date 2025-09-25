@@ -6,7 +6,7 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from '@/components/ai-elements/prompt-input';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useChat } from '@ai-sdk/react';
 import {
   Conversation,
@@ -36,6 +36,7 @@ interface ChatProps {
   isAuthenticated?: boolean;
   agentTag?: string;
   initialConversationId?: string;
+  initialMessages?: unknown[];
 }
 
 const Chat = React.memo(function Chat({
@@ -46,19 +47,22 @@ const Chat = React.memo(function Chat({
   isAuthenticated = false,
   agentTag,
   initialConversationId,
+  initialMessages,
 }: ChatProps) {
   const [text, setText] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isSignInPending, startSignInTransition] = useTransition();
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
+  const conversationIdRef = useRef<string | null>(initialConversationId || null);
   const { messages, status, sendMessage } = useChat({
     onFinish: async ({ message }) => {
       try {
-        if (!conversationId || message.role !== 'assistant') return;
+        const cid = conversationIdRef.current;
+        if (!cid || message.role !== 'assistant') return;
         await fetch('/api/messages', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ conversationId, message }),
+          body: JSON.stringify({ conversationId: cid, message }),
         });
       } catch {
         // ignore
@@ -98,6 +102,10 @@ const Chat = React.memo(function Chat({
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmed = text.trim();
@@ -109,7 +117,8 @@ const Chat = React.memo(function Chat({
     }
 
     // Ensure conversation exists before sending first message if agentTag is known
-    if (!conversationId && agentTag) {
+    let effectiveConversationId = conversationId;
+    if (!effectiveConversationId && agentTag) {
       try {
         const res = await fetch('/api/conversations', {
           method: 'POST',
@@ -119,6 +128,23 @@ const Chat = React.memo(function Chat({
         if (res.ok) {
           const data = (await res.json()) as { id: string };
           setConversationId(data.id);
+          effectiveConversationId = data.id;
+          conversationIdRef.current = data.id;
+          // replace URL to /agent/[agent-id]/[conversation-id]
+          if (pathname) {
+            const parts = pathname.split('/').filter(Boolean);
+            const agentIndex = parts.indexOf('agent');
+            if (agentIndex >= 0 && parts.length > agentIndex + 1) {
+              const slug = parts[agentIndex + 1];
+              const qs = searchParams?.toString();
+              const newUrl = qs ? `/agent/${slug}/${data.id}?${qs}` : `/agent/${slug}/${data.id}`;
+              if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', newUrl);
+              } else if (typeof window !== 'undefined' && window.location) {
+                window.location.replace(newUrl);
+              }
+            }
+          }
         }
       } catch {
         // ignore and continue; server will still create on-demand
@@ -126,13 +152,16 @@ const Chat = React.memo(function Chat({
     }
 
     const ctx = getChatContext ? getChatContext() || undefined : undefined;
+    if (effectiveConversationId) {
+      conversationIdRef.current = effectiveConversationId;
+    }
     sendMessage(
       { text: trimmed },
       {
         body: {
           systemPrompt: ctx?.systemPrompt ?? systemPrompt,
           model: ctx?.model ?? model,
-          conversationId: conversationId,
+          conversationId: effectiveConversationId,
           agentTag,
         },
       }
@@ -150,7 +179,18 @@ const Chat = React.memo(function Chat({
     });
   };
 
-  const hasMessages = messages.length > 0;
+  interface BasicUIPart { type: string; text: string }
+  interface BasicUIMessage { id: string; role: 'user' | 'assistant' | 'system'; parts: BasicUIPart[] }
+  const allMessages = useMemo<BasicUIMessage[]>(() => {
+    const fromServer = (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
+    const live = (messages as unknown as BasicUIMessage[]) || [];
+    if (fromServer.length === 0) return live;
+    const byId = new Map<string, BasicUIMessage>();
+    for (const m of fromServer) byId.set(m.id, m);
+    for (const m of live) byId.set(m.id, m);
+    return Array.from(byId.values());
+  }, [initialMessages, messages]);
+  const hasMessages = allMessages.length > 0;
 
   return (
     <div className={`flex max-w-3xl flex-col h-full ${className || ''}`}>
@@ -184,16 +224,14 @@ const Chat = React.memo(function Chat({
         <>
           <Conversation>
             <ConversationContent>
-              {messages.map((message) => (
+              {allMessages.map((message: BasicUIMessage) => (
                 <Message from={message.role} key={message.id}>
                   <MessageContent>
-                    {message.parts.map((part, i) => {
+                    {message.parts.map((part: BasicUIPart, i: number) => {
                       switch (part.type) {
                         case 'text':
                           return (
-                            <Response key={`${message.id}-${i}`}>
-                              {part.text}
-                            </Response>
+                            <Response key={`${message.id}-${i}`}>{part.text}</Response>
                           );
                         case 'reasoning':
                           return (

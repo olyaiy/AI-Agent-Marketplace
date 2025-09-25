@@ -4,7 +4,9 @@ import { cn } from '@/lib/utils';
 import { type ComponentProps, memo } from 'react';
 import { Streamdown } from 'streamdown';
 
-type ResponseProps = ComponentProps<typeof Streamdown>;
+type ResponseProps = Omit<ComponentProps<typeof Streamdown>, 'children'> & {
+  children?: string;
+};
 
 export const Response = memo(
   ({ className, ...props }: ResponseProps) => (
