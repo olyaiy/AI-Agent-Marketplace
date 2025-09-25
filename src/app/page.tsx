@@ -6,6 +6,7 @@ import { listAgents } from '@/actions/agents';
 import { AgentGrid } from '@/components/AgentGrid';
 import { HeroCards } from '@/components/HeroCards';
 import { AgentSearch } from '@/components/AgentSearch';
+import { FilterBadges } from '@/components/FilterBadges';
 
 /**
  * Home page component that serves as the main entry point for the application
@@ -30,6 +31,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
           {/* Search bar */}
           <AgentSearch className="w-80" />
         </div>
+        
+        {/* Filter Badges Section */}
+        <FilterBadges />
         
         {/* Hero Cards Section */}
         <HeroCards />
