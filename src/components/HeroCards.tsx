@@ -63,8 +63,19 @@ export function HeroCards() {
           </p>
         </CardContent>
         
+        {/* Hand Coin image - peeking from bottom right */}
+        <div className="absolute bottom-0 right-0 transition-transform duration-300 group-hover:scale-105">
+          <Image
+            src="/assets/Hand Coin.png"
+            alt="Hand Coin"
+            width={150}
+            height={100}
+            className="object-contain"
+          />
+        </div>
+        
         {/* Explore button - appears on hover */}
-        <div className="absolute bottom-4 right-4 flex items-center gap-2 text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="absolute bottom-4 left-4 flex items-center gap-2 text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
           <span className="text-sm font-medium">Explore</span>
           <ArrowRight className="w-4 h-4" />
         </div>
