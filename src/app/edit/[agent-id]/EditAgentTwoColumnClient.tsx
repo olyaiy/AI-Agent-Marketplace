@@ -37,6 +37,7 @@ function LeftForm({
   onDelete,
 }: Props) {
   const { model, systemPrompt, setModel, setSystemPrompt } = useLiveEdit();
+  const [systemPromptDraft, setSystemPromptDraft] = React.useState<string>(initialSystemPrompt || "");
 
   React.useEffect(() => {
     // initialize context on mount
@@ -44,6 +45,21 @@ function LeftForm({
     if (initialSystemPrompt && !systemPrompt) setSystemPrompt(initialSystemPrompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // keep local draft in sync if context changes externally (e.g., initial load)
+  React.useEffect(() => {
+    // only update draft if it differs to avoid cursor jumps
+    if ((systemPrompt || "") !== systemPromptDraft) {
+      setSystemPromptDraft(systemPrompt || "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [systemPrompt]);
+
+  // debounce pushing draft to context so Chat doesn't re-render on every keystroke
+  React.useEffect(() => {
+    const id = setTimeout(() => setSystemPrompt(systemPromptDraft), 300);
+    return () => clearTimeout(id);
+  }, [systemPromptDraft, setSystemPrompt]);
 
   return (
     <div className="max-w-xl">
@@ -75,8 +91,8 @@ function LeftForm({
           <span>System prompt</span>
           <textarea
             name="systemPrompt"
-            value={systemPrompt || ""}
-            onChange={(e) => setSystemPrompt(e.target.value)}
+            value={systemPromptDraft}
+            onChange={(e) => setSystemPromptDraft(e.target.value)}
             rows={8}
             className="border p-2"
           />

@@ -1,22 +1,39 @@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Grid3X3,
+  PenTool,
+  BarChart3,
+  Code,
+  Search,
+  Headphones,
+  Megaphone,
+  GraduationCap,
+  Palette,
+  DollarSign,
+  Heart,
+  Scale,
+  TrendingUp,
+  Languages,
+  FileText
+} from 'lucide-react';
 
 const categories = [
-  'All Agents',
-  'Content Creation',
-  'Data Analysis',
-  'Programming',
-  'Research',
-  'Customer Support',
-  'Marketing',
-  'Education',
-  'Design',
-  'Finance',
-  'Healthcare',
-  'Legal',
-  'Sales',
-  'Translation',
-  'Writing'
+  { name: 'All Agents', icon: Grid3X3 },
+  { name: 'Content Creation', icon: PenTool },
+  { name: 'Data Analysis', icon: BarChart3 },
+  { name: 'Programming', icon: Code },
+  { name: 'Research', icon: Search },
+  { name: 'Customer Support', icon: Headphones },
+  { name: 'Marketing', icon: Megaphone },
+  { name: 'Education', icon: GraduationCap },
+  { name: 'Design', icon: Palette },
+  { name: 'Finance', icon: DollarSign },
+  { name: 'Healthcare', icon: Heart },
+  { name: 'Legal', icon: Scale },
+  { name: 'Sales', icon: TrendingUp },
+  { name: 'Translation', icon: Languages },
+  { name: 'Writing', icon: FileText }
 ];
 
 interface FilterBadgesProps {
@@ -25,20 +42,22 @@ interface FilterBadgesProps {
 
 export function FilterBadges({ className = '' }: FilterBadgesProps) {
   return (
-    <div className={`mb-6 ${className}`}>
-      <ScrollArea className="w-full whitespace-nowrap">
-        <div className="flex space-x-2 pb-2">
-          {categories.map((category) => (
+    <div className={`mb-6 ${className} overflow-x-auto`}>
+      <div className="flex space-x-2 pb-2 min-w-max">
+        {categories.map((category) => {
+          const IconComponent = category.icon;
+          return (
             <Badge
-              key={category}
+              key={category.name}
               variant="secondary"
-              className="bg-[#FCFAF1] py-1.5  px-4 rounded-full text-yellow-800 border-yellow-200 hover:bg-amber-50 transition-colors cursor-pointer shrink-0 hober:border-amber-900 hover:border-1.5"
+              className="bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100 transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 whitespace-nowrap"
             >
-              {category}
+              <IconComponent size={14} />
+              {category.name}
             </Badge>
-          ))}
-        </div>
-      </ScrollArea>
+          );
+        })}
+      </div>
     </div>
   );
 }

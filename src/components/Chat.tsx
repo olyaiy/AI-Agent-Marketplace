@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import {
   PromptInput,
   PromptInputSubmit,
@@ -28,7 +29,7 @@ interface ChatProps {
   avatarUrl?: string; // optional avatar URL like /avatar/filename.png
 }
 
-export default function Chat({ className, systemPrompt, model }: ChatProps) {
+const Chat = React.memo(function Chat({ className, systemPrompt, model }: ChatProps) {
   const [text, setText] = useState<string>('');
   const { messages, status, sendMessage } = useChat();
 
@@ -129,4 +130,6 @@ export default function Chat({ className, systemPrompt, model }: ChatProps) {
       )}
     </div>
   );
-}
+});
+
+export default Chat;
