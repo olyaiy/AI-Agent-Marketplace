@@ -25,7 +25,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { authClient } from '@/lib/auth-client';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { recentLocalConfirm } from '@/lib/recent-local';
 
 interface ChatProps {
   className?: string;
@@ -49,6 +50,7 @@ const Chat = React.memo(function Chat({
   initialConversationId,
   initialMessages,
 }: ChatProps) {
+  const router = useRouter();
   const [text, setText] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isSignInPending, startSignInTransition] = useTransition();
@@ -58,6 +60,9 @@ const Chat = React.memo(function Chat({
     onFinish: async ({ message }) => {
       try {
         const cid = conversationIdRef.current;
+        if (cid && agentTag) {
+          try { recentLocalConfirm(agentTag.startsWith('@') ? agentTag.slice(1) : agentTag, cid); } catch {}
+        }
         if (!cid || message.role !== 'assistant') return;
         await fetch('/api/messages', {
           method: 'POST',
@@ -130,6 +135,9 @@ const Chat = React.memo(function Chat({
           setConversationId(data.id);
           effectiveConversationId = data.id;
           conversationIdRef.current = data.id;
+          try { recentLocalConfirm(agentTag.startsWith('@') ? agentTag.slice(1) : agentTag, data.id); } catch {}
+          // refresh RSC so server side sidebar updates immediately
+          try { router.refresh(); } catch {}
           // replace URL to /agent/[agent-id]/[conversation-id]
           if (pathname) {
             const parts = pathname.split('/').filter(Boolean);

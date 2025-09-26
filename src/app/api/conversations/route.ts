@@ -32,7 +32,11 @@ export async function POST(req: Request) {
 
   return new Response(JSON.stringify({ id }), {
     status: 201,
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      // Hint clients/proxies not to cache; allow downstream to decide
+      'cache-control': 'no-store',
+    },
   });
 }
 

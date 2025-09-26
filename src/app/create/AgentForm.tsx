@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createAgent } from '@/actions/agents';
+import { recentLocalAddPending } from '@/lib/recent-local';
 
 function slugify(value: string): string {
   return value
@@ -41,6 +42,8 @@ export function AgentForm({ model, avatar, onSystemPromptChange }: AgentFormProp
       avatar,
     });
     if (res?.ok) {
+      // insert pending local recent chat before navigating
+      try { recentLocalAddPending(encodeURIComponent(normalizedTag.slice(1))); } catch {}
       // rely on server redirect pattern in RSC layer
       window.location.assign(`/agent/${encodeURIComponent(normalizedTag.slice(1))}`);
     }

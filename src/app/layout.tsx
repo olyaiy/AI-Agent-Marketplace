@@ -4,6 +4,8 @@ import { Inter } from "next/font/google";
 
 import { auth } from "@/lib/auth";
 import { Navbar } from "@/components/Navbar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -28,10 +30,22 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} font-sans antialiased h-screen flex flex-col`}
       >
-        <Navbar userEmail={currentUser?.email} />
-        <div className="flex-1 min-h-0 overflow-y-scroll mb-8 mx-8">
-          {children}
-        </div>
+        <SidebarProvider>
+          <div className="flex flex-col h-full">
+            <Navbar userEmail={currentUser?.email} />
+            <div className="flex flex-1 min-h-0">
+              <AppSidebar />
+              <SidebarInset>
+                <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
+                  <div className="mb-2 -ml-2">
+                    <SidebarTrigger />
+                  </div>
+                  {children}
+                </div>
+              </SidebarInset>
+            </div>
+          </div>
+        </SidebarProvider>
       </body>
     </html>
   );
