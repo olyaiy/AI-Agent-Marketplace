@@ -45,7 +45,11 @@ export interface ConversationItem {
 
 const fetcher = async (url: string): Promise<ConversationItem[]> => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch conversations');
+  if (!res.ok) {
+    const error = new Error('Failed to fetch conversations') as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
   return res.json();
 };
 
@@ -60,8 +64,17 @@ export function RecentConversationsClient() {
     }
   );
 
-  // Don't render section if no conversations and not loading
+  // Don't render section if:
+  // - Loading is complete
+  // - No error occurred
+  // - And there are no conversations (genuinely empty, not an error)
   if (!isLoading && !error && (!conversations || conversations.length === 0)) {
+    return null;
+  }
+
+  // Don't render if there's any error (including auth errors)
+  // User will see conversations appear when they're available
+  if (error) {
     return null;
   }
 
@@ -83,13 +96,6 @@ export function RecentConversationsClient() {
                 </div>
               </SidebarMenuItem>
             ))
-          ) : error ? (
-            // Error state
-            <SidebarMenuItem>
-              <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                Failed to load conversations
-              </div>
-            </SidebarMenuItem>
           ) : (
             <>
               {/* Display first 5 conversations */}

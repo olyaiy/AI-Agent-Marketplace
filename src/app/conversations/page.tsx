@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { Search, ChevronLeft, ChevronRight, MessageSquare, Calendar, Filter } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, MessageSquare, Calendar, Lock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useDebounce } from '@/hooks/use-debounce';
+import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 
 interface ConversationSearchResult {
   id: string;
@@ -42,7 +43,11 @@ interface SearchResponse {
 
 const fetcher = async (url: string): Promise<SearchResponse> => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch conversations');
+  if (!res.ok) {
+    const error = new Error('Failed to fetch conversations') as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
   return res.json();
 };
 
@@ -108,6 +113,7 @@ export default function ConversationsPage() {
   };
 
   const totalPages = data ? Math.ceil(data.totalCount / (data.limit || 20)) : 0;
+  const isUnauthorized = error && (error as Error & { status?: number }).status === 401;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -119,32 +125,46 @@ export default function ConversationsPage() {
         </p>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={dateFilter} onValueChange={handleDateFilterChange}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <Calendar className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="All time" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All time</SelectItem>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">Past week</SelectItem>
-            <SelectItem value="month">Past month</SelectItem>
-            <SelectItem value="year">Past year</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Show sign-in prompt if unauthorized */}
+      {isUnauthorized ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Sign in to view your conversations</h3>
+            <p className="text-muted-foreground mb-6">
+              You need to be signed in to access your conversation history
+            </p>
+            <GoogleSignInButton />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={dateFilter} onValueChange={handleDateFilterChange}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Calendar className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="All time" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">Past week</SelectItem>
+                <SelectItem value="month">Past month</SelectItem>
+                <SelectItem value="year">Past year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
       {/* Results Count */}
       {!isLoading && data && (
@@ -175,7 +195,7 @@ export default function ConversationsPage() {
             </Card>
           ))
         ) : error ? (
-          // Error state
+          // Error state (non-401 errors)
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">Failed to load conversations</p>
@@ -290,6 +310,8 @@ export default function ConversationsPage() {
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
+      )}
+        </>
       )}
     </div>
   );

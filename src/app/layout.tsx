@@ -34,7 +34,7 @@ export default async function RootLayout({
           <div className="flex flex-col h-full">
             <Navbar userEmail={currentUser?.email} />
             <div className="flex flex-1 min-h-0">
-              <AppSidebar />
+              <AppSidebar userEmail={currentUser?.email} />
               <SidebarInset>
                 <div className="flex-1 min-h-0 overflow-y-auto relative ">
 

@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { Home, Settings, MessageSquare } from "lucide-react"
 import { RecentConversationsClient } from "@/components/recent-conversations-client"
+import { SignOutButton } from "@/components/SignOutButton"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -13,7 +15,11 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  userEmail?: string | null;
+}
+
+export function AppSidebar({ userEmail }: AppSidebarProps) {
   return (
     <Sidebar variant="inset" collapsible="icon" className="top-10">
       <SidebarContent>
@@ -60,6 +66,18 @@ export function AppSidebar() {
         {/* Recent conversations - client component with SWR - hidden when collapsed */}
         <RecentConversationsClient />
       </SidebarContent>
+      
+      {/* Footer with sign out button - only when user is signed in */}
+      {userEmail && (
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SignOutButton userEmail={userEmail} />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
+      
       <SidebarRail className="top-10" />
     </Sidebar>
   )
