@@ -1,5 +1,6 @@
 import Chat from '@/components/Chat';
 import AgentInfoSidebar from '@/components/AgentInfoSidebar';
+import { AgentInfoSheet } from '@/components/AgentInfoSheet';
 import { getAgentByTag } from '@/actions/agents';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -15,16 +16,50 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   const isAuthenticated = Boolean(session?.user);
 
+  const avatarUrl = found.avatar ? `/avatar/${found.avatar}` : undefined;
+
   return (
-    <main className="h-full px-4 ">
-      <div className="size-full mx-auto flex gap-4 ">
-      <div className="flex-1 max-w-3/4 items-center justify-center r-auto  ">
-          <Chat className=' mx-auto' systemPrompt={found.systemPrompt} model={found.model} avatarUrl={found.avatar ? `/avatar/${found.avatar}` : undefined} isAuthenticated={isAuthenticated} agentTag={found.tag} />
+    <main className="h-full">
+      {/* Mobile Layout */}
+      <div className="md:hidden flex flex-col h-full">
+        <AgentInfoSheet
+          name={found.name}
+          avatarUrl={avatarUrl}
+          tagline={found.tagline}
+          description={found.description}
+        />
+        <div className="flex-1 px-4">
+          <Chat
+            className="mx-auto"
+            systemPrompt={found.systemPrompt}
+            model={found.model}
+            avatarUrl={avatarUrl}
+            isAuthenticated={isAuthenticated}
+            agentTag={found.tag}
+          />
         </div>
-        <div className="w-1/4 flex-shrink-0 ">
-          <AgentInfoSidebar name={found.name} avatarUrl={found.avatar ? `/avatar/${found.avatar}` : undefined} tagline={found.tagline} description={found.description} />
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden md:flex h-full px-4 gap-4">
+        <div className="flex-1 max-w-[75%]">
+          <Chat
+            className="mx-auto"
+            systemPrompt={found.systemPrompt}
+            model={found.model}
+            avatarUrl={avatarUrl}
+            isAuthenticated={isAuthenticated}
+            agentTag={found.tag}
+          />
         </div>
-        
+        <div className="w-[25%] min-w-[280px] flex-shrink-0">
+          <AgentInfoSidebar
+            name={found.name}
+            avatarUrl={avatarUrl}
+            tagline={found.tagline}
+            description={found.description}
+          />
+        </div>
       </div>
     </main>
   );

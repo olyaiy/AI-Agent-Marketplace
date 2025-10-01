@@ -239,7 +239,7 @@ const Chat = React.memo(function Chat({
   const displayedMessages = useMemo(() => allMessages.slice(-5), [allMessages]);
 
   return (
-    <div className={`flex max-w-3xl flex-col h-full ${className || ''}`}>
+    <div className={`flex w-full max-w-3xl flex-col h-full ${className || ''}`}>
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -324,15 +324,15 @@ const Chat = React.memo(function Chat({
             <ConversationScrollButton />
           </Conversation>
 
-      <div className="flex flex-col  items-center justify-center  py-4 ">
-          <PromptInput onSubmit={handleSubmit} className="mt-0 max-w-3xl ">
-            <div className="flex items-center gap-2 p-2">
+      <div className="flex flex-col items-center justify-center py-2 md:py-4">
+          <PromptInput onSubmit={handleSubmit} className="mt-0 w-full max-w-3xl">
+            <div className="flex items-center gap-2 p-1.5 md:p-2">
               <PromptInputTextarea
                 autoFocus
                 onChange={(e) => setText(e.target.value)}
                 value={text}
                 placeholder="Type your message..."
-                className="flex-1 min-h-[40px] py-2"
+                className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
               />
               <PromptInputSubmit 
                 disabled={!text.trim()} 
@@ -344,15 +344,15 @@ const Chat = React.memo(function Chat({
           </div>
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full ">
+        <div className="flex flex-col items-center justify-center h-full px-2 md:px-0">
           <PromptInput onSubmit={handleSubmit} className="w-full max-w-2xl">
-            <div className="flex items-center gap-2 p-2">
+            <div className="flex items-center gap-2 p-1.5 md:p-2">
               <PromptInputTextarea
                 autoFocus
                 onChange={(e) => setText(e.target.value)}
                 value={text}
                 placeholder="Type your message..."
-                className="flex-1 min-h-[40px] py-2"
+                className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
               />
               <PromptInputSubmit 
                 disabled={!text.trim()} 
