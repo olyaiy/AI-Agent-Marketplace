@@ -45,12 +45,26 @@ export async function POST(req: Request) {
   let ensuredConversationId = bodyConversationId;
   if (!ensuredConversationId) {
     ensuredConversationId = randomUUID();
+    // Extract title from first user message
+    const firstUserMsg = messages.find((m) => m.role === 'user');
+    let title: string | null = null;
+    if (firstUserMsg) {
+      const parts = firstUserMsg.parts as Array<{ type: string; text?: string }>;
+      const textContent = parts
+        .filter((p) => p.type === 'text' && typeof p.text === 'string')
+        .map((p) => p.text as string)
+        .join(' ')
+        .slice(0, 60)
+        .trim();
+      title = textContent || null;
+    }
     try {
       await db.insert(conversation).values({
         id: ensuredConversationId,
         userId: session.user.id,
         agentTag: agentTag || 'unknown',
         modelId,
+        title,
       });
     } catch {
       // noop
@@ -85,7 +99,7 @@ export async function POST(req: Request) {
           id: lastUser.id,
           conversationId: ensuredConversationId!,
           role: 'user',
-          uiParts: lastUser.parts as unknown as any,
+          uiParts: lastUser.parts as unknown as Record<string, unknown>[],
           textPreview,
           hasToolCalls: false,
         })

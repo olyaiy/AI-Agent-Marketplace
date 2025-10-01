@@ -17,6 +17,7 @@ export async function GET(req: Request) {
     .select({
       id: conversation.id,
       agentTag: conversation.agentTag,
+      title: conversation.title,
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,
       lastMessageAt: conversation.lastMessageAt,
@@ -29,7 +30,12 @@ export async function GET(req: Request) {
   const items = rows.map((r) => {
     const date = (r.lastMessageAt as unknown as string) || (r.updatedAt as unknown as string) || (r.createdAt as unknown as string);
     const agentId = r.agentTag?.startsWith("@") ? r.agentTag.slice(1) : (r.agentTag as unknown as string);
-    return { id: r.id, agentId, dateIso: new Date(date).toISOString() };
+    return { 
+      id: r.id, 
+      agentId, 
+      dateIso: new Date(date).toISOString(),
+      title: r.title || null,
+    };
   });
 
   return new Response(JSON.stringify(items), {
@@ -50,7 +56,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const { agentTag, model }: { agentTag: string; model?: string } = await req.json().catch(() => ({ agentTag: 'unknown' } as any));
+  const { agentTag, model, title }: { agentTag: string; model?: string; title?: string } = await req.json().catch(() => ({ agentTag: 'unknown' as string, model: undefined, title: undefined }));
 
   if (!agentTag || typeof agentTag !== 'string') {
     return new Response(JSON.stringify({ error: 'agentTag is required' }), {
@@ -61,14 +67,18 @@ export async function POST(req: Request) {
 
   const id = randomUUID();
 
+  // Truncate title to first 60 characters if provided
+  const conversationTitle = title ? title.slice(0, 60).trim() : null;
+
   await db.insert(conversation).values({
     id,
     userId: session.user.id,
     agentTag,
     modelId: (model && String(model)) || 'openai/gpt-5-nano',
+    title: conversationTitle,
   });
 
-  return new Response(JSON.stringify({ id, agentTag }), {
+  return new Response(JSON.stringify({ id, agentTag, title: conversationTitle }), {
     status: 201,
     headers: {
       'content-type': 'application/json',

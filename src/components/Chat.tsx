@@ -103,23 +103,25 @@ const Chat = React.memo(function Chat({
         // Generate temporary ID for optimistic update
         const tempId = `temp-${Date.now()}`;
         const agentId = agentTag.startsWith('@') ? agentTag.slice(1) : agentTag;
+        const conversationTitle = trimmed.slice(0, 60);
         
         // Optimistically add conversation to sidebar
         await addConversationOptimistically({
           id: tempId,
           agentId,
           dateIso: new Date().toISOString(),
+          title: conversationTitle,
         });
 
         // Create actual conversation
         const res = await fetch('/api/conversations', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ agentTag, model }),
+          body: JSON.stringify({ agentTag, model, title: conversationTitle }),
         });
         
         if (res.ok) {
-          const data = (await res.json()) as { id: string; agentTag: string };
+          const data = (await res.json()) as { id: string; agentTag: string; title: string | null };
           setConversationId(data.id);
           effectiveConversationId = data.id;
           conversationIdRef.current = data.id;

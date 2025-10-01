@@ -16,6 +16,7 @@ export interface ConversationItem {
   id: string;
   agentId: string;
   dateIso: string;
+  title?: string | null;
 }
 
 const fetcher = async (url: string): Promise<ConversationItem[]> => {
@@ -67,12 +68,13 @@ export function RecentConversationsClient() {
             conversations?.map((row) => {
               const dateStr = new Date(row.dateIso).toLocaleDateString();
               const href = `/agent/${row.agentId}/${row.id}`;
+              const displayText = row.title || `Chat ${row.id.slice(0, 8)}`;
               return (
                 <SidebarMenuItem key={row.id}>
                   <SidebarMenuButton asChild>
                     <Link href={href}>
-                      <span className="font-mono text-xs">{row.id.slice(0, 8)}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">{dateStr}</span>
+                      <span className="text-xs truncate flex-1">{displayText}</span>
+                      <span className="ml-2 text-xs text-muted-foreground shrink-0">{dateStr}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
