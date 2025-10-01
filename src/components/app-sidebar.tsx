@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Home, Settings } from "lucide-react"
+import { Home, Settings, MessageSquare } from "lucide-react"
 import { RecentConversationsClient } from "@/components/recent-conversations-client"
 import {
   Sidebar,
@@ -22,7 +22,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Home" isActive>
+                <SidebarMenuButton asChild tooltip="Home">
                   <Link href="/">
                     <Home />
                     <span>Home</span>
@@ -41,7 +41,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Recent conversations - client component with SWR */}
+        {/* Conversations icon - visible when collapsed */}
+        <SidebarGroup className="group-data-[collapsible=icon]:block hidden">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="All Conversations">
+                  <Link href="/conversations">
+                    <MessageSquare />
+                    <span>All Conversations</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Recent conversations - client component with SWR - hidden when collapsed */}
         <RecentConversationsClient />
       </SidebarContent>
       <SidebarRail className="top-10" />

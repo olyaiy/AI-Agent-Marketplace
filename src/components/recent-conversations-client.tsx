@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import useSWR from "swr";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, ArrowRight } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -65,6 +65,9 @@ export function RecentConversationsClient() {
     return null;
   }
 
+  const displayedConversations = conversations?.slice(0, 5) || [];
+  const hasMoreConversations = (conversations?.length || 0) > 5;
+
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
@@ -88,10 +91,24 @@ export function RecentConversationsClient() {
               </div>
             </SidebarMenuItem>
           ) : (
-            // Actual conversations
-            conversations?.map((conversation) => (
-              <ConversationMenuItem key={conversation.id} conversation={conversation} />
-            ))
+            <>
+              {/* Display first 5 conversations */}
+              {displayedConversations.map((conversation) => (
+                <ConversationMenuItem key={conversation.id} conversation={conversation} />
+              ))}
+              
+              {/* View all button if there are more than 5 */}
+              {hasMoreConversations && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/conversations" className="text-muted-foreground hover:text-foreground">
+                      <ArrowRight className="h-4 w-4" />
+                      <span>View all chats</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+            </>
           )}
         </SidebarMenu>
       </SidebarGroupContent>
@@ -140,7 +157,7 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
         // Revalidate to ensure sync
         await revalidateConversations();
       }
-    } catch (error) {
+    } catch {
       // Rollback on error
       await revalidateConversations();
     } finally {
@@ -173,7 +190,7 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
           router.push('/');
         }
       }
-    } catch (error) {
+    } catch {
       // Rollback on error
       await revalidateConversations();
     } finally {
