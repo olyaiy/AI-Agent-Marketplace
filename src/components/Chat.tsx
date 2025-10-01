@@ -60,9 +60,6 @@ const Chat = React.memo(function Chat({
     onFinish: async ({ message }) => {
       try {
         const cid = conversationIdRef.current;
-        if (cid && agentTag) {
-          try { recentLocalConfirm(agentTag.startsWith('@') ? agentTag.slice(1) : agentTag, cid); } catch {}
-        }
         if (!cid || message.role !== 'assistant') return;
         await fetch('/api/messages', {
           method: 'POST',
@@ -199,6 +196,7 @@ const Chat = React.memo(function Chat({
     return Array.from(byId.values());
   }, [initialMessages, messages]);
   const hasMessages = allMessages.length > 0;
+  const displayedMessages = useMemo(() => allMessages.slice(-5), [allMessages]);
 
   return (
     <div className={`flex max-w-3xl flex-col h-full ${className || ''}`}>
@@ -232,7 +230,7 @@ const Chat = React.memo(function Chat({
         <>
           <Conversation>
             <ConversationContent>
-              {allMessages.map((message: BasicUIMessage) => (
+              {displayedMessages.map((message: BasicUIMessage) => (
                 <Message from={message.role} key={message.id}>
                   <MessageContent>
                     {message.parts.map((part: BasicUIPart, i: number) => {

@@ -1,11 +1,6 @@
 import Link from "next/link"
 import { Home, Settings } from "lucide-react"
-import { headers } from "next/headers"
-import { sql } from "drizzle-orm"
-import { db } from "@/db/drizzle"
-import { conversation } from "@/db/schema"
-import { auth } from "@/lib/auth"
-import { unstable_noStore as noStore } from "next/cache"
+import { fetchRecentConversations } from "@/components/recent-conversations-server"
 import { RecentChatsClientItems } from "@/components/RecentChatsClient"
 import {
   Sidebar,
@@ -56,28 +51,8 @@ export function AppSidebar() {
 }
 
 async function RecentConversations() {
-  noStore()
-  const headerList = await headers()
-  const session = await auth.api.getSession({ headers: headerList }).catch(() => null)
-  if (!session?.user) return null
-
-  const rows = await db
-    .select({
-      id: conversation.id,
-      agentTag: conversation.agentTag,
-      createdAt: conversation.createdAt,
-      updatedAt: conversation.updatedAt,
-      lastMessageAt: conversation.lastMessageAt,
-    })
-    .from(conversation)
-    .where(sql`${conversation.userId} = ${session.user.id}`)
-    .orderBy(
-      sql`COALESCE(${conversation.lastMessageAt}, ${conversation.updatedAt}, ${conversation.createdAt}) DESC`
-    )
-    .limit(5)
-
-  if (rows.length === 0) return null
-
+  const rows = await fetchRecentConversations()
+  if (!rows || rows.length === 0) return null
   const serverIds = rows.map((r) => r.id)
 
   return (
@@ -88,10 +63,8 @@ async function RecentConversations() {
           {/* Client-side pending items, filtered to avoid duplicates with server */}
           <RecentChatsClientItems serverIds={serverIds} />
           {rows.map((row) => {
-            const date = row.lastMessageAt ?? row.updatedAt ?? row.createdAt
-            const dateStr = date ? new Date(date as unknown as string).toLocaleDateString() : ""
-            const agentId = row.agentTag?.startsWith("@") ? row.agentTag.slice(1) : row.agentTag
-            const href = `/agent/${agentId}/${row.id}`
+            const dateStr = new Date(row.dateIso).toLocaleDateString()
+            const href = `/agent/${row.agentId}/${row.id}`
             return (
               <SidebarMenuItem key={row.id}>
                 <SidebarMenuButton asChild>

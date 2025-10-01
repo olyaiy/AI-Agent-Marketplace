@@ -56,6 +56,21 @@ export function recentLocalConfirm(agentId: string, conversationId: string): voi
   if (!agentId || !conversationId) return;
   const items = readItems();
   const confirmedKey = `cid:${conversationId}`;
+  
+  // Check if this exact item already exists to prevent race condition duplicates
+  const alreadyExists = items.some((i) => i.key === confirmedKey && i.conversationId === conversationId);
+  if (alreadyExists) {
+    // Already in storage, just update timestamp if needed
+    const updated = items.map((i) => {
+      if (i.key === confirmedKey && i.conversationId === conversationId) {
+        return { ...i, dateIso: new Date().toISOString() };
+      }
+      return i;
+    });
+    writeItems(updated);
+    return;
+  }
+
   // Remove duplicates: any existing confirmed with same cid, any pending for this agent
   const filtered = items.filter(
     (i) => i.conversationId !== conversationId && i.key !== confirmedKey && !(i.status === 'pending' && i.agentId === agentId)

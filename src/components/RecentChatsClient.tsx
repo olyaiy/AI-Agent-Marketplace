@@ -12,9 +12,19 @@ export function RecentChatsClientItems({ serverIds }: Props) {
   const items = useRecentLocalItems();
   if (!items || items.length === 0) return null;
   const serverSet = new Set(serverIds || []);
+  
+  // Deduplicate by key as a final safety measure against race conditions
+  const seenKeys = new Set<string>();
+  const uniqueItems = items.filter((row) => {
+    const key = row.key || `${row.status}:${row.agentId}:${row.conversationId ?? ''}:${row.dateIso}`;
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
+    return true;
+  });
+  
   return (
     <>
-      {items
+      {uniqueItems
         .filter((row) => !row.conversationId || !serverSet.has(row.conversationId))
         .map((row) => {
           const href = row.conversationId ? `/agent/${row.agentId}/${row.conversationId}` : undefined;
