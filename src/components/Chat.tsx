@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { createConversation } from '@/actions/conversations';
+import { addConversationOptimistically, revalidateConversations } from '@/lib/conversations-cache';
 
 interface ChatProps {
   className?: string;
@@ -66,6 +66,8 @@ const Chat = React.memo(function Chat({
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ conversationId: cid, message }),
         });
+        // Revalidate conversations to update lastMessageAt timestamp
+        revalidateConversations();
       } catch {
         // ignore
       }
@@ -98,26 +100,56 @@ const Chat = React.memo(function Chat({
     let effectiveConversationId = conversationId;
     if (!effectiveConversationId && agentTag) {
       try {
-        const result = await createConversation({ agentTag, model });
-        if (result.ok && result.id) {
-          setConversationId(result.id);
-          effectiveConversationId = result.id;
-          conversationIdRef.current = result.id;
-          
-          // Update URL to /agent/[agent-id]/[conversation-id]
+        // Generate temporary ID for optimistic update
+        const tempId = `temp-${Date.now()}`;
+        const agentId = agentTag.startsWith('@') ? agentTag.slice(1) : agentTag;
+        
+        // Optimistically add conversation to sidebar
+        await addConversationOptimistically({
+          id: tempId,
+          agentId,
+          dateIso: new Date().toISOString(),
+        });
+
+        // Create actual conversation
+        const res = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ agentTag, model }),
+        });
+        
+        if (res.ok) {
+          const data = (await res.json()) as { id: string; agentTag: string };
+          setConversationId(data.id);
+          effectiveConversationId = data.id;
+          conversationIdRef.current = data.id;
+
+          // Revalidate to replace temp with real conversation
+          await revalidateConversations();
+
+          // Replace URL to /agent/[agent-id]/[conversation-id]
           if (pathname) {
             const parts = pathname.split('/').filter(Boolean);
             const agentIndex = parts.indexOf('agent');
             if (agentIndex >= 0 && parts.length > agentIndex + 1) {
               const slug = parts[agentIndex + 1];
               const qs = searchParams?.toString();
-              const newUrl = qs ? `/agent/${slug}/${result.id}?${qs}` : `/agent/${slug}/${result.id}`;
-              router.replace(newUrl, { scroll: false });
+              const newUrl = qs ? `/agent/${slug}/${data.id}?${qs}` : `/agent/${slug}/${data.id}`;
+              if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', newUrl);
+              } else if (typeof window !== 'undefined' && window.location) {
+                window.location.replace(newUrl);
+              }
             }
           }
+        } else {
+          // Rollback optimistic update on error
+          await revalidateConversations();
         }
-      } catch {
-        // ignore and continue; server will still create on-demand
+      } catch (error) {
+        // Rollback optimistic update on error
+        await revalidateConversations();
+        // Continue anyway; server will still create on-demand
       }
     }
 

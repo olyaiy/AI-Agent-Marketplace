@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Home, Settings } from "lucide-react"
-import { fetchRecentConversations } from "@/components/recent-conversations-server"
+import { RecentConversationsClient } from "@/components/recent-conversations-client"
 import {
   Sidebar,
   SidebarContent,
@@ -41,39 +41,10 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Recent conversations */}
-        <RecentConversations />
+        {/* Recent conversations - client component with SWR */}
+        <RecentConversationsClient />
       </SidebarContent>
       <SidebarRail className="top-10" />
     </Sidebar>
-  )
-}
-
-async function RecentConversations() {
-  const rows = await fetchRecentConversations()
-  if (!rows || rows.length === 0) return null
-
-  return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {rows.map((row) => {
-            const dateStr = new Date(row.dateIso).toLocaleDateString()
-            const href = `/agent/${row.agentId}/${row.id}`
-            return (
-              <SidebarMenuItem key={row.id}>
-                <SidebarMenuButton asChild>
-                  <Link href={href}>
-                    <span className="font-mono text-xs">{row.id.slice(0, 8)}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{dateStr}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )
-          })}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
   )
 }
