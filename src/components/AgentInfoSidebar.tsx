@@ -43,7 +43,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
 
       {/* Description */}
       <div className=" pt-4 pb-5">
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="bg-white rounded-xl border border-gray-100">
           <p className="text-[13px] text-gray-600 leading-relaxed">
             {effectiveDescription}
           </p>

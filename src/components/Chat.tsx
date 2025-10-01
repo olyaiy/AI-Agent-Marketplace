@@ -299,16 +299,15 @@ const Chat = React.memo(function Chat({
                   </Message>
                   {isAuthenticated && (
                     <Actions 
-                      className={`mt-1 opacity-25 group-hover/message:opacity-100 transition-opacity duration-150  ${
-                        message.role === 'user' ? ' justify-end' : ' justify-start'
+                      className={`mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-150 ${
+                        message.role === 'user' ? 'justify-end' : 'justify-start'
                       }`}
                     >
                       <Action
                         onClick={() => handleDeleteMessage(message.id)}
                         label="Delete message"
-                        tooltip="Delete"
                       >
-                        <Trash2Icon className="size-3" />
+                        <Trash2Icon className="size-4" />
                       </Action>
                     </Actions>
                   )}
