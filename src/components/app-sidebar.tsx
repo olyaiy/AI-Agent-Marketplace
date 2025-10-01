@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { Home, Settings } from "lucide-react"
 import { fetchRecentConversations } from "@/components/recent-conversations-server"
-import { RecentChatsClientItems } from "@/components/RecentChatsClient"
 import {
   Sidebar,
   SidebarContent,
@@ -53,15 +52,12 @@ export function AppSidebar() {
 async function RecentConversations() {
   const rows = await fetchRecentConversations()
   if (!rows || rows.length === 0) return null
-  const serverIds = rows.map((r) => r.id)
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {/* Client-side pending items, filtered to avoid duplicates with server */}
-          <RecentChatsClientItems serverIds={serverIds} />
           {rows.map((row) => {
             const dateStr = new Date(row.dateIso).toLocaleDateString()
             const href = `/agent/${row.agentId}/${row.id}`

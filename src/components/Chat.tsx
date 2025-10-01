@@ -26,7 +26,6 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { recentLocalConfirm } from '@/lib/recent-local';
 
 interface ChatProps {
   className?: string;
@@ -74,30 +73,6 @@ const Chat = React.memo(function Chat({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const searchString = useMemo(() => searchParams?.toString() ?? '', [searchParams]);
-
-  const draftKey = useMemo(() => {
-    if (!pathname) return null;
-    return searchString ? `chat-draft:${pathname}?${searchString}` : `chat-draft:${pathname}`;
-  }, [pathname, searchString]);
-
-  useEffect(() => {
-    if (!draftKey || typeof window === 'undefined') return;
-    const storedDraft = window.sessionStorage.getItem(draftKey);
-    if (storedDraft && !text) {
-      setText(storedDraft);
-    }
-  }, [draftKey, text]);
-
-  useEffect(() => {
-    if (!draftKey || typeof window === 'undefined') return;
-    if (text) {
-      window.sessionStorage.setItem(draftKey, text);
-    } else {
-      window.sessionStorage.removeItem(draftKey);
-    }
-  }, [draftKey, text]);
-
   useEffect(() => {
     if (isAuthenticated) {
       setIsDialogOpen(false);
@@ -132,7 +107,6 @@ const Chat = React.memo(function Chat({
           setConversationId(data.id);
           effectiveConversationId = data.id;
           conversationIdRef.current = data.id;
-          try { recentLocalConfirm(agentTag.startsWith('@') ? agentTag.slice(1) : agentTag, data.id); } catch {}
           // refresh RSC so server side sidebar updates immediately
           try { router.refresh(); } catch {}
           // replace URL to /agent/[agent-id]/[conversation-id]
@@ -172,9 +146,6 @@ const Chat = React.memo(function Chat({
       }
     );
     setText('');
-    if (draftKey && typeof window !== 'undefined') {
-      window.sessionStorage.removeItem(draftKey);
-    }
   };
 
   const handleSignIn = () => {

@@ -36,11 +36,15 @@ export default async function RootLayout({
             <div className="flex flex-1 min-h-0">
               <AppSidebar />
               <SidebarInset>
-                <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
-                  <div className="mb-2 -ml-2">
-                    <SidebarTrigger />
+                <div className="flex-1 min-h-0 overflow-y-auto relative">
+                  <div className="sticky top-0 left-0 z-10 pointer-events-none">
+                    <div className="absolute top-4 left-2 md:top-6 md:left-4 pointer-events-auto">
+                      <SidebarTrigger />
+                    </div>
                   </div>
-                  {children}
+                  <div className="p-4 md:p-6">
+                    {children}
+                  </div>
                 </div>
               </SidebarInset>
             </div>
