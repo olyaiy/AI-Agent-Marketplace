@@ -35,3 +35,21 @@ export async function removeConversationOptimistically(conversationId: string) {
     { revalidate: false }
   );
 }
+
+/**
+ * Update a conversation title optimistically in the cache
+ */
+export async function updateConversationTitleOptimistically(
+  conversationId: string,
+  newTitle: string
+) {
+  await mutate<ConversationItem[]>(
+    CONVERSATIONS_KEY,
+    (currentData) => {
+      return (currentData || []).map((c) =>
+        c.id === conversationId ? { ...c, title: newTitle } : c
+      );
+    },
+    { revalidate: false }
+  );
+}
