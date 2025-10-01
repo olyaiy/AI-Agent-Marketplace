@@ -78,8 +78,8 @@ export function AppSidebar({ userEmail }: AppSidebarProps) {
           return (
             <SidebarFooter>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SignOutButton userEmail={userEmail} />
+                <SidebarMenuItem className=" mb-10">
+                  <SignOutButton userEmail={userEmail} className="" />
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarFooter>

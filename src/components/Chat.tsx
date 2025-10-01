@@ -15,17 +15,19 @@ import {
 } from '@/components/ai-elements/conversation';
 import { Message, MessageContent } from '@/components/ai-elements/message';
 import { Response } from '@/components/ai-elements/response';
-import { Loader } from '@/components/ai-elements/loader';
+import { MessageLoading } from '@/components/ui/message-loading';
 import {
   Reasoning,
   ReasoningContent,
   ReasoningTrigger,
 } from '@/components/ai-elements/reasoning';
+import { Actions, Action } from '@/components/ai-elements/actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import { Trash2Icon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
-import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { 
   addConversationOptimistically, 
   revalidateConversations,
@@ -54,13 +56,13 @@ const Chat = React.memo(function Chat({
   initialConversationId,
   initialMessages,
 }: ChatProps) {
-  const router = useRouter();
   const [text, setText] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isSignInPending, startSignInTransition] = useTransition();
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   const conversationIdRef = useRef<string | null>(initialConversationId || null);
   const hasGeneratedTitleRef = useRef<boolean>(false);
+  const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
   const { messages, status, sendMessage } = useChat({
     onFinish: async ({ message }) => {
       try {
@@ -160,7 +162,7 @@ const Chat = React.memo(function Chat({
           // Rollback optimistic update on error
           await revalidateConversations();
         }
-      } catch (error) {
+      } catch {
         // Rollback optimistic update on error
         await revalidateConversations();
         // Continue anyway; server will still create on-demand
@@ -192,6 +194,35 @@ const Chat = React.memo(function Chat({
     });
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    // Optimistically remove from UI
+    setDeletedMessageIds((prev) => new Set(prev).add(messageId));
+    
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messageId }),
+      });
+      
+      if (!res.ok) {
+        // Rollback on error
+        setDeletedMessageIds((prev) => {
+          const next = new Set(prev);
+          next.delete(messageId);
+          return next;
+        });
+      }
+    } catch {
+      // Rollback on error
+      setDeletedMessageIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    }
+  };
+
   interface BasicUIPart { type: string; text: string }
   interface BasicUIMessage { id: string; role: 'user' | 'assistant' | 'system'; parts: BasicUIPart[] }
   const allMessages = useMemo<BasicUIMessage[]>(() => {
@@ -201,8 +232,9 @@ const Chat = React.memo(function Chat({
     const byId = new Map<string, BasicUIMessage>();
     for (const m of fromServer) byId.set(m.id, m);
     for (const m of live) byId.set(m.id, m);
-    return Array.from(byId.values());
-  }, [initialMessages, messages]);
+    // Filter out deleted messages
+    return Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id));
+  }, [initialMessages, messages, deletedMessageIds]);
   const hasMessages = allMessages.length > 0;
   const displayedMessages = useMemo(() => allMessages.slice(-5), [allMessages]);
 
@@ -239,36 +271,53 @@ const Chat = React.memo(function Chat({
           <Conversation>
             <ConversationContent>
               {displayedMessages.map((message: BasicUIMessage) => (
-                <Message from={message.role} key={message.id}>
-                  <MessageContent>
-                    {message.parts.map((part: BasicUIPart, i: number) => {
-                      switch (part.type) {
-                        case 'text':
-                          return (
-                            <Response key={`${message.id}-${i}`}>{part.text}</Response>
-                          );
-                        case 'reasoning':
-                          return (
-                            <Reasoning
-                              key={`${message.id}-${i}`}
-                              className="w-full"
-                              isStreaming={status === 'streaming'}
-                            >
-                              <ReasoningTrigger />
-                              <ReasoningContent>{part.text}</ReasoningContent>
-                            </Reasoning>
-                          );
-                        default:
-                          return null;
-                      }
-                    })}
-                  </MessageContent>
-                </Message>
+                <div key={message.id} className="group/message">
+                  <Message from={message.role}>
+                    <MessageContent>
+                      {message.parts.map((part: BasicUIPart, i: number) => {
+                        switch (part.type) {
+                          case 'text':
+                            return (
+                              <Response key={`${message.id}-${i}`}>{part.text}</Response>
+                            );
+                          case 'reasoning':
+                            return (
+                              <Reasoning
+                                key={`${message.id}-${i}`}
+                                className="w-full"
+                                isStreaming={status === 'streaming'}
+                              >
+                                <ReasoningTrigger />
+                                <ReasoningContent>{part.text}</ReasoningContent>
+                              </Reasoning>
+                            );
+                          default:
+                            return null;
+                        }
+                      })}
+                    </MessageContent>
+                  </Message>
+                  {isAuthenticated && (
+                    <Actions 
+                      className={`mt-1 opacity-25 group-hover/message:opacity-100 transition-opacity duration-150  ${
+                        message.role === 'user' ? ' justify-end' : ' justify-start'
+                      }`}
+                    >
+                      <Action
+                        onClick={() => handleDeleteMessage(message.id)}
+                        label="Delete message"
+                        tooltip="Delete"
+                      >
+                        <Trash2Icon className="size-3" />
+                      </Action>
+                    </Actions>
+                  )}
+                </div>
               ))}
               {status === 'submitted' && (
                 <Message from="assistant">
                   <MessageContent>
-                    <Loader size={20} />
+                    <MessageLoading />
                   </MessageContent>
                 </Message>
               )}

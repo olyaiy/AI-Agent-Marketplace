@@ -75,4 +75,54 @@ export async function POST(req: Request) {
   });
 }
 
+export async function DELETE(req: Request) {
+  const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
+  if (!session?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  const { messageId }: { messageId: string } = await req.json();
+  if (!messageId) {
+    return new Response(JSON.stringify({ error: 'Invalid payload' }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  // Verify ownership via conversation
+  const msg = await db
+    .select({ 
+      id: message.id,
+      conversationId: message.conversationId,
+      userId: conversation.userId 
+    })
+    .from(message)
+    .innerJoin(conversation, sql`${message.conversationId} = ${conversation.id}`)
+    .where(sql`${message.id} = ${messageId}`)
+    .limit(1);
+
+  if (msg.length === 0) {
+    return new Response(JSON.stringify({ error: 'Message not found' }), {
+      status: 404,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  if (msg[0].userId !== session.user.id) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  await db.delete(message).where(sql`${message.id} = ${messageId}`);
+
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
 

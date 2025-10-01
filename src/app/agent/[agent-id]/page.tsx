@@ -18,12 +18,13 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
   return (
     <main className="h-full px-4 ">
       <div className="size-full mx-auto flex gap-4 ">
+      <div className="flex-1 max-w-3/4 items-center justify-center r-auto  ">
+          <Chat className=' mx-auto' systemPrompt={found.systemPrompt} model={found.model} avatarUrl={found.avatar ? `/avatar/${found.avatar}` : undefined} isAuthenticated={isAuthenticated} agentTag={found.tag} />
+        </div>
         <div className="w-1/4 flex-shrink-0 ">
           <AgentInfoSidebar name={found.name} avatarUrl={found.avatar ? `/avatar/${found.avatar}` : undefined} tagline={found.tagline} description={found.description} />
         </div>
-        <div className="flex-1 max-w-3/4 items-center justify-center r-auto  ">
-          <Chat className=' mx-auto' systemPrompt={found.systemPrompt} model={found.model} avatarUrl={found.avatar ? `/avatar/${found.avatar}` : undefined} isAuthenticated={isAuthenticated} agentTag={found.tag} />
-        </div>
+        
       </div>
     </main>
   );
