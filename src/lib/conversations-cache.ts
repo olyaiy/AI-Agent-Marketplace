@@ -53,3 +53,20 @@ export async function updateConversationTitleOptimistically(
     { revalidate: false }
   );
 }
+
+/**
+ * Trigger AI-powered title generation for a conversation (fire-and-forget)
+ */
+export function generateConversationTitleAsync(conversationId: string) {
+  fetch(`/api/conversations/${conversationId}/generate-title`, {
+    method: 'POST',
+  })
+    .then(() => {
+      // Revalidate to show new title
+      revalidateConversations();
+    })
+    .catch(() => {
+      // Silently fail - title generation is not critical
+      console.warn(`Failed to generate title for conversation ${conversationId}`);
+    });
+}

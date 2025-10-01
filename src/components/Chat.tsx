@@ -26,7 +26,11 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { addConversationOptimistically, revalidateConversations } from '@/lib/conversations-cache';
+import { 
+  addConversationOptimistically, 
+  revalidateConversations,
+  generateConversationTitleAsync,
+} from '@/lib/conversations-cache';
 
 interface ChatProps {
   className?: string;
@@ -56,6 +60,7 @@ const Chat = React.memo(function Chat({
   const [isSignInPending, startSignInTransition] = useTransition();
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   const conversationIdRef = useRef<string | null>(initialConversationId || null);
+  const hasGeneratedTitleRef = useRef<boolean>(false);
   const { messages, status, sendMessage } = useChat({
     onFinish: async ({ message }) => {
       try {
@@ -66,8 +71,15 @@ const Chat = React.memo(function Chat({
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ conversationId: cid, message }),
         });
+        
         // Revalidate conversations to update lastMessageAt timestamp
         revalidateConversations();
+        
+        // Fire-and-forget: Generate AI-powered title after first message
+        if (!hasGeneratedTitleRef.current && !initialConversationId) {
+          hasGeneratedTitleRef.current = true;
+          generateConversationTitleAsync(cid);
+        }
       } catch {
         // ignore
       }

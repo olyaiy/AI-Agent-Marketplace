@@ -108,7 +108,6 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
   const pathname = usePathname();
   const router = useRouter();
 
-  const dateStr = new Date(conversation.dateIso).toLocaleDateString();
   const href = `/agent/${conversation.agentId}/${conversation.id}`;
   const displayText = conversation.title || `Chat ${conversation.id.slice(0, 8)}`;
   const isCurrentConversation = pathname?.includes(conversation.id);
@@ -188,8 +187,7 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
         <div className="flex items-center w-full gap-1">
           <SidebarMenuButton asChild className="flex-1">
             <Link href={href}>
-              <span className="text-xs truncate flex-1">{displayText}</span>
-              <span className="ml-2 text-xs text-muted-foreground shrink-0">{dateStr}</span>
+              <span className="text-xs truncate">{displayText}</span>
             </Link>
           </SidebarMenuButton>
           
