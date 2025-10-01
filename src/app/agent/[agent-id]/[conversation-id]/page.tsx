@@ -46,7 +46,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
     .where(sql`${message.conversationId} = ${conversationId}`)
     .orderBy(sql`${message.createdAt} ASC`);
 
-  const initialMessages: UIMessageShape[] = rows.map((r) => ({ id: r.id, role: r.role as UIMessageShape['role'], parts: r.uiParts as any }));
+  const initialMessages: UIMessageShape[] = rows.map((r) => ({ id: r.id, role: r.role as UIMessageShape['role'], parts: r.uiParts as readonly unknown[] }));
 
   const avatarUrl = found.avatar ? `/avatar/${found.avatar}` : undefined;
 
@@ -73,7 +73,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
             isAuthenticated={true}
             agentTag={found.tag}
             initialConversationId={conversationId}
-            initialMessages={initialMessages as any}
+            initialMessages={initialMessages as unknown[]}
           />
         </div>
       </div>
@@ -89,7 +89,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
             isAuthenticated={true}
             agentTag={found.tag}
             initialConversationId={conversationId}
-            initialMessages={initialMessages as any}
+            initialMessages={initialMessages as unknown[]}
           />
         </div>
         <div className="w-[25%] min-w-[280px] flex-shrink-0">
