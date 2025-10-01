@@ -22,15 +22,19 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
     <main className="h-full">
       {/* Mobile Layout */}
       <div className="md:hidden flex flex-col h-full">
-        <AgentInfoSheet
-          name={found.name}
-          avatarUrl={avatarUrl}
-          tagline={found.tagline}
-          description={found.description}
-        />
-        <div className="flex-1 px-4">
+        {/* Sticky header at top */}
+        <div className="flex-shrink-0 sticky top-0 z-10 bg-background border-b">
+          <AgentInfoSheet
+            name={found.name}
+            avatarUrl={avatarUrl}
+            tagline={found.tagline}
+            description={found.description}
+          />
+        </div>
+        {/* Scrollable chat area */}
+        <div className="flex-1 overflow-hidden md:px-4">
           <Chat
-            className="mx-auto"
+            className="mx-auto h-full"
             systemPrompt={found.systemPrompt}
             model={found.model}
             avatarUrl={avatarUrl}

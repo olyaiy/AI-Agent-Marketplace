@@ -16,7 +16,7 @@ export function MobileAgentHeader({ name, avatarUrl, tagline, onClick }: MobileA
   return (
     <button
       onClick={onClick}
-      className="w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 active:bg-gray-50 transition-colors"
+      className="w-full  border-b border-gray-200 px-2 pb-2 flex items-center gap-3 active:bg-gray-50 transition-colors"
       type="button"
     >
       {/* Avatar */}

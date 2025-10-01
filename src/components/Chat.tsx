@@ -268,38 +268,40 @@ const Chat = React.memo(function Chat({
       </Dialog>
       {hasMessages ? (
         <>
-          <Conversation>
-            <ConversationContent>
-              {displayedMessages.map((message: BasicUIMessage) => (
-                <div key={message.id} className="group/message">
-                  <Message from={message.role}>
-                    <MessageContent>
-                      {message.parts.map((part: BasicUIPart, i: number) => {
-                        switch (part.type) {
-                          case 'text':
-                            return (
-                              <Response key={`${message.id}-${i}`}>{part.text}</Response>
-                            );
-                          case 'reasoning':
-                            return (
-                              <Reasoning
-                                key={`${message.id}-${i}`}
-                                className="w-full"
-                                isStreaming={status === 'streaming'}
-                              >
-                                <ReasoningTrigger />
-                                <ReasoningContent>{part.text}</ReasoningContent>
-                              </Reasoning>
-                            );
-                          default:
-                            return null;
-                        }
-                      })}
-                    </MessageContent>
-                  </Message>
+          {/* Scrollable conversation area */}
+          <div className="flex-1 overflow-hidden">
+            <Conversation className="h-full overflow-y-auto">
+              <ConversationContent>
+                {displayedMessages.map((message: BasicUIMessage) => (
+                  <div key={message.id} className="group/message">
+                    <Message from={message.role}>
+                      <MessageContent>
+                        {message.parts.map((part: BasicUIPart, i: number) => {
+                          switch (part.type) {
+                            case 'text':
+                              return (
+                                <Response key={`${message.id}-${i}`}>{part.text}</Response>
+                              );
+                            case 'reasoning':
+                              return (
+                                <Reasoning
+                                  key={`${message.id}-${i}`}
+                                  className="w-full"
+                                  isStreaming={status === 'streaming'}
+                                >
+                                  <ReasoningTrigger />
+                                  <ReasoningContent>{part.text}</ReasoningContent>
+                                </Reasoning>
+                              );
+                            default:
+                              return null;
+                          }
+                        })}
+                      </MessageContent>
+                    </Message>
                   {isAuthenticated && (
                     <Actions 
-                      className={`mt-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-150 ${
+                      className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${
                         message.role === 'user' ? 'justify-end' : 'justify-start'
                       }`}
                     >
@@ -311,40 +313,42 @@ const Chat = React.memo(function Chat({
                       </Action>
                     </Actions>
                   )}
-                </div>
-              ))}
-              {status === 'submitted' && (
-                <Message from="assistant">
-                  <MessageContent>
-                    <MessageLoading />
-                  </MessageContent>
-                </Message>
-              )}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
+                  </div>
+                ))}
+                {status === 'submitted' && (
+                  <Message from="assistant">
+                    <MessageContent>
+                      <MessageLoading />
+                    </MessageContent>
+                  </Message>
+                )}
+              </ConversationContent>
+              <ConversationScrollButton />
+            </Conversation>
+          </div>
 
-      <div className="flex flex-col items-center justify-center py-2 md:py-4">
-          <PromptInput onSubmit={handleSubmit} className="mt-0 w-full max-w-3xl">
-            <div className="flex items-center gap-2 p-1.5 md:p-2">
-              <PromptInputTextarea
-                autoFocus
-                onChange={(e) => setText(e.target.value)}
-                value={text}
-                placeholder="Type your message..."
-                className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
-              />
-              <PromptInputSubmit 
-                disabled={!text.trim()} 
-                status={status}
-                className="shrink-0"
-              />
-            </div>
-          </PromptInput>
+          {/* Fixed input bar at bottom */}
+          <div className="flex-shrink-0 border-t bg-background py-2 md:py-4">
+            <PromptInput onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
+              <div className="flex items-center gap-2 p-1.5 md:p-2">
+                <PromptInputTextarea
+                  autoFocus
+                  onChange={(e) => setText(e.target.value)}
+                  value={text}
+                  placeholder="Type your message..."
+                  className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
+                />
+                <PromptInputSubmit 
+                  disabled={!text.trim()} 
+                  status={status}
+                  className="shrink-0"
+                />
+              </div>
+            </PromptInput>
           </div>
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full px-2 md:px-0">
+        <div className="flex flex-col items-center justify-center h-full md:px-0">
           <PromptInput onSubmit={handleSubmit} className="w-full max-w-2xl">
             <div className="flex items-center gap-2 p-1.5 md:p-2">
               <PromptInputTextarea

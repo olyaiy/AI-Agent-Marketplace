@@ -42,9 +42,9 @@ export default async function RootLayout({
               <SidebarInset>
                 <div className="flex-1 min-h-0 overflow-y-auto relative ">
 
-                  {/* Sidebar Trigger */}
-                  <div className="sticky top-0 left-0 z-10 cursor-pointer">
-                    <div className="absolute top-2 left-2 md:top-2 md:left-2 cursor-pointer hover:bg-accent rounded-lg">
+                  {/* Sidebar Trigger - Desktop only (mobile trigger is in navbar) */}
+                  <div className="hidden md:block sticky top-0 left-0 z-10 cursor-pointer">
+                    <div className="absolute top-2 left-2 cursor-pointer hover:bg-accent rounded-lg">
                       <SidebarTrigger />
                     </div>
                   </div>
