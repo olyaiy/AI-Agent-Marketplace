@@ -24,6 +24,10 @@ export default async function RootLayout({
     .catch(() => null);
 
   const currentUser = session?.user ?? null;
+  
+  console.log('[Layout] Session:', session);
+  console.log('[Layout] Current user:', currentUser);
+  console.log('[Layout] User email:', currentUser?.email);
 
   return (
     <html lang="en">

@@ -20,6 +20,9 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ userEmail }: AppSidebarProps) {
+  console.log('[AppSidebar] Received userEmail:', userEmail);
+  console.log('[AppSidebar] Should show footer?', !!userEmail);
+  
   return (
     <Sidebar variant="inset" collapsible="icon" className="top-10">
       <SidebarContent>
@@ -68,15 +71,23 @@ export function AppSidebar({ userEmail }: AppSidebarProps) {
       </SidebarContent>
       
       {/* Footer with sign out button - only when user is signed in */}
-      {userEmail && (
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SignOutButton userEmail={userEmail} />
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-      )}
+      {(() => {
+        console.log('[AppSidebar] Rendering footer check, userEmail:', userEmail);
+        if (userEmail) {
+          console.log('[AppSidebar] Rendering SidebarFooter with email:', userEmail);
+          return (
+            <SidebarFooter>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SignOutButton userEmail={userEmail} />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          );
+        }
+        console.log('[AppSidebar] Not rendering footer - no userEmail');
+        return null;
+      })()}
       
       <SidebarRail className="top-10" />
     </Sidebar>
