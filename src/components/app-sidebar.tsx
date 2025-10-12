@@ -2,10 +2,12 @@ import Link from "next/link"
 import { Home, Settings, MessageSquare } from "lucide-react"
 import { RecentConversationsClient } from "@/components/recent-conversations-client"
 import { SignOutButton } from "@/components/SignOutButton"
+import { GoogleSignInButton } from "@/components/GoogleSignInButton"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarHeader,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -24,7 +26,15 @@ export function AppSidebar({ userEmail }: AppSidebarProps) {
   console.log('[AppSidebar] Should show footer?', !!userEmail);
   
   return (
-    <Sidebar variant="inset" collapsible="icon" className="top-10">
+    <Sidebar variant="inset" collapsible="icon">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-2">
+          <Link href="/" className="text-xl font-semibold hover:opacity-80 transition-opacity">
+            AV
+          </Link>
+        </div>
+      </SidebarHeader>
+      
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Application</SidebarGroupLabel>
@@ -70,26 +80,22 @@ export function AppSidebar({ userEmail }: AppSidebarProps) {
         <RecentConversationsClient />
       </SidebarContent>
       
-      {/* Footer with sign out button - only when user is signed in */}
-      {(() => {
-        console.log('[AppSidebar] Rendering footer check, userEmail:', userEmail);
-        if (userEmail) {
-          console.log('[AppSidebar] Rendering SidebarFooter with email:', userEmail);
-          return (
-            <SidebarFooter>
-              <SidebarMenu>
-                <SidebarMenuItem className=" mb-10">
-                  <SignOutButton userEmail={userEmail} className="" />
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          );
-        }
-        console.log('[AppSidebar] Not rendering footer - no userEmail');
-        return null;
-      })()}
+      {/* Footer with sign out or sign in button */}
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            {userEmail ? (
+              <SignOutButton userEmail={userEmail} />
+            ) : (
+              <div className="group-data-[collapsible=icon]:hidden">
+                <GoogleSignInButton size="default" className="w-full" />
+              </div>
+            )}
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
       
-      <SidebarRail className="top-10" />
+      <SidebarRail />
     </Sidebar>
   )
 }

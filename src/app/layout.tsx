@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 
 import { auth } from "@/lib/auth";
-import { Navbar } from "@/components/Navbar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 
@@ -32,36 +31,26 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable}  font-sans 
-        antialiased h-dvh relative md:flex md:flex-col`}
+        className={`${inter.variable} font-sans antialiased h-dvh relative`}
       >
         <SidebarProvider>
-          <div className="flex flex-col  ">
-            <Navbar userEmail={currentUser?.email} />
-
-
-            <div className="flex flex-1  py- h-full w-dvw overflow-x-none ">
-              <AppSidebar userEmail={currentUser?.email} />
-              <SidebarInset className="min-w-0 w-full " >
-                <div className="flex-1 min-h-0 overflow-y-auto  relative overflow-x-none  p-2 ">
-
-                  {/* Sidebar Trigger - Desktop only (mobile trigger is in navbar) */}
-                  <div className="hidden md:block sticky top-0 left-0 z-10 cursor-pointer">
-                    <div className="absolute top-2 left-2 cursor-pointer hover:bg-accent rounded-lg">
-                      <SidebarTrigger />
-                    </div>
-                  </div>
-
-                  {/* Children */}
-                  <div className="p-4 md:p-6 lg:full max-w-full bg-white  overflow-x-none ">
-                    {children}
-                  </div>
+          <AppSidebar userEmail={currentUser?.email} />
+          <SidebarInset className="min-w-0 w-full">
+            <div className="flex-1 min-h-0 overflow-y-auto relative overflow-x-none p-2">
+              
+              {/* Sidebar Trigger - positioned at top left */}
+              <div className="sticky top-0 left-0 z-10">
+                <div className="absolute top-2 left-2 hover:bg-accent rounded-lg">
+                  <SidebarTrigger />
                 </div>
-              </SidebarInset>
+              </div>
+
+              {/* Children */}
+              <div className="p-4 md:p-6 max-w-full bg-white overflow-x-none">
+                {children}
+              </div>
             </div>
-
-
-          </div>
+          </SidebarInset>
         </SidebarProvider>
       </body>
     </html>
