@@ -23,7 +23,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
       {/* Mobile Layout */}
       <div className="md:hidden flex flex-col h-full  p-4">
         {/* Sticky header at top */}
-        <div className="flex-shrink-0 sticky top-5 z-10 bg-background border-b">
+        <div className="flex-shrink-0 sticky top-0 px-6 z-10 bg-background border-b">
           <AgentInfoSheet
             name={found.name}
             avatarUrl={avatarUrl}
@@ -33,7 +33,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
           />
         </div>
         {/* Scrollable chat area */}
-        <div className="flex-1 overflow-hidden md:px-4">
+        <div className="flex-1 overflow-hidden ">
           <Chat
             className="mx-auto h-full"
             systemPrompt={found.systemPrompt}
