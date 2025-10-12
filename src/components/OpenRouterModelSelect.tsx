@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef, useMemo, memo } from "react";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
@@ -63,7 +63,8 @@ function getProviderSlug(modelName: string): string | null {
   return m ? m[1].trim().toLowerCase() : null;
 }
 
-function ProviderAvatar({ name, size = 32 }: { name: string; size?: number }) {
+// Memoized avatar component to prevent unnecessary re-renders
+const ProviderAvatar = memo(function ProviderAvatar({ name, size = 32 }: { name: string; size?: number }) {
   const slug = getProviderSlug(name);
   
   // Fallback avatar with Sparkles icon
@@ -86,7 +87,7 @@ function ProviderAvatar({ name, size = 32 }: { name: string; size?: number }) {
   const AvatarComp = Comp.Avatar || Comp;
 
   return <AvatarComp size={size} className="" />;
-}
+});
 
 function groupModelsByMonth(models: SlimModel[]): Array<{ label: string; items: SlimModel[] }> {
   // Group models by month/year
@@ -186,33 +187,69 @@ export function OpenRouterModelSelect({
     fetchRecommended();
   }, [fetcher]);
 
+  // Memoized filter function for client-side search
+  const filterFn = useCallback((model: SlimModel, query: string) => {
+    const searchText = `${model.id} ${model.name} ${model.description}`.toLowerCase();
+    return searchText.includes(query.toLowerCase());
+  }, []);
+
+  // Memoized render function for each option in the list
+  const renderOption = useCallback((m: SlimModel) => (
+    <div className="flex items-center gap-3 min-w-0 w-full">
+      <ProviderAvatar name={m.name} size={32} />
+      <div className="flex flex-col min-w-0 flex-1">
+        <span className="text-sm font-medium truncate">{m.name}</span>
+        <span className="text-xs text-muted-foreground truncate">{m.id}</span>
+      </div>
+      {m.context_length ? (
+        <Badge variant="secondary" className="ml-auto shrink-0 text-xs">{m.context_length}</Badge>
+      ) : null}
+    </div>
+  ), []);
+
+  // Memoized function to get the value from a model
+  const getOptionValue = useCallback((m: SlimModel) => m.id, []);
+
+  // Memoized render function for the selected value display
+  const getDisplayValue = useCallback((m: SlimModel) => (
+    <div className="flex items-center gap-2 min-w-0">
+      <ProviderAvatar name={m.name} size={24} />
+      <span className="truncate">{m.name}</span>
+    </div>
+  ), []);
+
+  // Memoized filter configuration to prevent unnecessary re-renders
+  const filterConfig = useMemo(() => ({
+    providers: {
+      enabled: true,
+      extractProvider: (m: SlimModel) => getProviderSlug(m.name),
+    },
+    contextLength: {
+      enabled: true,
+      extractContextLength: (m: SlimModel) => m.context_length,
+      min: 0,
+      max: 500000,
+      step: 10000,
+      formatLabel: (value: number) => `${(value / 1000).toFixed(0)}k`,
+    },
+    priceRange: {
+      enabled: true,
+      extractPrice: (m: SlimModel) => m.pricing.prompt,
+      min: 0,
+      max: 50,
+      step: 0.5,
+      formatLabel: (value: number) => value === 0 ? 'Free' : `$${value.toFixed(2)}`,
+    },
+  }), []);
+
   return (
     <AsyncSelect<SlimModel>
       fetcher={fetcher}
       preload={true}
-      filterFn={(model, query) => {
-        const searchText = `${model.id} ${model.name} ${model.description}`.toLowerCase();
-        return searchText.includes(query.toLowerCase());
-      }}
-      renderOption={(m) => (
-        <div className="flex items-center gap-3 min-w-0 w-full">
-          <ProviderAvatar name={m.name} size={32} />
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-sm font-medium truncate">{m.name}</span>
-            <span className="text-xs text-muted-foreground truncate">{m.id}</span>
-          </div>
-          {m.context_length ? (
-            <Badge variant="secondary" className="ml-auto shrink-0 text-xs">{m.context_length}</Badge>
-          ) : null}
-        </div>
-      )}
-      getOptionValue={(m) => m.id}
-      getDisplayValue={(m) => (
-        <div className="flex items-center gap-2 min-w-0">
-          <ProviderAvatar name={m.name} size={24} />
-          <span className="truncate">{m.name}</span>
-        </div>
-      )}
+      filterFn={filterFn}
+      renderOption={renderOption}
+      getOptionValue={getOptionValue}
+      getDisplayValue={getDisplayValue}
       label={label}
       placeholder={placeholder}
       value={value}
@@ -223,28 +260,7 @@ export function OpenRouterModelSelect({
       recommendedItems={recommendedModels}
       recommendedLabel="Recommended"
       groupByFn={groupModelsByMonth}
-      filterConfig={{
-        providers: {
-          enabled: true,
-          extractProvider: (m) => getProviderSlug(m.name),
-        },
-        contextLength: {
-          enabled: true,
-          extractContextLength: (m) => m.context_length,
-          min: 0,
-          max: 500000,
-          step: 10000,
-          formatLabel: (value) => `${(value / 1000).toFixed(0)}k`,
-        },
-        priceRange: {
-          enabled: true,
-          extractPrice: (m) => m.pricing.prompt,
-          min: 0,
-          max: 50,
-          step: 0.5,
-          formatLabel: (value) => value === 0 ? 'Free' : `$${value.toFixed(2)}`,
-        },
-      }}
+      filterConfig={filterConfig}
     />
   );
 }
