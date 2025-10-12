@@ -32,14 +32,14 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
   const a = await getAgentByTag(tag);
   if (!a) notFound();
   const avatars = await (async () => {
-    const folder = path.join(process.cwd(), 'public', 'avatar');
+    const folder = path.join(process.cwd(), 'public', 'avatars');
     try {
       const entries = await readdir(folder, { withFileTypes: true });
       return entries
         .filter((entry) => entry.isFile())
         .map((entry) => entry.name)
         .filter((name) => /\.(png|jpe?g|webp|gif)$/i.test(name))
-        .map((name) => `/avatar/${name}`);
+        .map((name) => `/avatars/${name}`);
     } catch {
       return [] as string[];
     }

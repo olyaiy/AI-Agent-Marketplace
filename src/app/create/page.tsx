@@ -3,14 +3,14 @@ import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 async function readAvatarUrls(): Promise<string[]> {
-  const folder = path.join(process.cwd(), 'public', 'avatar');
+  const folder = path.join(process.cwd(), 'public', 'avatars');
   try {
     const entries = await readdir(folder, { withFileTypes: true });
     return entries
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
       .filter((name) => /\.(png|jpe?g|webp|gif)$/i.test(name))
-      .map((name) => `/avatar/${name}`);
+      .map((name) => `/avatars/${name}`);
   } catch {
     return [];
   }

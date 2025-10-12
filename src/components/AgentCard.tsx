@@ -36,7 +36,7 @@ export function AgentCard({ tag, name, avatar, systemPrompt, tagline }: AgentCar
         
         {avatar && (
           <Image
-            src={`/avatar/${avatar}`}
+            src={`/avatars/${avatar}`}
             alt={`${name} avatar`}
             width={90}
             height={90}

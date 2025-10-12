@@ -48,7 +48,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
 
   const initialMessages: UIMessageShape[] = rows.map((r) => ({ id: r.id, role: r.role as UIMessageShape['role'], parts: r.uiParts as readonly unknown[] }));
 
-  const avatarUrl = found.avatar ? `/avatar/${found.avatar}` : undefined;
+  const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
 
   return (
     <main className="h-full">

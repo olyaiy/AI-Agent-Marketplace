@@ -38,7 +38,7 @@ interface ChatProps {
   className?: string;
   systemPrompt?: string;
   model?: string;
-  avatarUrl?: string; // optional avatar URL like /avatar/filename.png
+  avatarUrl?: string; // optional avatar URL like /avatars/filename.png
   getChatContext?: () => { systemPrompt?: string; model?: string } | null;
   isAuthenticated?: boolean;
   agentTag?: string;

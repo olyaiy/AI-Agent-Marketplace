@@ -9,6 +9,10 @@ export const agent = pgTable('agent', {
   avatar: varchar('avatar', { length: 256 }),
   tagline: text('tagline'),
   description: text('description'),
+  creatorId: text('creator_id')
+    .references(() => user.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Better Auth Schema
@@ -66,6 +70,7 @@ export const verification = pgTable('verification', {
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
+  createdAgents: many(agent),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -82,6 +87,13 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
+export const agentRelations = relations(agent, ({ one }) => ({
+  creator: one(user, {
+    fields: [agent.creatorId],
+    references: [user.id],
+  }),
+}));
+
 // Conversations
 export const conversation = pgTable('conversation', {
   id: text('id').primaryKey(),
@@ -90,7 +102,7 @@ export const conversation = pgTable('conversation', {
     .references(() => user.id, { onDelete: 'cascade' }),
   agentTag: varchar('agent_tag', { length: 64 })
     .notNull()
-    .references(() => agent.tag, { onDelete: 'restrict' }),
+    .references(() => agent.tag, { onDelete: 'cascade' }),
   title: text('title'),
   modelId: varchar('model_id', { length: 128 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

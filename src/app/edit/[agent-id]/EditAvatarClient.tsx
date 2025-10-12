@@ -4,12 +4,12 @@ import * as React from "react";
 import { AvatarPicker } from "@/components/avatar-picker";
 
 interface Props {
-  avatars: string[]; // urls like /avatar/filename.png
+  avatars: string[]; // urls like /avatars/filename.png
   initialAvatar?: string; // filename only
 }
 
 export const EditAvatarClient = React.memo(function EditAvatarClient({ avatars, initialAvatar }: Props) {
-  const initialUrl = React.useMemo(() => (initialAvatar ? `/avatar/${initialAvatar}` : undefined), [initialAvatar]);
+  const initialUrl = React.useMemo(() => (initialAvatar ? `/avatars/${initialAvatar}` : undefined), [initialAvatar]);
   const [selectedUrl, setSelectedUrl] = React.useState<string | undefined>(initialUrl);
 
   const selectedFileName = React.useMemo(() => {

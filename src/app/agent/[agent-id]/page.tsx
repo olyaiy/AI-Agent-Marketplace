@@ -16,7 +16,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   const isAuthenticated = Boolean(session?.user);
 
-  const avatarUrl = found.avatar ? `/avatar/${found.avatar}` : undefined;
+  const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
 
   return (
     <main className="h-full">
