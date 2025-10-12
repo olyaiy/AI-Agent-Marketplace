@@ -289,7 +289,7 @@ const Chat = React.memo(function Chat({
       {hasMessages ? (
         <>
           {/* Scrollable conversation area */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden pb-20 md:pb-0">
             <Conversation className="h-full overflow-y-scroll">
               <ConversationContent>
                 {displayedMessages.map((message: BasicUIMessage) => (
@@ -347,8 +347,8 @@ const Chat = React.memo(function Chat({
             </Conversation>
           </div>
 
-          {/* Fixed input bar at bottom */}
-          <div className="flex-shrink-0 border-t md:border-t-0 bg-background py-2 md:pb-4 md:pt-0">
+          {/* Fixed input bar at bottom - fixed on mobile, relative on desktop */}
+          <div className="fixed md:relative bottom-0 left-0 right-0 md:flex-shrink-0 border-t md:border-t-0 bg-background py-2 md:pb-4 md:pt-0 z-10">
             <PromptInput onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
               <div className="flex items-center gap-2 p-1.5 md:p-2">
                 <PromptInputTextarea

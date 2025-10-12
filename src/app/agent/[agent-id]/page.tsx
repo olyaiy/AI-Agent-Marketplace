@@ -19,11 +19,11 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
   const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
 
   return (
-    <main className="h-full">
+    <main className="h-full ">
       {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col h-full">
+      <div className="md:hidden flex flex-col h-full  p-4">
         {/* Sticky header at top */}
-        <div className="flex-shrink-0 sticky top-0 z-10 bg-background border-b">
+        <div className="flex-shrink-0 sticky top-5 z-10 bg-background border-b">
           <AgentInfoSheet
             name={found.name}
             avatarUrl={avatarUrl}

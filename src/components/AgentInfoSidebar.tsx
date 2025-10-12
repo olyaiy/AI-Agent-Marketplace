@@ -26,45 +26,49 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
 
   return (
     <div className={cn(
-      "w-full bg-white rounded-xl border-gray-200 flex flex-col overflow-hidden",
-      variant === 'sidebar' ? 'h-full' : ''
+      "w-full bg-white rounded-lg border border-gray-200 p-4 space-y-4",
+      variant === 'sidebar' ? 'h-full flex flex-col' : ''
     )}>
       {/* Header with Avatar and Info */}
-      <div className="bg-white border border-rose-200 px-5 py-5 rounded-xl">
-        <div className="flex items-center gap-4">
-          {/* Avatar on left */}
-          {avatarUrl ? (
-            <Image 
-              src={avatarUrl} 
-              alt="Agent Avatar" 
-              width={72} 
-              height={72}
-              className="rounded-xl flex-shrink-0"
-            />
-          ) : null}
-          
-          {/* Name and tagline on right */}
-          <div className="flex-1 min-w-0">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">{name}</h2>
-              <p className="text-sm text-gray-700 mt-0.5">{effectiveTagline}</p>
-            </div>
-          </div>
+      <div className="flex items-center gap-3">
+        {/* Avatar on left */}
+        {avatarUrl ? (
+          <Image 
+            src={avatarUrl} 
+            alt="Agent Avatar" 
+            width={64} 
+            height={64}
+            className="rounded-lg flex-shrink-0"
+          />
+        ) : null}
+        
+        {/* Name and tagline on right */}
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-semibold text-gray-900">{name}</h2>
+          <p className="text-sm text-gray-600 line-clamp-2 leading-tight mt-1">{effectiveTagline}</p>
         </div>
       </div>
 
+      {/* Tag */}
+      {agentTag && (
+        <p className="text-xs text-gray-500 font-mono">
+          {agentTag}
+        </p>
+      )}
+
       {/* Description */}
-      <div className="pt-4 pb-5">
-        <div className="bg-white rounded-xl border border-gray-100 px-4 py-4">
-          <p className="text-[13px] text-gray-600 leading-relaxed">
-            {effectiveDescription}
-          </p>
-        </div>
+      <div className={cn(
+        "border-t border-gray-200 pt-4",
+        variant === 'sidebar' ? 'flex-1 overflow-y-auto' : ''
+      )}>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          {effectiveDescription}
+        </p>
       </div>
 
       {/* New Chat Button */}
       {agentId && (
-        <div className="pt-2 pb-5">
+        <div className="border-t border-gray-200 pt-4">
           <Button 
             asChild 
             variant="outline"

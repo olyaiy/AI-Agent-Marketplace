@@ -33,17 +33,14 @@ export default async function RootLayout({
         <SidebarProvider>
           <AppSidebar userEmail={currentUser?.email} />
           <SidebarInset className="min-w-0 w-full">
-            <div className="flex-1 min-h-0 overflow-y-auto relative overflow-x-none p-2">
-              
-              {/* Sidebar Trigger - positioned at top left */}
-              <div className="sticky top-0 left-0 z-10">
-                <div className="absolute top-2 left-2 hover:bg-accent rounded-lg">
-                  <SidebarTrigger />
-                </div>
-              </div>
+            {/* Sidebar Trigger - fixed at top left on mobile, sticky on desktop */}
+            <div className="fixed md:sticky top-2 left-2 z-50">
+              <SidebarTrigger className="bg-background/80 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none shadow-sm md:shadow-none" />
+            </div>
 
-              {/* Children */}
-              <div className="p-4 md:p-6 max-w-full h-full">
+            {/* Main content */}
+            <div className="flex-1 min-h-0 overflow-y-auto relative overflow-x-none">
+              <div className="md:p-6 max-w-full relative  h-dvh md:h-full  md:pt-4">
                 {children}
               </div>
             </div>

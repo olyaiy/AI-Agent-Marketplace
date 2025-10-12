@@ -53,9 +53,9 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
   return (
     <div className="relative md:max-h-[calc(100vh-200px)]">
       {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col h-full ">
+      <div className="md:hidden flex flex-col h-full  p-4">
         {/* Sticky header at top */}
-        <div className="flex-shrink-0 sticky top-0 z-10 bg-background border-b">
+        <div className="flex-shrink-0 sticky top-5 z-10 bg-background border-b">
           <AgentInfoSheet
             name={found.name}
             avatarUrl={avatarUrl}
