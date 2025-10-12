@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "openrouter.ai",
+      },
+      {
+        protocol: "https",
         hostname: "models.dev",
       },
       {

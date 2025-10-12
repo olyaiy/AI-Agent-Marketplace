@@ -69,6 +69,16 @@ export interface AsyncSelectProps<T> {
   recommendedItems?: T[];
   /** Label for recommended section */
   recommendedLabel?: string;
+  /** Function to group options into sections (only when search is empty) */
+  groupByFn?: (options: T[]) => Array<{ label: string; items: T[] }>;
+  /** Enable simple virtualization for large lists (flat list only) */
+  virtualize?: boolean;
+  /** Virtual row height (px) */
+  rowHeight?: number;
+  /** Max height for the list (px) */
+  listHeight?: number;
+  /** Number of extra rows to render above/below the viewport */
+  overscan?: number;
 }
  
 export function AsyncSelect<T>({
@@ -92,6 +102,11 @@ export function AsyncSelect<T>({
   clearable = true,
   recommendedItems = [],
   recommendedLabel = "Recommended",
+  groupByFn,
+  virtualize = true,
+  rowHeight = 44,
+  listHeight = 320,
+  overscan = 8,
 }: AsyncSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<T[]>([]);
@@ -103,10 +118,15 @@ export function AsyncSelect<T>({
   const debouncedSearchTerm = useDebounce(searchTerm, preload ? 0 : 300);
   const [originalOptions, setOriginalOptions] = useState<T[]>([]);
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
+  const [isPrefetching, setIsPrefetching] = useState(false);
   
   // Use refs to avoid recreating handleSelect on every options change
   const optionsRef = useRef<T[]>([]);
   const getOptionValueRef = useRef(getOptionValue);
+  const prefetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(listHeight);
 
   // Keep refs in sync
   useEffect(() => {
@@ -171,6 +191,9 @@ export function AsyncSelect<T>({
   useEffect(() => {
     if (preload) return;
 
+    // Avoid redundant fetch on open when we've already prefetched initial data
+    if (hasLoadedInitial && debouncedSearchTerm === "") return;
+
     const fetchWithSearch = async () => {
       try {
         setLoading(true);
@@ -178,8 +201,10 @@ export function AsyncSelect<T>({
         const data = await fetcher(debouncedSearchTerm);
         setOptions(data);
         if (!hasLoadedInitial) setHasLoadedInitial(true);
+        setIsPrefetching(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch options');
+        setIsPrefetching(false);
       } finally {
         setLoading(false);
       }
@@ -187,15 +212,75 @@ export function AsyncSelect<T>({
 
     fetchWithSearch();
   }, [preload, debouncedSearchTerm, fetcher, hasLoadedInitial]);
+
+  // Prefetch function for eager loading
+  const handlePrefetch = useCallback(() => {
+    if (preload || hasLoadedInitial || isPrefetching || loading) return;
+
+    // Clear any existing timeout
+    if (prefetchTimeoutRef.current) {
+      clearTimeout(prefetchTimeoutRef.current);
+    }
+
+    // Prefetch after short delay (user intent confirmation)
+    prefetchTimeoutRef.current = setTimeout(async () => {
+      try {
+        setIsPrefetching(true);
+        const data = await fetcher("");
+        setOptions(data);
+        setHasLoadedInitial(true);
+        setIsPrefetching(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to prefetch options');
+        setIsPrefetching(false);
+      }
+    }, 100); // 100ms delay - feels instant but avoids unnecessary fetches
+  }, [preload, hasLoadedInitial, isPrefetching, loading, fetcher]);
+
+  // Cancel prefetch if user moves away quickly
+  const handleCancelPrefetch = useCallback(() => {
+    if (prefetchTimeoutRef.current) {
+      clearTimeout(prefetchTimeoutRef.current);
+      prefetchTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (prefetchTimeoutRef.current) {
+        clearTimeout(prefetchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Measure list height when popover opens
+  useEffect(() => {
+    if (!open) return;
+    const el = listRef.current;
+    if (!el) return;
+    const measure = () => setContainerHeight(el.clientHeight || listHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, listHeight]);
  
   const handleSelect = useCallback((currentValue: string) => {
     const newValue = clearable && currentValue === selectedValue ? "" : currentValue;
+    const newOption = optionsRef.current.find((option) => getOptionValueRef.current(option) === newValue) || null;
+    
+    // Optimistically update UI immediately
     setSelectedValue(newValue);
-    setSelectedOption(
-      optionsRef.current.find((option) => getOptionValueRef.current(option) === newValue) || null
-    );
+    setSelectedOption(newOption);
+    
+    // Close popover with slight delay for visual feedback
+    requestAnimationFrame(() => {
+      setOpen(false);
+    });
+    
+    // Call onChange after UI update
     onChange(newValue);
-    setOpen(false);
   }, [selectedValue, onChange, clearable]);
  
   return (
@@ -206,12 +291,16 @@ export function AsyncSelect<T>({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "justify-between",
+            "justify-between transition-all duration-150",
             disabled && "opacity-50 cursor-not-allowed",
             triggerClassName
           )}
           style={{ width: width }}
           disabled={disabled}
+          onMouseEnter={handlePrefetch}
+          onMouseLeave={handleCancelPrefetch}
+          onFocus={handlePrefetch}
+          onBlur={handleCancelPrefetch}
         >
           {selectedOption ? (
             getDisplayValue(selectedOption)
@@ -237,7 +326,11 @@ export function AsyncSelect<T>({
               </div>
             )}
           </div>
-          <CommandList>
+          <CommandList
+            ref={listRef as any}
+            onScroll={virtualize ? (e) => setScrollTop((e.currentTarget as HTMLDivElement).scrollTop) : undefined}
+            style={virtualize ? { maxHeight: listHeight, overflowY: 'auto' } : undefined}
+          >
             {error && (
               <div className="p-4 text-destructive text-center">
                 {error}
@@ -256,11 +349,12 @@ export function AsyncSelect<T>({
                     key={getOptionValue(option)}
                     value={getOptionValue(option)}
                     onSelect={handleSelect}
+                    className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
                   >
                     {renderOption(option)}
                     <Check
                       className={cn(
-                        "ml-auto h-3 w-3",
+                        "ml-auto h-3 w-3 transition-opacity duration-150",
                         selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
                       )}
                     />
@@ -268,25 +362,88 @@ export function AsyncSelect<T>({
                 ))}
               </CommandGroup>
             )}
-            {options.length > 0 && (
-              <CommandGroup heading={!searchTerm && recommendedItems.length > 0 ? "All Models" : undefined}>
-                {options.map((option) => (
-                  <CommandItem
-                    key={getOptionValue(option)}
-                    value={getOptionValue(option)}
-                    onSelect={handleSelect}
-                  >
-                    {renderOption(option)}
-                    <Check
-                      className={cn(
-                        "ml-auto h-3 w-3",
-                        selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                  </CommandItem>
+            {options.length > 0 && !searchTerm && groupByFn ? (
+              <>
+                {groupByFn(options).map((group) => (
+                  <CommandGroup key={group.label} heading={group.label}>
+                    {group.items.map((option) => (
+                      <CommandItem
+                        key={getOptionValue(option)}
+                        value={getOptionValue(option)}
+                        onSelect={handleSelect}
+                        className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
+                      >
+                        {renderOption(option)}
+                        <Check
+                          className={cn(
+                            "ml-auto h-3 w-3 transition-opacity duration-150",
+                            selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
                 ))}
-              </CommandGroup>
-            )}
+              </>
+            ) : options.length > 0 ? (
+              <>
+                {virtualize ? (
+                  (() => {
+                    const total = options.length;
+                    const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+                    const visibleCount = Math.ceil(containerHeight / rowHeight) + overscan * 2;
+                    const endIndex = Math.min(total, startIndex + visibleCount);
+                    const offsetTop = startIndex * rowHeight;
+                    const bottomSpacer = (total - endIndex) * rowHeight;
+                    const slice = options.slice(startIndex, endIndex);
+                    return (
+                      <div style={{ position: 'relative' }}>
+                        <div style={{ height: offsetTop }} />
+                        <CommandGroup heading={!searchTerm && recommendedItems.length > 0 ? "All Models" : undefined}>
+                          {slice.map((option) => (
+                            <CommandItem
+                              key={getOptionValue(option)}
+                              value={getOptionValue(option)}
+                              onSelect={handleSelect}
+                              className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
+                              style={{ height: rowHeight }}
+                            >
+                              {renderOption(option)}
+                              <Check
+                                className={cn(
+                                  "ml-auto h-3 w-3 transition-opacity duration-150",
+                                  selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                        <div style={{ height: bottomSpacer }} />
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <CommandGroup heading={!searchTerm && recommendedItems.length > 0 ? "All Models" : undefined}>
+                    {options.map((option) => (
+                      <CommandItem
+                        key={getOptionValue(option)}
+                        value={getOptionValue(option)}
+                        onSelect={handleSelect}
+                        className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
+                      >
+                        {renderOption(option)}
+                        <Check
+                          className={cn(
+                            "ml-auto h-3 w-3 transition-opacity duration-150",
+                            selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+              </>
+            ) : null}
           </CommandList>
         </Command>
       </PopoverContent>

@@ -42,8 +42,8 @@ export default async function RootLayout({
 
             <div className="flex flex-1  py-4 h-full w-dvw overflow-x-none ">
               <AppSidebar userEmail={currentUser?.email} />
-              <SidebarInset>
-                <div className="flex-1 min-h-0 overflow-y-auto  relative overflow-x-none bg-green-500 p-2 ">
+              <SidebarInset className="min-w-0 w-full " >
+                <div className="flex-1 min-h-0 overflow-y-auto  relative overflow-x-none  p-2 ">
 
                   {/* Sidebar Trigger - Desktop only (mobile trigger is in navbar) */}
                   <div className="hidden md:block sticky top-0 left-0 z-10 cursor-pointer">

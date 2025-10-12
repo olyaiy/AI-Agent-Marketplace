@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function filterModels(response: OpenRouterModelsResponse, q: string): { data: Array<{ id: string; name: string; description: string; context_length: number | null }> } {
+function filterModels(response: OpenRouterModelsResponse, q: string): { data: Array<{ id: string; name: string; description: string; context_length: number | null; created: number }> } {
   const items = response.data
     .filter((m) => {
       if (!q) return true;
@@ -122,6 +122,7 @@ function filterModels(response: OpenRouterModelsResponse, q: string): { data: Ar
       name: m.name,
       description: m.description,
       context_length: m.context_length,
+      created: m.created,
     }));
 
   return { data: items };
