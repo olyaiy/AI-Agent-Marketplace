@@ -189,7 +189,11 @@ export function OpenRouterModelSelect({
   return (
     <AsyncSelect<SlimModel>
       fetcher={fetcher}
-      preload={false}
+      preload={true}
+      filterFn={(model, query) => {
+        const searchText = `${model.id} ${model.name} ${model.description}`.toLowerCase();
+        return searchText.includes(query.toLowerCase());
+      }}
       renderOption={(m) => (
         <div className="flex items-center gap-3 min-w-0 w-full">
           <ProviderAvatar name={m.name} size={32} />
