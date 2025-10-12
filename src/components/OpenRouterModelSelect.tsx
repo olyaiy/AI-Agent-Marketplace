@@ -3,7 +3,7 @@
 import { useCallback, useState, useEffect } from "react";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { Badge } from "@/components/ui/badge";
-import { Bot } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import * as LobehubIcons from '@lobehub/icons';
 
 interface SlimModel {
@@ -61,16 +61,26 @@ function getProviderSlug(modelName: string): string | null {
 
 function ProviderAvatar({ name, size = 32 }: { name: string; size?: number }) {
   const slug = getProviderSlug(name);
-  if (!slug) return <Bot size={size} />;
+  
+  // Fallback avatar with Sparkles icon
+  const FallbackAvatar = () => (
+    <div 
+      className="flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <Sparkles size={size * 0.5} className="text-white" />
+    </div>
+  );
+  
+  if (!slug) return <FallbackAvatar />;
 
   const IconObj = PROVIDER_ICON_MAP[slug];
-  if (!IconObj) return <Bot size={size} />;
+  if (!IconObj) return <FallbackAvatar />;
 
   type IconLike = React.ComponentType<{ size?: number; className?: string }> & { Avatar?: React.ComponentType<{ size?: number; className?: string }> };
   const Comp = IconObj as IconLike;
   const AvatarComp = Comp.Avatar || Comp;
 
-  // Add a text-* class so CommandItem's svg color override doesn't apply
   return <AvatarComp size={size} className="" />;
 }
 
