@@ -1,6 +1,5 @@
 import { getAgentByTag, updateAgent, deleteAgent } from '@/actions/agents';
 import { notFound, redirect } from 'next/navigation';
-import { fetchGatewayLanguageModels } from '@/lib/gateway-models';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import EditAgentTwoColumnClient from './EditAgentTwoColumnClient';
@@ -32,7 +31,6 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
   const tag = `@${id}`;
   const a = await getAgentByTag(tag);
   if (!a) notFound();
-  const models = await fetchGatewayLanguageModels();
   const avatars = await (async () => {
     const folder = path.join(process.cwd(), 'public', 'avatar');
     try {
@@ -57,7 +55,6 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       initialAvatar={a.avatar || undefined}
       initialTagline={a.tagline || undefined}
       initialDescription={a.description || undefined}
-      models={models}
       avatars={avatars}
       onSave={saveAction}
       onDelete={deleteAction}

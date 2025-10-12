@@ -1,4 +1,5 @@
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
 import { conversation, message } from '@/db/schema';
@@ -32,6 +33,11 @@ export async function POST(req: Request) {
   }
   
   const modelId = normalizeModelId(bodyModel ?? qpModel) ?? 'openai/gpt-5-nano';
+
+  // Initialize OpenRouter
+  const openrouter = createOpenRouter({
+    apiKey: process.env.OPENROUTER_API_KEY,
+  });
 
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
   if (!session?.user) {
@@ -115,7 +121,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: modelId,
+    model: openrouter(modelId),
     providerOptions: {
       openai: {
         reasoningEffort: 'minimal',

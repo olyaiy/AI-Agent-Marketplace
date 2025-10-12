@@ -1,11 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { ModelSelect } from "@/components/ModelSelect";
-import type { ModelOption } from "@/components/ModelSelect";
+import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
 
 interface Props {
-  models: ModelOption[];
   initialModel: string | undefined;
   initialSystemPrompt?: string;
   initialTagline?: string;
@@ -14,40 +12,27 @@ interface Props {
   onContextChange?: (update: { model?: string; systemPrompt?: string; tagline?: string; description?: string }) => void;
 }
 
-export const EditAgentClient = React.memo(function EditAgentClient({ models, initialModel, initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange }: Props) {
-  // incoming model may be provider/model-id, convert to provider:model-id for ModelSelect value
-  const initialComposite = React.useMemo(() => {
-    if (!initialModel) return undefined;
-    const normalized = initialModel.replace(":", "/");
-    const slash = normalized.indexOf("/");
-    if (slash <= 0 || slash === normalized.length - 1) return undefined;
-    const provider = normalized.slice(0, slash);
-    const modelId = normalized.slice(slash + 1);
-    return `${provider}:${modelId}`;
-  }, [initialModel]);
-
-  const [composite, setComposite] = React.useState<string | undefined>(initialComposite);
+export const EditAgentClient = React.memo(function EditAgentClient({ initialModel, initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange }: Props) {
+  const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details">("behaviour");
 
-  const persistedModel = React.useMemo(() => {
-    if (!composite) return initialModel;
-    const [provider, modelId] = composite.split(":");
-    if (!provider || !modelId) return initialModel;
-    return `${provider}/${modelId}`;
-  }, [composite, initialModel]);
-
   React.useEffect(() => {
-    if (onChange) onChange(persistedModel || undefined);
-    if (onContextChange) onContextChange({ model: persistedModel || undefined });
-  }, [persistedModel, onChange, onContextChange]);
+    if (onChange) onChange(selectedModel || undefined);
+    if (onContextChange) onContextChange({ model: selectedModel || undefined });
+  }, [selectedModel, onChange, onContextChange]);
 
   return (
     <div className="space-y-4">
       {/* Model selector */}
       <div className="space-y-2">
-        <label className="block text-sm text-muted-foreground">Model</label>
-        <ModelSelect models={models} value={composite} onChange={setComposite} showLogos />
-        <input type="hidden" name="model" value={persistedModel || ""} />
+        <OpenRouterModelSelect
+          value={selectedModel}
+          onChange={(value) => setSelectedModel(value)}
+          placeholder="Select a model..."
+          width="100%"
+          label="Model"
+        />
+        <input type="hidden" name="model" value={selectedModel || ""} />
       </div>
 
       {/* Tabs header */}

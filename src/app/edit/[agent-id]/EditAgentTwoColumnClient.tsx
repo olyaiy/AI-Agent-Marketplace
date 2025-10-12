@@ -4,7 +4,6 @@ import * as React from "react";
 import Chat from "@/components/Chat";
 import { EditAgentClient } from "./EditAgentClient";
 import { EditAvatarClient } from "./EditAvatarClient";
-import type { ModelOption } from "@/components/ModelSelect";
 
 interface ServerAction {
   (formData: FormData): Promise<void>;
@@ -19,7 +18,6 @@ interface Props {
   initialAvatar?: string;
   initialTagline?: string;
   initialDescription?: string;
-  models: ModelOption[];
   avatars: string[];
   onSave: ServerAction;
   onDelete: ServerAction;
@@ -45,7 +43,6 @@ function LeftForm({
   initialAvatar,
   initialTagline,
   initialDescription,
-  models,
   avatars,
   onSave,
   onDelete,
@@ -77,7 +74,6 @@ function LeftForm({
 
         {/* Model + Tabs (Behaviour / Details) */}
         <EditAgentClient
-          models={models}
           initialModel={initialModel}
           initialSystemPrompt={initialSystemPrompt}
           initialTagline={initialTagline}

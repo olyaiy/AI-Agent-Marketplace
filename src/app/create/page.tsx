@@ -1,4 +1,3 @@
-import { fetchGatewayLanguageModels } from '@/lib/gateway-models';
 import { CreateAgentClient } from './CreateAgentClient';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -18,14 +17,11 @@ async function readAvatarUrls(): Promise<string[]> {
 }
 
 export default async function CreateAgentPage() {
-  const [models, avatars] = await Promise.all([
-    fetchGatewayLanguageModels(),
-    readAvatarUrls(),
-  ]);
+  const avatars = await readAvatarUrls();
   return (
     <div className="mx-auto max-w-6xl p-6">
       <h1 className="text-2xl mb-4">Create Agent</h1>
-      <CreateAgentClient models={models} avatars={avatars} />
+      <CreateAgentClient avatars={avatars} />
     </div>
   );
 }

@@ -1,14 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ModelSelect } from "@/components/ModelSelect";
-import type { ModelOption } from "@/components/ModelSelect";
+import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
 import { AgentForm } from "./AgentForm";
 import { AvatarPicker } from "@/components/avatar-picker";
 import Chat from "@/components/Chat";
 
 interface Props {
-  models: ModelOption[];
   avatars: string[];
 }
 
@@ -17,22 +15,15 @@ interface SendContext {
   systemPrompt?: string;
 }
 
-export function CreateAgentClient({ models, avatars }: Props) {
-  const [selectedCompositeId, setSelectedCompositeId] = React.useState<string | undefined>(undefined);
+export function CreateAgentClient({ avatars }: Props) {
+  const [selectedModelId, setSelectedModelId] = React.useState<string>("");
   const [selectedAvatar, setSelectedAvatar] = React.useState<string | undefined>(undefined);
 
   const sendContextRef = React.useRef<SendContext>({});
 
-  const selectedAgentModel = React.useMemo(() => {
-    if (!selectedCompositeId) return undefined;
-    const [provider, modelId] = selectedCompositeId.split(":");
-    if (!provider || !modelId) return undefined;
-    return `${provider}/${modelId}`;
-  }, [selectedCompositeId]);
-
   React.useEffect(() => {
-    sendContextRef.current.model = selectedAgentModel;
-  }, [selectedAgentModel]);
+    sendContextRef.current.model = selectedModelId || undefined;
+  }, [selectedModelId]);
 
   // Pick a random avatar on first load if none selected yet
   React.useEffect(() => {
@@ -54,21 +45,15 @@ export function CreateAgentClient({ models, avatars }: Props) {
     <div className="mx-auto p-0 h-full grid grid-cols-1 gap-6 lg:grid-cols-2 max-w-6xl">
       <div className="max-w-xl">
         <div className="mb-4">
-          <ModelSelect
-            models={models}
-            value={selectedCompositeId}
+          <OpenRouterModelSelect
+            value={selectedModelId}
             onChange={(value) => {
-              setSelectedCompositeId(value);
-              if (value) {
-                const [provider, modelId] = value.split(":");
-                if (provider && modelId) {
-                  sendContextRef.current.model = `${provider}/${modelId}`;
-                }
-              } else {
-                sendContextRef.current.model = undefined;
-              }
+              setSelectedModelId(value);
+              sendContextRef.current.model = value || undefined;
             }}
-            showLogos
+            placeholder="Select a model..."
+            width="100%"
+            label="Model"
           />
         </div>
         <div className="mb-4">
@@ -76,7 +61,7 @@ export function CreateAgentClient({ models, avatars }: Props) {
           <AvatarPicker avatars={avatars} value={selectedAvatar} onChange={setSelectedAvatar} />
         </div>
         <AgentForm
-          model={selectedAgentModel}
+          model={selectedModelId || undefined}
           avatar={selectedAvatarFile}
           onSystemPromptChange={(value) => {
             sendContextRef.current.systemPrompt = value;
