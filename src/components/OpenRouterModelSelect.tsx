@@ -18,6 +18,13 @@ interface SlimModel {
   };
 }
 
+// Enhanced model with pre-computed expensive values
+interface EnhancedModel extends SlimModel {
+  _providerSlug: string | null;
+  _monthYearLabel: string;
+  _displayName: string;
+}
+
 const RECOMMENDED_MODEL_IDS = [
   "anthropic/claude-sonnet-4.5",
   "openai/gpt-5-chat",
@@ -63,9 +70,49 @@ function getProviderSlug(modelName: string): string | null {
   return m ? m[1].trim().toLowerCase() : null;
 }
 
+// Extract just the model name (right of colon), removing the provider prefix
+// e.g., "Anthropic: Claude Sonnet 4.5" -> "Claude Sonnet 4.5"
+function getDisplayName(fullName: string): string {
+  const colonIndex = fullName.indexOf(':');
+  if (colonIndex === -1) return fullName;
+  return fullName.substring(colonIndex + 1).trim();
+}
+
+// Enhance models with pre-computed expensive values to avoid repeated calculations
+function enhanceModels(models: SlimModel[]): EnhancedModel[] {
+  return models.map((model) => {
+    // Cache provider slug (used in filtering, rendering, icon lookup)
+    const _providerSlug = getProviderSlug(model.name);
+    
+    // Cache date formatting (used in grouping)
+    const date = new Date(model.created * 1000);
+    const _monthYearLabel = date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    
+    // Cache display name without provider prefix (e.g., "Claude Sonnet 4.5" instead of "Anthropic: Claude Sonnet 4.5")
+    const _displayName = getDisplayName(model.name);
+    
+    return {
+      ...model,
+      _providerSlug,
+      _monthYearLabel,
+      _displayName,
+    };
+  });
+}
+
 // Memoized avatar component to prevent unnecessary re-renders
-const ProviderAvatar = memo(function ProviderAvatar({ name, size = 32 }: { name: string; size?: number }) {
-  const slug = getProviderSlug(name);
+// Accepts optional pre-computed providerSlug to avoid repeated calculations
+const ProviderAvatar = memo(function ProviderAvatar({ 
+  name, 
+  size = 32,
+  providerSlug 
+}: { 
+  name: string; 
+  size?: number;
+  providerSlug?: string | null;
+}) {
+  // Use pre-computed slug if available, otherwise compute it
+  const slug = providerSlug !== undefined ? providerSlug : getProviderSlug(name);
   
   // Fallback avatar with Sparkles icon
   const FallbackAvatar = () => (
@@ -89,13 +136,13 @@ const ProviderAvatar = memo(function ProviderAvatar({ name, size = 32 }: { name:
   return <AvatarComp size={size} className="" />;
 });
 
-function groupModelsByMonth(models: SlimModel[]): Array<{ label: string; items: SlimModel[] }> {
-  // Group models by month/year
-  const groups = new Map<string, SlimModel[]>();
+// Optimized grouping function that uses pre-computed date labels
+function groupModelsByMonth(models: EnhancedModel[]): Array<{ label: string; items: EnhancedModel[] }> {
+  // Group models by pre-computed month/year label (no date parsing needed)
+  const groups = new Map<string, EnhancedModel[]>();
   
   models.forEach((model) => {
-    const date = new Date(model.created * 1000); // Unix timestamp to Date
-    const monthYear = date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    const monthYear = model._monthYearLabel;
     
     if (!groups.has(monthYear)) {
       groups.set(monthYear, []);
@@ -104,11 +151,11 @@ function groupModelsByMonth(models: SlimModel[]): Array<{ label: string; items: 
   });
   
   // Sort groups by date (newest first) and sort models within each group by date (newest first)
+  // Using created timestamp directly - no date parsing needed
   return Array.from(groups.entries())
     .sort((a, b) => {
-      const dateA = new Date(a[1][0].created * 1000);
-      const dateB = new Date(b[1][0].created * 1000);
-      return dateB.getTime() - dateA.getTime();
+      // Compare using first item's timestamp (already sorted by creation)
+      return b[1][0].created - a[1][0].created;
     })
     .map(([label, items]) => ({
       label,
@@ -139,9 +186,9 @@ export function OpenRouterModelSelect({
   label = "Models",
   category,
 }: OpenRouterModelSelectProps) {
-  const [recommendedModels, setRecommendedModels] = useState<SlimModel[]>([]);
+  const [recommendedModels, setRecommendedModels] = useState<EnhancedModel[]>([]);
   // Cache to prevent duplicate fetches on mount
-  const cachedModelsRef = useRef<SlimModel[] | null>(null);
+  const cachedModelsRef = useRef<EnhancedModel[] | null>(null);
 
   const fetcher = useCallback(async (query?: string) => {
     const url = new URL("/api/openrouter/models", window.location.origin);
@@ -158,12 +205,15 @@ export function OpenRouterModelSelect({
     if (!res.ok) throw new Error("Failed to load models");
     const json = (await res.json()) as ModelsResponse;
     
-    // Cache the full list when query is empty
+    // Enhance models with pre-computed values (provider slug, date labels)
+    const enhanced = enhanceModels(json.data);
+    
+    // Cache the enhanced list when query is empty
     if (!query) {
-      cachedModelsRef.current = json.data;
+      cachedModelsRef.current = enhanced;
     }
     
-    return json.data;
+    return enhanced;
   }, [category]);
 
   // Fetch recommended models on mount (uses cached fetcher to avoid duplicate network request)
@@ -176,7 +226,7 @@ export function OpenRouterModelSelect({
         // Filter to only recommended models, maintaining order
         const recommended = RECOMMENDED_MODEL_IDS.map((id) =>
           allModels.find((m) => m.id === id)
-        ).filter((m): m is SlimModel => m !== undefined);
+        ).filter((m): m is EnhancedModel => m !== undefined);
         
         setRecommendedModels(recommended);
       } catch {
@@ -188,17 +238,18 @@ export function OpenRouterModelSelect({
   }, [fetcher]);
 
   // Memoized filter function for client-side search
-  const filterFn = useCallback((model: SlimModel, query: string) => {
+  const filterFn = useCallback((model: EnhancedModel, query: string) => {
     const searchText = `${model.id} ${model.name} ${model.description}`.toLowerCase();
     return searchText.includes(query.toLowerCase());
   }, []);
 
   // Memoized render function for each option in the list
-  const renderOption = useCallback((m: SlimModel) => (
+  // Uses pre-computed providerSlug and displayName to avoid repeated calculations
+  const renderOption = useCallback((m: EnhancedModel) => (
     <div className="flex items-center gap-3 min-w-0 w-full">
-      <ProviderAvatar name={m.name} size={32} />
+      <ProviderAvatar name={m.name} size={32} providerSlug={m._providerSlug} />
       <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-sm font-medium truncate">{m.name}</span>
+        <span className="text-sm font-medium truncate">{m._displayName}</span>
         <span className="text-xs text-muted-foreground truncate">{m.id}</span>
       </div>
       {m.context_length ? (
@@ -208,13 +259,14 @@ export function OpenRouterModelSelect({
   ), []);
 
   // Memoized function to get the value from a model
-  const getOptionValue = useCallback((m: SlimModel) => m.id, []);
+  const getOptionValue = useCallback((m: EnhancedModel) => m.id, []);
 
   // Memoized render function for the selected value display
-  const getDisplayValue = useCallback((m: SlimModel) => (
+  // Uses pre-computed providerSlug and displayName to avoid repeated calculations
+  const getDisplayValue = useCallback((m: EnhancedModel) => (
     <div className="flex items-center gap-2 min-w-0">
-      <ProviderAvatar name={m.name} size={24} />
-      <span className="truncate">{m.name}</span>
+      <ProviderAvatar name={m.name} size={24} providerSlug={m._providerSlug} />
+      <span className="truncate">{m._displayName}</span>
     </div>
   ), []);
 
@@ -243,7 +295,7 @@ export function OpenRouterModelSelect({
   }), []);
 
   return (
-    <AsyncSelect<SlimModel>
+    <AsyncSelect<EnhancedModel>
       fetcher={fetcher}
       preload={true}
       filterFn={filterFn}
