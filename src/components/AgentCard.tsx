@@ -15,9 +15,9 @@ export function AgentCard({ tag, name, avatar, systemPrompt, tagline }: AgentCar
 
   return (
     <div className="relative group h-full overflow-hidden border-black">
-      <Card className="h-44 overflow-hidden hover:shadow-md transition-all duration-200 border-grey-200   hover:border-gray-900 bg-white p-4 relative">
+      <Card className="h-64 md:h-44 overflow-hidden hover:shadow-md transition-all duration-200 border-grey-200   hover:border-gray-900 bg-white p-4 relative">
         <div className="flex flex-col h-full justify-between">
-          <div className="space-y-2">
+          <div className="space-y-2 text-center md:text-left">
             <h3 className="font-semibold text-gray-900 text-base truncate">
               {name}
             </h3>
@@ -27,7 +27,7 @@ export function AgentCard({ tag, name, avatar, systemPrompt, tagline }: AgentCar
               </p>
             )}
           </div>
-          <div className="mt-auto">
+          <div className="mt-auto text-center md:text-left">
             <p className="text-xs text-gray-500 font-mono">
               {tag}
             </p>
@@ -40,7 +40,7 @@ export function AgentCard({ tag, name, avatar, systemPrompt, tagline }: AgentCar
             alt={`${name} avatar`}
             width={90}
             height={90}
-            className="absolute bottom-0 right-0 rounded-lg scale-x-[-1] -mr-0 -mb-2 group-hover:scale-y-110  group-hover:-scale-x-110 group-hover:scale-y-110 transition-transform duration-200"
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 md:left-auto md:right-0 md:translate-x-0 rounded-lg scale-x-[-1] -mr-0 -mb-2 group-hover:scale-y-110  group-hover:-scale-x-110 group-hover:scale-y-110 transition-transform duration-200"
             quality={90}
           />
         )}

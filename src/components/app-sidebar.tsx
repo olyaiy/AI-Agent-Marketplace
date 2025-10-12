@@ -24,7 +24,7 @@ export function AppSidebar({ userEmail }: AppSidebarProps) {
   console.log('[AppSidebar] Should show footer?', !!userEmail);
   
   return (
-    <Sidebar variant="inset" collapsible="icon" className="top-10">
+    <Sidebar variant="inset" collapsible="icon" className="top-10 bg-purple-500">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Application</SidebarGroupLabel>

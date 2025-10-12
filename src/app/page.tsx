@@ -17,19 +17,19 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
   const { q } = await searchParams;
   return (
     // Main container with minimum full screen height and horizontal padding
-    <main className="min-h-screen  px-4">
+    <main className="min-h-screen px-4 sm:px-2 md:px-4">
       {/* Content wrapper with max-width and vertical spacing */}
       <div className="mx-auto max-w-5xl py-8">
         {/* Header section with title and search bar */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            {/* Main page title */}
-            <h1 className="text-3xl font-semibold text-gray-900">Agents</h1>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            {/* Main page title - hidden on mobile */}
+            <h1 className="hidden md:block text-3xl font-semibold text-gray-900">Agents</h1>
             {/* Subtitle describing the page purpose */}
-            <p className="text-gray-600 mt-1">Discover and create your AI agents</p>
+            <p className="text-gray-600">Discover and create your AI agents</p>
           </div>
-          {/* Search bar */}
-          <AgentSearch className="w-80" />
+          {/* Search bar - full width on mobile, fixed width on desktop */}
+          <AgentSearch className="w-full md:w-80" />
         </div>
         
         {/* Filter Badges Section */}
