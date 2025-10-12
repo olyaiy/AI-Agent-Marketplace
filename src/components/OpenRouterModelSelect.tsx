@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
@@ -139,6 +139,8 @@ export function OpenRouterModelSelect({
   category,
 }: OpenRouterModelSelectProps) {
   const [recommendedModels, setRecommendedModels] = useState<SlimModel[]>([]);
+  // Cache to prevent duplicate fetches on mount
+  const cachedModelsRef = useRef<SlimModel[] | null>(null);
 
   const fetcher = useCallback(async (query?: string) => {
     const url = new URL("/api/openrouter/models", window.location.origin);
@@ -146,27 +148,33 @@ export function OpenRouterModelSelect({
     if (category) url.searchParams.set("category", category);
     url.searchParams.set("ttlMs", String(60_000));
 
+    // Return cached data for empty queries (avoids duplicate fetch on mount)
+    if (!query && cachedModelsRef.current) {
+      return cachedModelsRef.current;
+    }
+
     const res = await fetch(url.toString(), { method: "GET" });
     if (!res.ok) throw new Error("Failed to load models");
     const json = (await res.json()) as ModelsResponse;
+    
+    // Cache the full list when query is empty
+    if (!query) {
+      cachedModelsRef.current = json.data;
+    }
+    
     return json.data;
   }, [category]);
 
-  // Fetch recommended models on mount
+  // Fetch recommended models on mount (uses cached fetcher to avoid duplicate network request)
   useEffect(() => {
     async function fetchRecommended() {
       try {
-        const url = new URL("/api/openrouter/models", window.location.origin);
-        if (category) url.searchParams.set("category", category);
-        url.searchParams.set("ttlMs", String(60_000));
-
-        const res = await fetch(url.toString(), { method: "GET" });
-        if (!res.ok) return;
-        const json = (await res.json()) as ModelsResponse;
+        // Call fetcher with empty query - will fetch once and cache
+        const allModels = await fetcher("");
         
         // Filter to only recommended models, maintaining order
         const recommended = RECOMMENDED_MODEL_IDS.map((id) =>
-          json.data.find((m) => m.id === id)
+          allModels.find((m) => m.id === id)
         ).filter((m): m is SlimModel => m !== undefined);
         
         setRecommendedModels(recommended);
@@ -176,7 +184,7 @@ export function OpenRouterModelSelect({
     }
 
     fetchRecommended();
-  }, [category]);
+  }, [fetcher]);
 
   return (
     <AsyncSelect<SlimModel>
