@@ -2,11 +2,15 @@
 // Main home page component for the AI Agents application
 // This is the root page that displays a list of all available AI agents
 
-import { listAgents } from '@/actions/agents';
+import { headers } from 'next/headers';
+import { listAgents, getAgentsByCreator } from '@/actions/agents';
 import { AgentGrid } from '@/components/AgentGrid';
 import { HeroCards } from '@/components/HeroCards';
 import { AgentSearch } from '@/components/AgentSearch';
 import { FilterBadges } from '@/components/FilterBadges';
+import { YourAgentsCarousel } from '@/components/YourAgentsCarousel';
+import { Badge } from '@/components/ui/badge';
+import { auth } from '@/lib/auth';
 
 /**
  * Home page component that serves as the main entry point for the application
@@ -15,6 +19,15 @@ import { FilterBadges } from '@/components/FilterBadges';
  */
 export default async function Home({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
+  
+  // Get current user session
+  const headerList = await headers();
+  const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
+  const userId = session?.user?.id;
+  
+  // Fetch user's agents if logged in
+  const yourAgents = userId ? await getAgentsByCreator(userId) : [];
+  
   return (
     // Main container with minimum full screen height and horizontal padding
     <main className="min-h-screen px-4 sm:px-2 md:px-4">
@@ -37,6 +50,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ q
         
         {/* Hero Cards Section */}
         <HeroCards />
+        
+        {/* Your Agents Carousel - only show if user has agents */}
+        <YourAgentsCarousel agents={yourAgents} />
+        
+        {/* Featured Agents Section */}
+        <div className="mb-4">
+          <Badge variant="secondary" className="text-sm font-medium">
+            Featured Agents
+          </Badge>
+        </div>
         
         {/* Server Component: fetch and render agents */}
         {/* This component handles data fetching on the server side */}

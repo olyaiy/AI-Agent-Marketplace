@@ -105,3 +105,8 @@ export async function deleteAgent(tag: string) {
   await db.delete(agent).where(eq(agent.tag, tag));
   return { ok: true };
 }
+
+export async function getAgentsByCreator(creatorId: string) {
+  if (!creatorId) return [];
+  return db.select().from(agent).where(eq(agent.creatorId, creatorId));
+}
