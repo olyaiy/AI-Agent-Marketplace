@@ -40,7 +40,7 @@ export default async function RootLayout({
             <Navbar userEmail={currentUser?.email} />
 
 
-            <div className="flex flex-1  py-4 h-full w-dvw overflow-x-none ">
+            <div className="flex flex-1  py- h-full w-dvw overflow-x-none ">
               <AppSidebar userEmail={currentUser?.email} />
               <SidebarInset className="min-w-0 w-full " >
                 <div className="flex-1 min-h-0 overflow-y-auto  relative overflow-x-none  p-2 ">

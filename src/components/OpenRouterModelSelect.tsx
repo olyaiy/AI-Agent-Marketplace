@@ -12,6 +12,10 @@ interface SlimModel {
   description: string;
   context_length: number | null;
   created: number;
+  pricing: {
+    prompt: number;
+    completion: number;
+  };
 }
 
 const RECOMMENDED_MODEL_IDS = [
@@ -207,6 +211,28 @@ export function OpenRouterModelSelect({
       recommendedItems={recommendedModels}
       recommendedLabel="Recommended"
       groupByFn={groupModelsByMonth}
+      filterConfig={{
+        providers: {
+          enabled: true,
+          extractProvider: (m) => getProviderSlug(m.name),
+        },
+        contextLength: {
+          enabled: true,
+          extractContextLength: (m) => m.context_length,
+          min: 0,
+          max: 500000,
+          step: 10000,
+          formatLabel: (value) => `${(value / 1000).toFixed(0)}k`,
+        },
+        priceRange: {
+          enabled: true,
+          extractPrice: (m) => m.pricing.prompt,
+          min: 0,
+          max: 50,
+          step: 0.5,
+          formatLabel: (value) => value === 0 ? 'Free' : `$${value.toFixed(2)}`,
+        },
+      }}
     />
   );
 }

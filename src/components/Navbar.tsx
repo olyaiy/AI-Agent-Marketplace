@@ -11,7 +11,7 @@ interface NavbarProps {
 
 export function Navbar({ userEmail }: NavbarProps) {
   return (
-    <nav className="h-10 w-dvw flex items-end justify-between px-4 md:px-6 flex-shrink-0 relative z-40">
+    <nav className="h-8  w-dvw flex items-end justify-between px-4 md:px-6 flex-shrink-0 relative z-40">
       {/* Mobile Layout: Trigger (left) | Logo (center) | Sign In (right) */}
       <div className="md:hidden flex items-center justify-between w-full">
         <div className="flex items-center">

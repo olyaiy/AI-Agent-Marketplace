@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Check, ChevronsUpDown, Search, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Check, ChevronsUpDown, Search, Loader2, Filter, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
  
 import { cn } from "@/lib/utils";
@@ -19,6 +19,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
  
 export interface Option {
   value: string;
@@ -26,6 +30,29 @@ export interface Option {
   disabled?: boolean;
   description?: string;
   icon?: React.ReactNode;
+}
+
+export interface FilterConfig<T> {
+  providers?: {
+    enabled: boolean;
+    extractProvider: (item: T) => string | null;
+  };
+  contextLength?: {
+    enabled: boolean;
+    extractContextLength: (item: T) => number | null;
+    min: number;
+    max: number;
+    step?: number;
+    formatLabel?: (value: number) => string;
+  };
+  priceRange?: {
+    enabled: boolean;
+    extractPrice: (item: T) => number | null;
+    min: number;
+    max: number;
+    step?: number;
+    formatLabel?: (value: number) => string;
+  };
 }
  
 export interface AsyncSelectProps<T> {
@@ -79,6 +106,8 @@ export interface AsyncSelectProps<T> {
   listHeight?: number;
   /** Number of extra rows to render above/below the viewport */
   overscan?: number;
+  /** Filter configuration for advanced filtering */
+  filterConfig?: FilterConfig<T>;
 }
  
 export function AsyncSelect<T>({
@@ -107,6 +136,7 @@ export function AsyncSelect<T>({
   rowHeight = 44,
   listHeight = 320,
   overscan = 8,
+  filterConfig,
 }: AsyncSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<T[]>([]);
@@ -127,6 +157,12 @@ export function AsyncSelect<T>({
   const listRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(listHeight);
+  
+  // Filter state
+  const [selectedProviders, setSelectedProviders] = useState<Set<string>>(new Set());
+  const [contextLengthRange, setContextLengthRange] = useState<[number, number] | null>(null);
+  const [priceRangeValue, setPriceRangeValue] = useState<[number, number] | null>(null);
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
 
   // Keep refs in sync
   useEffect(() => {
@@ -265,6 +301,66 @@ export function AsyncSelect<T>({
     ro.observe(el);
     return () => ro.disconnect();
   }, [open, listHeight]);
+  
+  // Extract available providers from options (memoized)
+  const availableProviders = useMemo(() => {
+    if (!filterConfig?.providers?.enabled) return [];
+    const providers = new Set<string>();
+    options.forEach((option) => {
+      const provider = filterConfig.providers!.extractProvider(option);
+      if (provider) providers.add(provider);
+    });
+    return Array.from(providers).sort();
+  }, [options, filterConfig]);
+  
+  // Apply filters to options (memoized)
+  const filteredOptions = useMemo(() => {
+    let filtered = options;
+    
+    // Provider filter
+    if (filterConfig?.providers?.enabled && selectedProviders.size > 0) {
+      filtered = filtered.filter((option) => {
+        const provider = filterConfig.providers!.extractProvider(option);
+        return provider && selectedProviders.has(provider);
+      });
+    }
+    
+    // Context length filter
+    if (filterConfig?.contextLength?.enabled && contextLengthRange) {
+      filtered = filtered.filter((option) => {
+        const contextLength = filterConfig.contextLength!.extractContextLength(option);
+        if (contextLength === null) return false;
+        return contextLength >= contextLengthRange[0] && contextLength <= contextLengthRange[1];
+      });
+    }
+    
+    // Price range filter
+    if (filterConfig?.priceRange?.enabled && priceRangeValue) {
+      filtered = filtered.filter((option) => {
+        const price = filterConfig.priceRange!.extractPrice(option);
+        if (price === null) return false;
+        return price >= priceRangeValue[0] && price <= priceRangeValue[1];
+      });
+    }
+    
+    return filtered;
+  }, [options, filterConfig, selectedProviders, contextLengthRange, priceRangeValue]);
+  
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedProviders.size > 0) count += selectedProviders.size;
+    if (contextLengthRange) count += 1;
+    if (priceRangeValue) count += 1;
+    return count;
+  }, [selectedProviders, contextLengthRange, priceRangeValue]);
+  
+  // Clear all filters
+  const clearAllFilters = useCallback(() => {
+    setSelectedProviders(new Set());
+    setContextLengthRange(null);
+    setPriceRangeValue(null);
+  }, []);
  
   const handleSelect = useCallback((currentValue: string) => {
     const newValue = clearable && currentValue === selectedValue ? "" : currentValue;
@@ -312,20 +408,173 @@ export function AsyncSelect<T>({
       </PopoverTrigger>
       <PopoverContent style={{ width: width }} className={cn("p-0", className)}>
         <Command>
-          <div className="relative border-b w-full">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative border-b w-full flex items-center">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               placeholder={`Search ${label.toLowerCase()}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="focus-visible:ring-0 rounded-b-none border-none pl-8 flex-1"
+              className="focus-visible:ring-0 rounded-b-none border-none pl-8 pr-12 flex-1"
             />
-            {loading && options.length > 0 && (
-              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center">
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+              {loading && filteredOptions.length > 0 && (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            )}
+              )}
+              {filterConfig && (
+                <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className={cn(
+                        "h-7 w-7 p-0",
+                        activeFilterCount > 0 && "text-primary"
+                      )}
+                    >
+                      <Filter className="h-4 w-4" />
+                      {activeFilterCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-4" align="end">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-sm">Filter Models</h4>
+                        {activeFilterCount > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                            onClick={clearAllFilters}
+                          >
+                            Clear all
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {/* Provider filter */}
+                      {filterConfig.providers?.enabled && availableProviders.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium">Providers</Label>
+                          <div className="max-h-40 overflow-y-auto space-y-1 border rounded-md p-2">
+                            {availableProviders.map((provider) => (
+                              <div
+                                key={provider}
+                                className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent rounded-sm cursor-pointer"
+                                onClick={() => {
+                                  const newSet = new Set(selectedProviders);
+                                  if (newSet.has(provider)) {
+                                    newSet.delete(provider);
+                                  } else {
+                                    newSet.add(provider);
+                                  }
+                                  setSelectedProviders(newSet);
+                                }}
+                              >
+                                <Checkbox
+                                  checked={selectedProviders.has(provider)}
+                                  onCheckedChange={(checked) => {
+                                    const newSet = new Set(selectedProviders);
+                                    if (checked) {
+                                      newSet.add(provider);
+                                    } else {
+                                      newSet.delete(provider);
+                                    }
+                                    setSelectedProviders(newSet);
+                                  }}
+                                />
+                                <span className="text-sm capitalize">{provider}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Context length slider */}
+                      {filterConfig.contextLength?.enabled && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs font-medium">Context Length</Label>
+                            <span className="text-xs text-muted-foreground">
+                              {contextLengthRange
+                                ? `${filterConfig.contextLength.formatLabel?.(contextLengthRange[0]) ?? contextLengthRange[0].toLocaleString()} - ${filterConfig.contextLength.formatLabel?.(contextLengthRange[1]) ?? contextLengthRange[1].toLocaleString()}`
+                                : 'Any'}
+                            </span>
+                          </div>
+                          <Slider
+                            min={filterConfig.contextLength.min}
+                            max={filterConfig.contextLength.max}
+                            step={filterConfig.contextLength.step ?? 1000}
+                            value={contextLengthRange ?? [filterConfig.contextLength.min, filterConfig.contextLength.max]}
+                            onValueChange={(value) => {
+                              const [min, max] = value as [number, number];
+                              if (min === filterConfig.contextLength!.min && max === filterConfig.contextLength!.max) {
+                                setContextLengthRange(null);
+                              } else {
+                                setContextLengthRange([min, max]);
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Price range slider */}
+                      {filterConfig.priceRange?.enabled && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs font-medium">Price (per M tokens)</Label>
+                            <span className="text-xs text-muted-foreground">
+                              {priceRangeValue
+                                ? `${filterConfig.priceRange.formatLabel?.(priceRangeValue[0]) ?? `$${priceRangeValue[0].toFixed(2)}`} - ${filterConfig.priceRange.formatLabel?.(priceRangeValue[1]) ?? `$${priceRangeValue[1].toFixed(2)}`}`
+                                : 'Any'}
+                            </span>
+                          </div>
+                          <Slider
+                            min={filterConfig.priceRange.min}
+                            max={filterConfig.priceRange.max}
+                            step={filterConfig.priceRange.step ?? 0.1}
+                            value={priceRangeValue ?? [filterConfig.priceRange.min, filterConfig.priceRange.max]}
+                            onValueChange={(value) => {
+                              const [min, max] = value as [number, number];
+                              if (min === filterConfig.priceRange!.min && max === filterConfig.priceRange!.max) {
+                                setPriceRangeValue(null);
+                              } else {
+                                setPriceRangeValue([min, max]);
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
           </div>
+          
+          {/* Active filter badges row */}
+          {filterConfig && activeFilterCount > 0 && (
+            <div className="flex items-center gap-1 p-2 border-b overflow-x-auto">
+              {selectedProviders.size > 0 && (
+                <Badge variant="secondary" className="text-xs shrink-0">
+                  {selectedProviders.size} provider{selectedProviders.size > 1 ? 's' : ''}
+                </Badge>
+              )}
+              {contextLengthRange && (
+                <Badge variant="secondary" className="text-xs shrink-0">
+                  Context: {filterConfig?.contextLength?.formatLabel?.(contextLengthRange[0]) ?? contextLengthRange[0].toLocaleString()} - {filterConfig?.contextLength?.formatLabel?.(contextLengthRange[1]) ?? contextLengthRange[1].toLocaleString()}
+                </Badge>
+              )}
+              {priceRangeValue && (
+                <Badge variant="secondary" className="text-xs shrink-0">
+                  Price: {filterConfig?.priceRange?.formatLabel?.(priceRangeValue[0]) ?? `$${priceRangeValue[0].toFixed(2)}`} - {filterConfig?.priceRange?.formatLabel?.(priceRangeValue[1]) ?? `$${priceRangeValue[1].toFixed(2)}`}
+                </Badge>
+              )}
+            </div>
+          )}
           <CommandList
             ref={listRef as any}
             onScroll={virtualize ? (e) => setScrollTop((e.currentTarget as HTMLDivElement).scrollTop) : undefined}
@@ -336,13 +585,13 @@ export function AsyncSelect<T>({
                 {error}
               </div>
             )}
-            {loading && options.length === 0 && (
+            {loading && filteredOptions.length === 0 && (
               loadingSkeleton || <DefaultLoadingSkeleton />
             )}
-            {!loading && !error && options.length === 0 && (
+            {!loading && !error && filteredOptions.length === 0 && (
               notFound || <CommandEmpty>{noResultsMessage ?? `No ${label.toLowerCase()} found.`}</CommandEmpty>
             )}
-            {!loading && !error && !searchTerm && recommendedItems.length > 0 && (
+            {!loading && !error && !searchTerm && activeFilterCount === 0 && recommendedItems.length > 0 && (
               <CommandGroup heading={recommendedLabel}>
                 {recommendedItems.map((option) => (
                   <CommandItem
@@ -362,9 +611,9 @@ export function AsyncSelect<T>({
                 ))}
               </CommandGroup>
             )}
-            {options.length > 0 && !searchTerm && groupByFn ? (
+            {filteredOptions.length > 0 && !searchTerm && groupByFn ? (
               <>
-                {groupByFn(options).map((group) => (
+                {groupByFn(filteredOptions).map((group) => (
                   <CommandGroup key={group.label} heading={group.label}>
                     {group.items.map((option) => (
                       <CommandItem
@@ -385,21 +634,21 @@ export function AsyncSelect<T>({
                   </CommandGroup>
                 ))}
               </>
-            ) : options.length > 0 ? (
+            ) : filteredOptions.length > 0 ? (
               <>
                 {virtualize ? (
                   (() => {
-                    const total = options.length;
+                    const total = filteredOptions.length;
                     const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
                     const visibleCount = Math.ceil(containerHeight / rowHeight) + overscan * 2;
                     const endIndex = Math.min(total, startIndex + visibleCount);
                     const offsetTop = startIndex * rowHeight;
                     const bottomSpacer = (total - endIndex) * rowHeight;
-                    const slice = options.slice(startIndex, endIndex);
+                    const slice = filteredOptions.slice(startIndex, endIndex);
                     return (
                       <div style={{ position: 'relative' }}>
                         <div style={{ height: offsetTop }} />
-                        <CommandGroup heading={!searchTerm && recommendedItems.length > 0 ? "All Models" : undefined}>
+                        <CommandGroup heading={!searchTerm && activeFilterCount === 0 && recommendedItems.length > 0 ? "All Models" : undefined}>
                           {slice.map((option) => (
                             <CommandItem
                               key={getOptionValue(option)}
@@ -423,8 +672,8 @@ export function AsyncSelect<T>({
                     );
                   })()
                 ) : (
-                  <CommandGroup heading={!searchTerm && recommendedItems.length > 0 ? "All Models" : undefined}>
-                    {options.map((option) => (
+                  <CommandGroup heading={!searchTerm && activeFilterCount === 0 && recommendedItems.length > 0 ? "All Models" : undefined}>
+                    {filteredOptions.map((option) => (
                       <CommandItem
                         key={getOptionValue(option)}
                         value={getOptionValue(option)}

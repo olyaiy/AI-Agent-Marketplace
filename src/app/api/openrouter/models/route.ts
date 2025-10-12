@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function filterModels(response: OpenRouterModelsResponse, q: string): { data: Array<{ id: string; name: string; description: string; context_length: number | null; created: number }> } {
+function filterModels(response: OpenRouterModelsResponse, q: string): { data: Array<{ id: string; name: string; description: string; context_length: number | null; created: number; pricing: { prompt: number; completion: number } }> } {
   const items = response.data
     .filter((m) => {
       if (!q) return true;
@@ -123,6 +123,10 @@ function filterModels(response: OpenRouterModelsResponse, q: string): { data: Ar
       description: m.description,
       context_length: m.context_length,
       created: m.created,
+      pricing: {
+        prompt: parseFloat(m.pricing.prompt),
+        completion: parseFloat(m.pricing.completion),
+      },
     }));
 
   return { data: items };
