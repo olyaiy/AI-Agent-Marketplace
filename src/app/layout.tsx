@@ -43,7 +43,7 @@ export default async function RootLayout({
               </div>
 
               {/* Children */}
-              <div className="p-4 md:p-6 max-w-full bg-white  h-full ">
+              <div className="p-4 md:p-6 max-w-full h-full">
                 {children}
               </div>
             </div>

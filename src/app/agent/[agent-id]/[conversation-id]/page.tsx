@@ -51,9 +51,9 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
   const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
 
   return (
-    <div className="h-full px-2 relative bg-blue-500">
+    <div className="relative md:max-h-[calc(100vh-200px)]">
       {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col h-full">
+      <div className="md:hidden flex flex-col h-full ">
         {/* Sticky header at top */}
         <div className="flex-shrink-0 sticky top-0 z-10 bg-background border-b">
           <AgentInfoSheet
@@ -79,8 +79,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden md:flex h-full  px-4 gap-4 ">
-        <div className=" flex-1 max-w-[75%] bg-green-500 max-h-[500px]">
+      <div className="hidden md:flex h-full  gap-4  max-h-[calc(100vh-100px)]">
+        <div className=" flex-1 max-w-[75%]">
           <Chat
             className="mx-auto"
             systemPrompt={found.systemPrompt}

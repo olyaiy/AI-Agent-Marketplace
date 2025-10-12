@@ -348,7 +348,7 @@ const Chat = React.memo(function Chat({
           </div>
 
           {/* Fixed input bar at bottom */}
-          <div className="flex-shrink-0 border-t bg-background py-2 md:py-4">
+          <div className="flex-shrink-0 border-t md:border-t-0 bg-background py-2 md:pb-4 md:pt-0">
             <PromptInput onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
               <div className="flex items-center gap-2 p-1.5 md:p-2">
                 <PromptInputTextarea
