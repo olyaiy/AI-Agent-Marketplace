@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { Home, Settings, MessageSquare } from "lucide-react"
 import { RecentConversationsClient } from "@/components/recent-conversations-client"
@@ -15,6 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 interface AppSidebarProps {
@@ -25,12 +28,26 @@ export function AppSidebar({ userEmail }: AppSidebarProps) {
   console.log('[AppSidebar] Received userEmail:', userEmail);
   console.log('[AppSidebar] Should show footer?', !!userEmail);
   
+  const { state } = useSidebar();
+  const isExpanded = state === "expanded";
+  
   return (
     <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
-          <Link href="/" className="text-xl font-semibold hover:opacity-80 transition-opacity">
-            AV
+        <div className="flex items-center gap-2 px-2 py-2 overflow-hidden">
+          <Link 
+            href="/" 
+            className="text-xl font-semibold hover:opacity-80 transition-all duration-300 ease-in-out whitespace-nowrap"
+          >
+            <span 
+              className="inline-block transition-all duration-300 ease-in-out"
+              style={{
+                opacity: isExpanded ? 1 : 1,
+                transform: isExpanded ? 'translateX(0)' : 'translateX(0)',
+              }}
+            >
+              {isExpanded ? "Agent Vendor" : "AV"}
+            </span>
           </Link>
         </div>
       </SidebarHeader>
