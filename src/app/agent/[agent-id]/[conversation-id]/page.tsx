@@ -61,6 +61,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
             avatarUrl={avatarUrl}
             tagline={found.tagline}
             description={found.description}
+            agentTag={found.tag}
           />
         </div>
         {/* Scrollable chat area */}
@@ -98,6 +99,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
             avatarUrl={avatarUrl}
             tagline={found.tagline}
             description={found.description}
+            agentTag={found.tag}
           />
         </div>
       </div>

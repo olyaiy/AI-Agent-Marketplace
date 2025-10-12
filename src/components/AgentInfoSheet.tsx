@@ -3,22 +3,29 @@
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { MobileAgentHeader } from '@/components/MobileAgentHeader';
+import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import Link from 'next/link';
+import { Plus } from 'lucide-react';
 
 interface AgentInfoSheetProps {
   name: string;
   avatarUrl?: string;
   tagline?: string | null;
   description?: string | null;
+  agentTag?: string;
 }
 
-export function AgentInfoSheet({ name, avatarUrl, tagline, description }: AgentInfoSheetProps) {
+export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag }: AgentInfoSheetProps) {
   const [open, setOpen] = useState(false);
   
   const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your creative thinking partner';
   const effectiveDescription = (description && description.trim().length > 0)
     ? description
     : `Hi there! I'm ${name}, your friendly AI companion. I love helping with creative projects, brainstorming ideas, and turning thoughts into reality.`;
+  
+  // Extract agent ID from tag (remove @ prefix)
+  const agentId = agentTag ? agentTag.replace('@', '') : null;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -65,6 +72,22 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description }: AgentI
               </p>
             </div>
           </div>
+
+          {/* New Chat Button */}
+          {agentId && (
+            <div className="mt-4">
+              <Button 
+                asChild 
+                variant="outline"
+                className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300"
+              >
+                <Link href={`/agent/${agentId}`}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Chat
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>
