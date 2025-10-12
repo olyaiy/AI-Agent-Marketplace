@@ -132,8 +132,6 @@ export async function POST(req: Request) {
     messages: convertToModelMessages(messages),
   });
 
-  console.log(`[Chat] Using model: ${modelId}`);
-
   // Attach conversation id header so clients can capture it if they didn't have one
   const response = result.toUIMessageStreamResponse({
     sendReasoning: true,

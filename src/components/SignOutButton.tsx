@@ -11,11 +11,10 @@ interface SignOutButtonProps {
 
 export function SignOutButton({ userEmail }: SignOutButtonProps) {
   const [isPending, startTransition] = useTransition();
-  
-  console.log('[SignOutButton] Rendering with email:', userEmail);
+
 
   function handleSignOut() {
-    console.log('[SignOutButton] Sign out clicked');
+
     startTransition(async () => {
       await signOutAction();
     });

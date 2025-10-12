@@ -173,6 +173,26 @@ const Chat = React.memo(function Chat({
     if (effectiveConversationId) {
       conversationIdRef.current = effectiveConversationId;
     }
+    
+    // Log the entire conversation history before sending (including initialMessages from DB)
+    const fromServer = (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
+    const live = (messages as unknown as BasicUIMessage[]) || [];
+    const byId = new Map<string, BasicUIMessage>();
+    for (const m of fromServer) byId.set(m.id, m);
+    for (const m of live) byId.set(m.id, m);
+    const fullHistory = Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id));
+    
+    console.log('📝 Full Conversation History:', {
+      conversationId: effectiveConversationId,
+      messageCount: fullHistory.length,
+      messages: fullHistory,
+      breakdown: {
+        fromDatabase: fromServer.length,
+        fromLiveSession: live.length,
+        deleted: deletedMessageIds.size,
+      }
+    });
+    
     sendMessage(
       { text: trimmed },
       {
@@ -236,7 +256,7 @@ const Chat = React.memo(function Chat({
     return Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id));
   }, [initialMessages, messages, deletedMessageIds]);
   const hasMessages = allMessages.length > 0;
-  const displayedMessages = useMemo(() => allMessages.slice(-5), [allMessages]);
+  const displayedMessages = useMemo(() => allMessages, [allMessages]);
 
   return (
     <div className={`flex w-full max-w-3xl flex-col h-full ${className || ''}`}>
@@ -270,7 +290,7 @@ const Chat = React.memo(function Chat({
         <>
           {/* Scrollable conversation area */}
           <div className="flex-1 overflow-hidden">
-            <Conversation className="h-full overflow-y-auto">
+            <Conversation className="h-full overflow-y-scroll">
               <ConversationContent>
                 {displayedMessages.map((message: BasicUIMessage) => (
                   <div key={message.id} className="group/message">

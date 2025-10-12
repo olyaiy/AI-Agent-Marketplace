@@ -23,10 +23,7 @@ export default async function RootLayout({
     .catch(() => null);
 
   const currentUser = session?.user ?? null;
-  
-  console.log('[Layout] Session:', session);
-  console.log('[Layout] Current user:', currentUser);
-  console.log('[Layout] User email:', currentUser?.email);
+
 
   return (
     <html lang="en">
@@ -46,7 +43,7 @@ export default async function RootLayout({
               </div>
 
               {/* Children */}
-              <div className="p-4 md:p-6 max-w-full bg-white overflow-x-none">
+              <div className="p-4 md:p-6 max-w-full bg-white  h-full ">
                 {children}
               </div>
             </div>

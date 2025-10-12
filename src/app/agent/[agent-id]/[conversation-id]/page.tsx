@@ -51,7 +51,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
   const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
 
   return (
-    <main className="h-full">
+    <div className="h-full px-2 relative bg-blue-500">
       {/* Mobile Layout */}
       <div className="md:hidden flex flex-col h-full">
         {/* Sticky header at top */}
@@ -79,8 +79,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden md:flex h-full px-4 gap-4">
-        <div className="flex-1 max-w-[75%]">
+      <div className="hidden md:flex h-full  px-4 gap-4 ">
+        <div className=" flex-1 max-w-[75%] bg-green-500 max-h-[500px]">
           <Chat
             className="mx-auto"
             systemPrompt={found.systemPrompt}
@@ -101,7 +101,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
           />
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

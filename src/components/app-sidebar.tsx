@@ -25,8 +25,6 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ userEmail }: AppSidebarProps) {
-  console.log('[AppSidebar] Received userEmail:', userEmail);
-  console.log('[AppSidebar] Should show footer?', !!userEmail);
   
   const { state } = useSidebar();
   const isExpanded = state === "expanded";

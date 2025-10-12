@@ -16,8 +16,8 @@ export async function generateConversationTitle(userMessage: string): Promise<st
       prompt: userMessage,
     });
 
-    console.log("WE GENERATED THE MESSAGE! -----------------");
-    console.log(title);
+
+
 
     return title.trim().slice(0, 60);
   } catch (error) {
