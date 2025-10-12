@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Home, Settings, MessageSquare } from "lucide-react"
+import { Home, Settings, MessageSquare, User } from "lucide-react"
 import { RecentConversationsClient } from "@/components/recent-conversations-client"
 import { SignOutButton } from "@/components/SignOutButton"
 import { GoogleSignInButton } from "@/components/GoogleSignInButton"
@@ -65,6 +65,16 @@ export function AppSidebar({ userEmail }: AppSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {userEmail && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Your Agents">
+                    <Link href="/your-agents">
+                      <User />
+                      <span>Your Agents</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Settings">
                   <Link href="/settings">

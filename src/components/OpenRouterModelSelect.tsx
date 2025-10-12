@@ -245,18 +245,39 @@ export function OpenRouterModelSelect({
 
   // Memoized render function for each option in the list
   // Uses pre-computed providerSlug and displayName to avoid repeated calculations
-  const renderOption = useCallback((m: EnhancedModel) => (
-    <div className="flex items-center gap-3 min-w-0 w-full">
-      <ProviderAvatar name={m.name} size={32} providerSlug={m._providerSlug} />
-      <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-sm font-medium truncate">{m._displayName}</span>
-        <span className="text-xs text-muted-foreground truncate">{m.id}</span>
+  const renderOption = useCallback((m: EnhancedModel) => {
+    // Format pricing: convert from per-token to per-million-tokens for readability
+    const formatPrice = (price: number) => {
+      if (price === 0) return 'Free';
+      const perMillion = price * 1_000_000;
+      return `$${perMillion.toFixed(2)}`;
+    };
+
+    return (
+      <div className="flex items-center gap-3 min-w-0 w-full">
+        <ProviderAvatar name={m.name} size={32} providerSlug={m._providerSlug} />
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-sm font-medium truncate">{m._displayName}</span>
+          <span className="text-xs text-muted-foreground truncate">{m.id}</span>
+        </div>
+        <div className="flex items-center gap-1.5 ml-auto shrink-0">
+          {m.pricing && (
+            <>
+              <Badge variant="outline" className="text-xs">
+                In: {formatPrice(m.pricing.prompt)}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                Out: {formatPrice(m.pricing.completion)}
+              </Badge>
+            </>
+          )}
+          {m.context_length ? (
+            <Badge variant="secondary" className="text-xs">{m.context_length}</Badge>
+          ) : null}
+        </div>
       </div>
-      {m.context_length ? (
-        <Badge variant="secondary" className="ml-auto shrink-0 text-xs">{m.context_length}</Badge>
-      ) : null}
-    </div>
-  ), []);
+    );
+  }, []);
 
   // Memoized function to get the value from a model
   const getOptionValue = useCallback((m: EnhancedModel) => m.id, []);
@@ -291,6 +312,27 @@ export function OpenRouterModelSelect({
       max: 50,
       step: 0.5,
       formatLabel: (value: number) => value === 0 ? 'Free' : `$${value.toFixed(2)}`,
+    },
+    sorting: {
+      enabled: true,
+      defaultSortId: 'created',
+      options: [
+        {
+          id: 'created',
+          label: 'Newest First',
+          sortFn: (a: SlimModel, b: SlimModel) => b.created - a.created,
+        },
+        {
+          id: 'price',
+          label: 'Price (Low to High)',
+          sortFn: (a: SlimModel, b: SlimModel) => a.pricing.prompt - b.pricing.prompt,
+        },
+        {
+          id: 'context',
+          label: 'Context Length (High to Low)',
+          sortFn: (a: SlimModel, b: SlimModel) => (b.context_length ?? 0) - (a.context_length ?? 0),
+        },
+      ],
     },
   }), []);
 

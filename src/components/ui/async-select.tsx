@@ -23,6 +23,13 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
  
 export interface Option {
   value: string;
@@ -30,6 +37,12 @@ export interface Option {
   disabled?: boolean;
   description?: string;
   icon?: React.ReactNode;
+}
+
+export interface SortOption<T> {
+  id: string;
+  label: string;
+  sortFn: (a: T, b: T) => number;
 }
 
 export interface FilterConfig<T> {
@@ -52,6 +65,11 @@ export interface FilterConfig<T> {
     max: number;
     step?: number;
     formatLabel?: (value: number) => string;
+  };
+  sorting?: {
+    enabled: boolean;
+    options: SortOption<T>[];
+    defaultSortId?: string;
   };
 }
  
@@ -163,6 +181,9 @@ export function AsyncSelect<T>({
   const [contextLengthRange, setContextLengthRange] = useState<[number, number] | null>(null);
   const [priceRangeValue, setPriceRangeValue] = useState<[number, number] | null>(null);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [currentSortId, setCurrentSortId] = useState<string | null>(
+    filterConfig?.sorting?.defaultSortId ?? null
+  );
 
   // Keep refs in sync
   useEffect(() => {
@@ -313,7 +334,7 @@ export function AsyncSelect<T>({
     return Array.from(providers).sort();
   }, [options, filterConfig]);
   
-  // Apply filters to options (memoized)
+  // Apply filters and sorting to options (memoized)
   const filteredOptions = useMemo(() => {
     let filtered = options;
     
@@ -343,8 +364,16 @@ export function AsyncSelect<T>({
       });
     }
     
+    // Apply sorting
+    if (filterConfig?.sorting?.enabled && currentSortId) {
+      const sortOption = filterConfig.sorting.options.find((opt) => opt.id === currentSortId);
+      if (sortOption) {
+        filtered = [...filtered].sort(sortOption.sortFn);
+      }
+    }
+    
     return filtered;
-  }, [options, filterConfig, selectedProviders, contextLengthRange, priceRangeValue]);
+  }, [options, filterConfig, selectedProviders, contextLengthRange, priceRangeValue, currentSortId]);
   
   // Calculate active filter count
   const activeFilterCount = useMemo(() => {
@@ -442,7 +471,7 @@ export function AsyncSelect<T>({
                   <PopoverContent className="w-80 p-4" align="end">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-sm">Filter Models</h4>
+                        <h4 className="font-medium text-sm">Filter & Sort</h4>
                         {activeFilterCount > 0 && (
                           <Button
                             variant="ghost"
@@ -454,6 +483,28 @@ export function AsyncSelect<T>({
                           </Button>
                         )}
                       </div>
+                      
+                      {/* Sorting dropdown */}
+                      {filterConfig?.sorting?.enabled && filterConfig.sorting.options.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium">Sort By</Label>
+                          <Select
+                            value={currentSortId ?? filterConfig.sorting.defaultSortId ?? filterConfig.sorting.options[0].id}
+                            onValueChange={setCurrentSortId}
+                          >
+                            <SelectTrigger className="h-9 text-sm">
+                              <SelectValue placeholder="Select sort order" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filterConfig.sorting.options.map((option) => (
+                                <SelectItem key={option.id} value={option.id} className="text-sm">
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       
                       {/* Provider filter */}
                       {filterConfig.providers?.enabled && availableProviders.length > 0 && (
