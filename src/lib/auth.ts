@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
+import { admin } from 'better-auth/plugins';
 import { Pool } from 'pg';
 
 
@@ -79,6 +80,12 @@ export const auth = betterAuth({
       prompt: 'select_account consent',
     },
   },
-  plugins: [nextCookies()],
+  plugins: [
+    nextCookies(),
+    admin({
+      defaultRole: 'user',
+      adminRoles: ['admin'],
+    }),
+  ],
 });
 

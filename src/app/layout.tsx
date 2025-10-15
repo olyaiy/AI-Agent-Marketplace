@@ -1,6 +1,7 @@
 import "./globals.css";
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
+import { Toaster } from "sonner";
 
 import { auth } from "@/lib/auth";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
@@ -23,6 +24,7 @@ export default async function RootLayout({
     .catch(() => null);
 
   const currentUser = session?.user ?? null;
+  const userRole = (currentUser as { role?: string })?.role;
 
 
   return (
@@ -30,8 +32,9 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} font-sans antialiased h-dvh relative`}
       >
+        <Toaster />
         <SidebarProvider>
-          <AppSidebar userEmail={currentUser?.email} />
+          <AppSidebar userEmail={currentUser?.email} userRole={userRole} />
           <SidebarInset className="min-w-0 w-full">
             {/* Sidebar Trigger - fixed at top left on mobile, sticky on desktop */}
             <div className="fixed md:sticky top-2 left-2 z-50">

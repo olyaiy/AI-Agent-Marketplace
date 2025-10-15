@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Home, Settings, MessageSquare, User } from "lucide-react"
+import { Home, Settings, MessageSquare, User, Shield } from "lucide-react"
 import { RecentConversationsClient } from "@/components/recent-conversations-client"
 import { SignOutButton } from "@/components/SignOutButton"
 import { GoogleSignInButton } from "@/components/GoogleSignInButton"
@@ -22,12 +22,14 @@ import {
 
 interface AppSidebarProps {
   userEmail?: string | null;
+  userRole?: string | null;
 }
 
-export function AppSidebar({ userEmail }: AppSidebarProps) {
+export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
   
   const { state } = useSidebar();
   const isExpanded = state === "expanded";
+  const isAdmin = userRole === 'admin';
   
   return (
     <Sidebar variant="inset" collapsible="icon">
@@ -69,6 +71,16 @@ export function AppSidebar({ userEmail }: AppSidebarProps) {
                     <Link href="/your-agents">
                       <User />
                       <span>Your Agents</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Admin Dashboard">
+                    <Link href="/admin">
+                      <Shield />
+                      <span>Admin</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
