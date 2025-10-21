@@ -2,12 +2,12 @@ import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { admin } from 'better-auth/plugins';
 import { Pool } from 'pg';
+import { config } from 'dotenv';
 
 
 function loadEnvFile(path: string): void {
   try {
-    const dotenv = require('dotenv');
-    dotenv.config({ path });
+    config({ path });
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn(`[Better Auth] Failed to load env file at ${path}:`, error);

@@ -27,11 +27,13 @@ interface EnhancedModel extends SlimModel {
 
 const RECOMMENDED_MODEL_IDS = [
   "anthropic/claude-sonnet-4.5",
+  "anthropic/claude-haiku-4.5",
   "openai/gpt-5-chat",
   "google/gemini-2.5-pro",
   "moonshotai/kimi-k2-0905",
   "deepseek/deepseek-v3.2-exp",
   "qwen/qwen3-vl-30b-a3b-instruct",
+  "z-ai/glm-4.6",
 ];
 
 // Map provider names to Lobehub icon objects (we'll render .Avatar when available)

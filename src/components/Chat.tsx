@@ -290,8 +290,8 @@ const Chat = React.memo(function Chat({
         <>
           {/* Scrollable conversation area */}
           <div className="flex-1 overflow-hidden pb-20 md:pb-0">
-            <Conversation className="h-full overflow-y-scroll">
-              <ConversationContent>
+            <Conversation className="h-full overflow-y-scroll md:overflow-y-visible">
+              <ConversationContent className="">
                 {displayedMessages.map((message: BasicUIMessage) => (
                   <div key={message.id} className="group/message">
                     <Message from={message.role}>

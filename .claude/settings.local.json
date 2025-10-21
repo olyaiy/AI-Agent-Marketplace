@@ -4,7 +4,8 @@
       "Bash(pnpm add:*)",
       "Bash(npx ai-elements@latest add:*)",
       "Bash(pnpm dlx:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(gh repo create:*)"
     ],
     "deny": [],
     "ask": []
