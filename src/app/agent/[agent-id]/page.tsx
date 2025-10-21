@@ -46,7 +46,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden md:flex h-full px-4 gap-4">
+      <div className="hidden md:flex h-full  gap-4  max-h-[calc(100vh-100px)]">
         <div className="flex-1 max-w-[75%]">
           <Chat
             className="mx-auto"

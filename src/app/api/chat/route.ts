@@ -1,4 +1,4 @@
-import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import { streamText, smoothStream, UIMessage, convertToModelMessages } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
@@ -127,7 +127,10 @@ export async function POST(req: Request) {
         reasoningEffort: 'minimal',
       },
     },
-  
+    experimental_transform: smoothStream({
+      delayInMs: 20,
+      chunking: 'word',
+    }),
     system: systemPrompt,
     messages: convertToModelMessages(messages),
   });
