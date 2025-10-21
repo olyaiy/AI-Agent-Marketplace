@@ -8,6 +8,7 @@ import {
 } from '@/components/ai-elements/prompt-input';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useChat } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
 import {
   Conversation,
   ConversationContent,
@@ -64,6 +65,7 @@ const Chat = React.memo(function Chat({
   const hasGeneratedTitleRef = useRef<boolean>(false);
   const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
   const { messages, status, sendMessage } = useChat({
+    messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
     onFinish: async ({ message }) => {
       try {
         const cid = conversationIdRef.current;

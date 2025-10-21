@@ -132,6 +132,8 @@ export async function POST(req: Request) {
     messages: convertToModelMessages(messages),
   });
 
+  console.log('📨 Message History Sent to AI:', JSON.stringify(messages, null, 2));
+
   // Attach conversation id header so clients can capture it if they didn't have one
   const response = result.toUIMessageStreamResponse({
     sendReasoning: true,
