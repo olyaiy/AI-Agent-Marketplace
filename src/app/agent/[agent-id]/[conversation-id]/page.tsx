@@ -29,6 +29,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
   const headerList = await headers();
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   if (!session?.user) notFound();
+  const canEdit = Boolean(session.user.id && found.creatorId && session.user.id === found.creatorId);
 
   // Verify conversation ownership and agent binding
   const convo = await db
@@ -100,6 +101,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
             tagline={found.tagline}
             description={found.description}
             agentTag={found.tag}
+            canEdit={canEdit}
           />
         </div>
       </div>

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 
 interface AgentInfoSidebarProps {
   name: string;
@@ -13,9 +13,10 @@ interface AgentInfoSidebarProps {
   description?: string | null;
   variant?: 'sidebar' | 'sheet';
   agentTag?: string;
+  canEdit?: boolean;
 }
 
-export default function AgentInfoSidebar({ name, avatarUrl, tagline, description, variant = 'sidebar', agentTag }: AgentInfoSidebarProps) {
+export default function AgentInfoSidebar({ name, avatarUrl, tagline, description, variant = 'sidebar', agentTag, canEdit }: AgentInfoSidebarProps) {
   const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your creative thinking partner';
   const effectiveDescription = (description && description.trim().length > 0)
     ? description
@@ -27,8 +28,22 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
   return (
     <div className={cn(
       "w-full bg-white rounded-lg border border-gray-200 p-4 space-y-4",
-      variant === 'sidebar' ? 'h-full flex flex-col' : ''
+      variant === 'sidebar' ? 'h-full flex flex-col' : '',
+      'relative'
     )}>
+      {canEdit && agentId ? (
+        <Button 
+          asChild 
+          variant="outline" 
+          size="icon" 
+          className="absolute top-2 right-2" 
+          aria-label="Edit agent"
+        >
+          <Link href={`/edit/${agentId}`}>
+            <Pencil className="w-4 h-4" />
+          </Link>
+        </Button>
+      ) : null}
       {/* Header with Avatar and Info */}
       <div className="flex items-center gap-3">
         {/* Avatar on left */}
