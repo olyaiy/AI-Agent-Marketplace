@@ -22,7 +22,7 @@ GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 
 ### Google OAuth
 
-Create OAuth credentials in the Google Cloud Console and configure the redirect URI `http://localhost:3000/api/auth/callback/google`.
+Create OAuth credentials in the Google Cloud Console and configure the redirect URI `<YOUR_DOMAIN>/api/auth/callback/google` (e.g., `http://localhost:3000/api/auth/callback/google` for local development).
 
 ### Server configuration
 
