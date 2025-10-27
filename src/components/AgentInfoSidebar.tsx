@@ -31,19 +31,33 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
       variant === 'sidebar' ? 'h-full flex flex-col' : '',
       'relative'
     )}>
-      {canEdit && agentId ? (
-        <Button 
-          asChild 
-          variant="outline" 
-          size="icon" 
-          className="absolute top-2 right-2" 
-          aria-label="Edit agent"
-        >
-          <Link href={`/edit/${agentId}`}>
-            <Pencil className="w-4 h-4" />
-          </Link>
-        </Button>
-      ) : null}
+      <div className="flex justify-end gap-2">
+        {agentId && (
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            aria-label="New chat"
+          >
+            <Link href={`/agent/${agentId}`}>
+              <Plus className="w-4 h-4 mr-1" />
+              New Chat
+            </Link>
+          </Button>
+        )}
+        {canEdit && agentId ? (
+          <Button
+            asChild
+            variant="outline"
+            size="icon"
+            aria-label="Edit agent"
+          >
+            <Link href={`/edit/${agentId}`}>
+              <Pencil className="w-4 h-4" />
+            </Link>
+          </Button>
+        ) : null}
+      </div>
       {/* Header with Avatar and Info */}
       <div className="flex items-center gap-3">
         {/* Avatar on left */}
@@ -81,21 +95,6 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
         </p>
       </div>
 
-      {/* New Chat Button */}
-      {agentId && (
-        <div className="border-t border-gray-200 pt-4">
-          <Button 
-            asChild 
-            variant="outline"
-            className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300"
-          >
-            <Link href={`/agent/${agentId}`}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Chat
-            </Link>
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

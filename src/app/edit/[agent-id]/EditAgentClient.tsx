@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
+import { KnowledgeManager } from "./KnowledgeManager";
 
 interface Props {
+  agentTag: string;
   initialModel: string | undefined;
   initialSystemPrompt?: string;
   initialTagline?: string;
@@ -12,9 +14,9 @@ interface Props {
   onContextChange?: (update: { model?: string; systemPrompt?: string; tagline?: string; description?: string }) => void;
 }
 
-export const EditAgentClient = React.memo(function EditAgentClient({ initialModel, initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange }: Props) {
+export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, initialModel, initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange }: Props) {
   const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
-  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details">("behaviour");
+  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge">("behaviour");
 
   React.useEffect(() => {
     if (onChange) onChange(selectedModel || undefined);
@@ -51,6 +53,13 @@ export const EditAgentClient = React.memo(function EditAgentClient({ initialMode
         >
           Details
         </button>
+        <button
+          type="button"
+          className={`px-3 py-2 text-sm ${activeTab === 'knowledge' ? 'border-b-2 border-rose-500 text-rose-600' : 'text-gray-600'}`}
+          onClick={() => setActiveTab("knowledge")}
+        >
+          Knowledge Base
+        </button>
       </div>
 
       {/* Tabs content */}
@@ -66,7 +75,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({ initialMode
               className="border p-2"
             />
           </label>
-        ) : (
+        ) : activeTab === "details" ? (
           <>
             <label className="flex flex-col gap-1">
               <span>Tagline</span>
@@ -89,6 +98,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({ initialMode
               />
             </label>
           </>
+        ) : (
+          <KnowledgeManager agentTag={agentTag} />
         )}
       </div>
     </div>

@@ -72,8 +72,9 @@ function LeftForm({
           </div>
         </div>
 
-        {/* Model + Tabs (Behaviour / Details) */}
+        {/* Model + Tabs (Behaviour / Details / Knowledge) */}
         <EditAgentClient
+          agentTag={tag}
           initialModel={initialModel}
           initialSystemPrompt={initialSystemPrompt}
           initialTagline={initialTagline}

@@ -94,10 +94,50 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
-export const agentRelations = relations(agent, ({ one }) => ({
+export const agentRelations = relations(agent, ({ one, many }) => ({
   creator: one(user, {
     fields: [agent.creatorId],
     references: [user.id],
+  }),
+  knowledge: many(agentKnowledge),
+}));
+
+// Knowledgebase
+export const knowledgebase = pgTable('knowledgebase', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  content: text('content').notNull(),
+  type: varchar('type', { length: 32 }).notNull().default('text'), // 'text', 'file', etc.
+  metadata: jsonb('metadata'), // For flexible additional info (file size, format, etc.)
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Junction table linking agents to knowledge items
+export const agentKnowledge = pgTable('agent_knowledge', {
+  agentTag: varchar('agent_tag', { length: 64 })
+    .notNull()
+    .references(() => agent.tag, { onDelete: 'cascade' }),
+  knowledgeId: text('knowledge_id')
+    .notNull()
+    .references(() => knowledgebase.id, { onDelete: 'cascade' }),
+  order: varchar('order', { length: 16 }).default('0'), // For ordering knowledge items
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Knowledgebase Relations
+export const knowledgebaseRelations = relations(knowledgebase, ({ many }) => ({
+  agentLinks: many(agentKnowledge),
+}));
+
+export const agentKnowledgeRelations = relations(agentKnowledge, ({ one }) => ({
+  agent: one(agent, {
+    fields: [agentKnowledge.agentTag],
+    references: [agent.tag],
+  }),
+  knowledge: one(knowledgebase, {
+    fields: [agentKnowledge.knowledgeId],
+    references: [knowledgebase.id],
   }),
 }));
 

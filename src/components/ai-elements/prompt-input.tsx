@@ -25,7 +25,7 @@ import type {
   HTMLAttributes,
   KeyboardEventHandler,
 } from 'react';
-import { Children, createContext, forwardRef, useContext, useRef, useState } from 'react';
+import { Children, createContext, useContext, useRef, useState, forwardRef } from 'react';
 
 // Types
 export interface PromptInputMessage {
@@ -223,12 +223,12 @@ export const PromptInput = ({
 
 export type PromptInputTextareaProps = ComponentProps<typeof Textarea>;
 
-export const PromptInputTextarea = forwardRef<HTMLTextAreaElement, PromptInputTextareaProps>(({
+export const PromptInputTextarea = forwardRef<HTMLTextAreaElement, PromptInputTextareaProps>(function PromptInputTextarea({
   onChange,
   className,
   placeholder = 'What would you like to know?',
   ...props
-}, ref) => {
+}: PromptInputTextareaProps, ref) {
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === 'Enter') {
       // Don't submit if IME composition is in progress
@@ -269,8 +269,6 @@ export const PromptInputTextarea = forwardRef<HTMLTextAreaElement, PromptInputTe
     />
   );
 });
-
-PromptInputTextarea.displayName = 'PromptInputTextarea';
 
 // Body Components
 export type PromptInputBodyProps = HTMLAttributes<HTMLDivElement>;

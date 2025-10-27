@@ -14,6 +14,7 @@ import {
   PromptInputTextarea,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input';
+import { cn } from '@/lib/utils';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
@@ -72,6 +73,16 @@ const Chat = React.memo(function Chat({
   const conversationIdRef = useRef<string | null>(initialConversationId || null);
   const hasGeneratedTitleRef = useRef<boolean>(false);
   const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
+  const [isMultiLine, setIsMultiLine] = useState<boolean>(false);
+  const isMultiLineRef = useRef<boolean>(false);
+  useEffect(() => { isMultiLineRef.current = isMultiLine; }, [isMultiLine]);
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const enterTimeoutRef = useRef<number | null>(null);
+  const exitTimeoutRef = useRef<number | null>(null);
+  const minHoldUntilRef = useRef<number>(0);
+  const lineHeightRef = useRef<number>(0);
+  const paddingTopRef = useRef<number>(0);
+  const paddingBottomRef = useRef<number>(0);
   const { messages, status, sendMessage } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
     onFinish: async ({ message }) => {
@@ -109,6 +120,99 @@ const Chat = React.memo(function Chat({
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
+
+  // Multi-line detection using line count, debounced enter/exit and min-hold
+  const ENTER_DEBOUNCE_MS = 100;
+  const EXIT_DEBOUNCE_MS = 250;
+  const MIN_HOLD_MS = 400;
+
+  const textareaCallbackRef = React.useCallback((node: HTMLTextAreaElement | null) => {
+    // Cleanup previous observer and any pending timer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    if (enterTimeoutRef.current) { window.clearTimeout(enterTimeoutRef.current); enterTimeoutRef.current = null; }
+    if (exitTimeoutRef.current) { window.clearTimeout(exitTimeoutRef.current); exitTimeoutRef.current = null; }
+
+    if (!node) return;
+
+    // Capture static style metrics for line count calculation
+    const style = window.getComputedStyle(node);
+    const lineHeightRaw = parseFloat(style.lineHeight);
+    const fontSize = parseFloat(style.fontSize) || 16;
+    const lineHeight = Number.isNaN(lineHeightRaw) ? Math.round(fontSize * 1.2) : lineHeightRaw;
+    lineHeightRef.current = lineHeight > 0 ? lineHeight : Math.max(1, Math.round(fontSize * 1.2));
+    paddingTopRef.current = parseFloat(style.paddingTop) || 0;
+    paddingBottomRef.current = parseFloat(style.paddingBottom) || 0;
+
+    const handleResize = () => {
+      const height = node.clientHeight;
+      const contentHeight = Math.max(0, height - paddingTopRef.current - paddingBottomRef.current);
+      const lines = contentHeight / (lineHeightRef.current || 1);
+
+      if (!isMultiLineRef.current) {
+        // Not multiline yet: debounce entering when lines >= 2
+        if (lines >= 2) {
+          if (!enterTimeoutRef.current) {
+            enterTimeoutRef.current = window.setTimeout(() => {
+              enterTimeoutRef.current = null;
+              // Re-evaluate at fire time
+              const h = node.clientHeight;
+              const ch = Math.max(0, h - paddingTopRef.current - paddingBottomRef.current);
+              const l = ch / (lineHeightRef.current || 1);
+              if (l >= 2) {
+                setIsMultiLine(true);
+                isMultiLineRef.current = true;
+                minHoldUntilRef.current = Date.now() + MIN_HOLD_MS;
+                if (exitTimeoutRef.current) { window.clearTimeout(exitTimeoutRef.current); exitTimeoutRef.current = null; }
+              }
+            }, ENTER_DEBOUNCE_MS);
+          }
+        } else {
+          if (enterTimeoutRef.current) { window.clearTimeout(enterTimeoutRef.current); enterTimeoutRef.current = null; }
+        }
+      } else {
+        // Already multiline: honor min-hold, then debounce exit when lines <= 1
+        if (Date.now() < minHoldUntilRef.current) {
+          if (exitTimeoutRef.current) { window.clearTimeout(exitTimeoutRef.current); exitTimeoutRef.current = null; }
+          return;
+        }
+        if (lines <= 1) {
+          if (!exitTimeoutRef.current) {
+            exitTimeoutRef.current = window.setTimeout(() => {
+              exitTimeoutRef.current = null;
+              const h = node.clientHeight;
+              const ch = Math.max(0, h - paddingTopRef.current - paddingBottomRef.current);
+              const l = ch / (lineHeightRef.current || 1);
+              if (l <= 1) {
+                setIsMultiLine(false);
+                isMultiLineRef.current = false;
+              }
+            }, EXIT_DEBOUNCE_MS);
+          }
+        } else {
+          if (exitTimeoutRef.current) { window.clearTimeout(exitTimeoutRef.current); exitTimeoutRef.current = null; }
+        }
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(node);
+    observerRef.current = resizeObserver;
+
+    // Trigger once to initialize state correctly for existing content
+    handleResize();
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+      if (enterTimeoutRef.current) { window.clearTimeout(enterTimeoutRef.current); enterTimeoutRef.current = null; }
+      if (exitTimeoutRef.current) { window.clearTimeout(exitTimeoutRef.current); exitTimeoutRef.current = null; }
+    };
+  }, []);
 
   const handleSubmit = async (message: PromptInputMessage) => {
     const trimmed = message.text.trim();
@@ -375,25 +479,40 @@ const Chat = React.memo(function Chat({
                 <PromptInputAttachments>
                   {(attachment) => <PromptInputAttachment data={attachment} />}
                 </PromptInputAttachments>
-                <div className="flex items-center gap-2 p-2">
-                  <PromptInputActionMenu>
-                    <PromptInputActionMenuTrigger />
-                    <PromptInputActionMenuContent>
-                      <PromptInputActionAddAttachments />
-                    </PromptInputActionMenuContent>
-                  </PromptInputActionMenu>
+                <div
+                  className={cn(
+                    'grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] w-full',
+                    isMultiLine ? 'grid-rows-[auto_auto]' : 'grid-rows-1'
+                  )}
+                >
+                  <div className={cn(isMultiLine ? 'row-start-2 col-start-1' : 'row-start-1 col-start-1')}>
+                    <PromptInputActionMenu>
+                      <PromptInputActionMenuTrigger />
+                      <PromptInputActionMenuContent>
+                        <PromptInputActionAddAttachments />
+                      </PromptInputActionMenuContent>
+                    </PromptInputActionMenu>
+                  </div>
                   <PromptInputTextarea
+                    ref={textareaCallbackRef}
                     autoFocus
                     onChange={(e) => setText(e.target.value)}
                     value={text}
                     placeholder="Type your message..."
-                    className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
+                    className={cn(
+                      'min-h-[40px] py-2 text-sm md:text-base',
+                      isMultiLine
+                        ? 'row-start-1 col-start-1 col-end-4'
+                        : 'row-start-1 col-start-2 col-end-3'
+                    )}
                   />
-                  <PromptInputSubmit 
-                    disabled={!text.trim()} 
-                    status={status}
-                    className="shrink-0"
-                  />
+                  <div className={cn(isMultiLine ? 'row-start-2 col-start-3' : 'row-start-1 col-start-3')}>
+                    <PromptInputSubmit 
+                      disabled={!text.trim()} 
+                      status={status}
+                      className="shrink-0"
+                    />
+                  </div>
                 </div>
               </PromptInputBody>
             </PromptInput>
@@ -412,25 +531,40 @@ const Chat = React.memo(function Chat({
               <PromptInputAttachments>
                 {(attachment) => <PromptInputAttachment data={attachment} />}
               </PromptInputAttachments>
-              <div className="flex items-center gap-2 p-2">
-                <PromptInputActionMenu>
-                  <PromptInputActionMenuTrigger />
-                  <PromptInputActionMenuContent>
-                    <PromptInputActionAddAttachments />
-                  </PromptInputActionMenuContent>
-                </PromptInputActionMenu>
+              <div
+                className={cn(
+                  'grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] w-full',
+                  isMultiLine ? 'grid-rows-[auto_auto]' : 'grid-rows-1'
+                )}
+              >
+                <div className={cn(isMultiLine ? 'row-start-2 col-start-1' : 'row-start-1 col-start-1')}>
+                  <PromptInputActionMenu>
+                    <PromptInputActionMenuTrigger />
+                    <PromptInputActionMenuContent>
+                      <PromptInputActionAddAttachments />
+                    </PromptInputActionMenuContent>
+                  </PromptInputActionMenu>
+                </div>
                 <PromptInputTextarea
+                  ref={textareaCallbackRef}
                   autoFocus
                   onChange={(e) => setText(e.target.value)}
                   value={text}
                   placeholder="Type your message..."
-                  className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
+                  className={cn(
+                    'min-h-[40px] py-2 text-sm md:text-base',
+                    isMultiLine
+                      ? 'row-start-1 col-start-1 col-end-4'
+                      : 'row-start-1 col-start-2 col-end-3'
+                  )}
                 />
-                <PromptInputSubmit 
-                  disabled={!text.trim()} 
-                  status={status}
-                  className="shrink-0"
-                />
+                <div className={cn(isMultiLine ? 'row-start-2 col-start-3' : 'row-start-1 col-start-3')}>
+                  <PromptInputSubmit 
+                    disabled={!text.trim()} 
+                    status={status}
+                    className="shrink-0"
+                  />
+                </div>
               </div>
             </PromptInputBody>
           </PromptInput>
