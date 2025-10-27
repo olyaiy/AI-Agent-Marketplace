@@ -244,10 +244,17 @@ export function KnowledgeManager({ agentTag }: Props) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {items.map((item) => (
-            <button
+            <div
               key={item.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => handleCardClick(item)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  handleCardClick(item);
+                }
+              }}
               className="group relative border rounded-lg p-4 text-left hover:border-rose-300 hover:shadow-md transition-all duration-200 bg-white"
             >
               <div className="flex items-start justify-between gap-2 mb-2">
@@ -276,11 +283,10 @@ export function KnowledgeManager({ agentTag }: Props) {
                   Click to edit →
                 </span>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}
     </div>
   );
 }
-

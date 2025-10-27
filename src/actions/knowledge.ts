@@ -2,7 +2,7 @@
 
 import { db } from '@/db/drizzle';
 import { knowledgebase, agentKnowledge } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 export interface CreateKnowledgeInput {

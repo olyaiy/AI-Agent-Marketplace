@@ -8,6 +8,8 @@ import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
 import { conversation, message } from '@/db/schema';
 import { sql } from 'drizzle-orm';
+import { getKnowledgeByAgent } from '@/actions/knowledge';
+import { buildKnowledgeSystemText } from '@/lib/knowledge';
 
 interface UIMessagePartText {
   type: 'text';
@@ -52,7 +54,10 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
 
   const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
 
-  // For existing conversations, rely on the persisted initial system message
+  // Build combined system from agent prompt + knowledge
+  const knowledge = await getKnowledgeByAgent(found.tag);
+  const knowledgeText = buildKnowledgeSystemText(knowledge.map(k => ({ name: k.name, content: k.content })));
+  const combinedSystem = [found.systemPrompt?.trim(), knowledgeText.trim()].filter(Boolean).join('\n\n');
 
   return (
     <div className="relative md:max-h-[calc(100vh-200px)]">
@@ -72,7 +77,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
         <div className="flex-1 overflow-hidden ">
           <Chat
             className="mx-auto h-full"
-            systemPrompt={undefined}
+            systemPrompt={combinedSystem}
             model={found.model}
             avatarUrl={avatarUrl}
             isAuthenticated={true}
@@ -88,7 +93,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
         <div className=" flex-1 max-w-[75%]">
           <Chat
             className="mx-auto"
-            systemPrompt={undefined}
+            systemPrompt={combinedSystem}
             model={found.model}
             avatarUrl={avatarUrl}
             isAuthenticated={true}

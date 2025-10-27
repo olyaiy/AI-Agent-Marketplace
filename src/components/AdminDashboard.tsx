@@ -40,19 +40,44 @@ import {
 import { MoreHorizontal, Search, UserPlus, Shield, Ban, Unlock, Trash2, Key } from 'lucide-react';
 import { toast } from 'sonner';
 
+type AdminRole = 'user' | 'admin';
+
 interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: AdminRole;
   banned: boolean;
   banReason?: string;
   banExpires?: string;
   createdAt: string;
 }
 
+type RawUser = Omit<User, 'role'> & { role?: string | null | undefined };
+
+interface CreateFormState {
+  email: string;
+  password: string;
+  name: string;
+  role: AdminRole;
+}
+
+const normalizeRole = (role?: string | null): AdminRole => (role === 'admin' ? 'admin' : 'user');
+
+const normalizeUser = (user: RawUser): User => ({
+  ...user,
+  role: normalizeRole(user.role),
+});
+
+const createInitialFormState = (): CreateFormState => ({
+  email: '',
+  password: '',
+  name: '',
+  role: 'user',
+});
+
 interface ListUsersResponse {
-  users: User[];
+  users: RawUser[];
   total: number;
   limit?: number;
   offset?: number;
@@ -67,11 +92,11 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [dialogType, setDialogType] = useState<'role' | 'ban' | 'password' | 'create' | null>(null);
-  const [roleValue, setRoleValue] = useState('');
+  const [roleValue, setRoleValue] = useState<AdminRole>('user');
   const [banReason, setBanReason] = useState('');
   const [banDays, setBanDays] = useState('7');
   const [newPassword, setNewPassword] = useState('');
-  const [createForm, setCreateForm] = useState({ email: '', password: '', name: '', role: 'user' });
+  const [createForm, setCreateForm] = useState<CreateFormState>(createInitialFormState());
 
   const pageSize = 10;
 
@@ -79,17 +104,19 @@ export default function AdminDashboard() {
     setIsLoading(true);
     try {
       const response = await authClient.admin.listUsers({
-        limit: pageSize,
-        offset: (currentPage - 1) * pageSize,
-        searchValue: searchValue || undefined,
-        searchField: searchValue ? searchField : undefined,
-        sortBy: 'createdAt',
-        sortDirection: 'desc',
+        query: {
+          limit: pageSize,
+          offset: (currentPage - 1) * pageSize,
+          searchValue: searchValue || undefined,
+          searchField: searchValue ? searchField : undefined,
+          sortBy: 'createdAt',
+          sortDirection: 'desc',
+        },
       });
 
       const data = response.data as ListUsersResponse | null;
       if (data) {
-        setUsers(data.users);
+        setUsers(data.users.map(normalizeUser));
         setTotal(data.total);
       }
     } catch (error) {
@@ -109,7 +136,7 @@ export default function AdminDashboard() {
     loadUsers();
   }
 
-  async function handleSetRole(userId: string, role: string) {
+  async function handleSetRole(userId: string, role: AdminRole) {
     try {
       await authClient.admin.setRole({
         userId,
@@ -185,7 +212,7 @@ export default function AdminDashboard() {
       toast.success('User created successfully');
       loadUsers();
       setDialogType(null);
-      setCreateForm({ email: '', password: '', name: '', role: 'user' });
+      setCreateForm(createInitialFormState());
     } catch (error) {
       toast.error('Failed to create user');
       console.error(error);
@@ -387,7 +414,7 @@ export default function AdminDashboard() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select value={roleValue} onValueChange={setRoleValue}>
+              <Select value={roleValue} onValueChange={(value) => setRoleValue(normalizeRole(value))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -498,7 +525,9 @@ export default function AdminDashboard() {
               <Input
                 placeholder="John Doe"
                 value={createForm.name}
-                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, name: e.target.value }))
+                }
               />
             </div>
             <div className="space-y-2">
@@ -507,7 +536,9 @@ export default function AdminDashboard() {
                 type="email"
                 placeholder="user@example.com"
                 value={createForm.email}
-                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, email: e.target.value }))
+                }
               />
             </div>
             <div className="space-y-2">
@@ -516,12 +547,19 @@ export default function AdminDashboard() {
                 type="password"
                 placeholder="Enter password"
                 value={createForm.password}
-                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, password: e.target.value }))
+                }
               />
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select value={createForm.role} onValueChange={(value) => setCreateForm({ ...createForm, role: value })}>
+              <Select
+                value={createForm.role}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, role: normalizeRole(value) }))
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -548,4 +586,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-

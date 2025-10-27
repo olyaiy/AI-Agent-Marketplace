@@ -72,7 +72,7 @@ export function AgentForm({ model, avatar, onSystemPromptChange }: AgentFormProp
           onChange={(e) => {
             const value = e.target.value;
             setSystemPrompt(value);
-            onSystemPromptChange && onSystemPromptChange(value);
+            if (onSystemPromptChange) onSystemPromptChange(value);
           }}
           rows={8}
           className="border p-2"

@@ -21,6 +21,9 @@ export async function POST(req: Request) {
     .catch(() => ({ messages: [], systemPrompt: undefined, model: undefined }));
   const systemPrompt = bodySystem ?? qpSystem;
   
+  // Log the entire message history when a prompt is sent
+  console.log('📨 Message History Received:', JSON.stringify(messages, null, 2));
+  
   function normalizeModelId(input?: string | null): string | undefined {
     if (!input) return undefined;
     let raw = String(input).trim();

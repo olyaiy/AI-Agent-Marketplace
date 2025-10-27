@@ -35,7 +35,7 @@ import { Actions, Action } from '@/components/ai-elements/actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { Trash2Icon } from 'lucide-react';
+import { Trash2Icon, CopyIcon, CheckIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { 
@@ -76,12 +76,14 @@ const Chat = React.memo(function Chat({
   const conversationIdRef = useRef<string | null>(initialConversationId || null);
   const hasGeneratedTitleRef = useRef<boolean>(false);
   const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isMultiLine, setIsMultiLine] = useState<boolean>(false);
   const isMultiLineRef = useRef<boolean>(false);
   useEffect(() => { isMultiLineRef.current = isMultiLine; }, [isMultiLine]);
   const observerRef = useRef<ResizeObserver | null>(null);
   const enterTimeoutRef = useRef<number | null>(null);
   const exitTimeoutRef = useRef<number | null>(null);
+  const copyTimeoutRef = useRef<number | null>(null);
   const minHoldUntilRef = useRef<number>(0);
   const lineHeightRef = useRef<number>(0);
   const paddingTopRef = useRef<number>(0);
@@ -214,6 +216,7 @@ const Chat = React.memo(function Chat({
       if (observerRef.current) observerRef.current.disconnect();
       if (enterTimeoutRef.current) { window.clearTimeout(enterTimeoutRef.current); enterTimeoutRef.current = null; }
       if (exitTimeoutRef.current) { window.clearTimeout(exitTimeoutRef.current); exitTimeoutRef.current = null; }
+      if (copyTimeoutRef.current) { window.clearTimeout(copyTimeoutRef.current); copyTimeoutRef.current = null; }
     };
   }, []);
 
@@ -233,7 +236,7 @@ const Chat = React.memo(function Chat({
 
     // Ensure conversation exists before sending first message if agentTag is known
     let effectiveConversationId = conversationId;
-    let createdThisCall = false;
+    // removed createdThisCall; we now always include system on every turn
     if (!effectiveConversationId && agentTag) {
       try {
         // Generate temporary ID for optimistic update
@@ -261,7 +264,6 @@ const Chat = React.memo(function Chat({
           setConversationId(data.id);
           effectiveConversationId = data.id;
           conversationIdRef.current = data.id;
-          createdThisCall = true;
 
           // Revalidate to replace temp with real conversation
           await revalidateConversations();
@@ -317,9 +319,8 @@ const Chat = React.memo(function Chat({
     });
     
     // TODO: Add file support to backend
-    // For now, just send the text message
-    // Include system only for the first send immediately after creating the conversation
-    const systemForThisSend = createdThisCall ? (ctx?.systemPrompt ?? systemPrompt) : undefined;
+    // Always include the current system (combined system + knowledge) on every turn
+    const systemForThisSend = ctx?.systemPrompt ?? systemPrompt;
 
     sendMessage(
       { text: trimmed },
@@ -369,6 +370,28 @@ const Chat = React.memo(function Chat({
         next.delete(messageId);
         return next;
       });
+    }
+  };
+
+  function getMessageOriginalText(message: BasicUIMessage): string {
+    const parts = Array.isArray(message.parts) ? message.parts : [];
+    return parts.map((p) => p.text).join('\n\n');
+  }
+
+  const handleCopyMessage = async (message: BasicUIMessage) => {
+    try {
+      const textToCopy = getMessageOriginalText(message);
+      await navigator.clipboard.writeText(textToCopy);
+      setCopiedMessageId(message.id);
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setCopiedMessageId(null);
+        copyTimeoutRef.current = null;
+      }, 1500);
+    } catch {
+      // ignore
     }
   };
 
@@ -448,20 +471,31 @@ const Chat = React.memo(function Chat({
                         })}
                       </MessageContent>
                     </Message>
-                  {isAuthenticated && (
-                    <Actions 
-                      className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${
-                        message.role === 'user' ? 'justify-end' : 'justify-start'
-                      }`}
+                  <Actions 
+                    className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${
+                      message.role === 'user' ? 'justify-end' : 'justify-start'
+                    }`}
+                  >
+                    <Action
+                      onClick={() => handleCopyMessage(message)}
+                      tooltip={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
+                      label={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
                     >
+                      {copiedMessageId === message.id ? (
+                        <CheckIcon className="size-4" />
+                      ) : (
+                        <CopyIcon className="size-4" />
+                      )}
+                    </Action>
+                    {isAuthenticated && (
                       <Action
                         onClick={() => handleDeleteMessage(message.id)}
                         label="Delete message"
                       >
                         <Trash2Icon className="size-4" />
                       </Action>
-                    </Actions>
-                  )}
+                    )}
+                  </Actions>
                   </div>
                 ))}
                 {status === 'submitted' && (
