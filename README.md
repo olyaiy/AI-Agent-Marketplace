@@ -38,7 +38,7 @@ Create OAuth credentials in the Google Cloud Console and configure the redirect 
 ### Database schema
   
 Use the Better Auth CLI to generate and apply migrations:
-
+ 
 ```bash
 pnpm dlx @better-auth/cli@latest generate
 pnpm dlx @better-auth/cli@latest migrate
