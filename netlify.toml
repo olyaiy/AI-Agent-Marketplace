@@ -3,7 +3,7 @@
   publish = ".next"
 
 [build.environment]
-  SECRETS_SCAN_OMIT_PATHS = "README.md"
+  SECRETS_SCAN_OMIT_PATHS = "*.md"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
