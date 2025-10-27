@@ -29,7 +29,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
   const headerList = await headers();
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   if (!session?.user) notFound();
-  const canEdit = Boolean(session.user.id && found.creatorId && session.user.id === found.creatorId);
+  const isAdmin = session.user.role === 'admin';
+  const canEdit = Boolean(isAdmin || (session.user.id && found.creatorId && session.user.id === found.creatorId));
 
   // Verify conversation ownership and agent binding
   const convo = await db

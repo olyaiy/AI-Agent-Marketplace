@@ -95,6 +95,22 @@ export function ModelSelect({ models, value, onChange, showLogos = true }: Props
   const [filtersVisible, setFiltersVisible] = React.useState(false)
 
   React.useEffect(() => setSelected(value), [value])
+  // Log all models and their properties
+  React.useEffect(() => {
+    console.log('=== MODELS DATA ===')
+    models.forEach((model, index) => {
+      console.log(`Model ${index + 1}:`, model)
+      console.log(`--- Properties for ${model.provider}:${model.id} ---`)
+      console.log('ID:', model.id)
+      console.log('Name:', model.name)
+      console.log('Provider:', model.provider)
+      console.log('Description:', model.description)
+      console.log('Pricing:', model.pricing)
+      console.log('Specification:', model.specification)
+      console.log('--- End of model properties ---')
+    })
+    console.log('=== END MODELS DATA ===')
+  }, [models])
 
   function setSelection(next: string) {
     setSelected(next)

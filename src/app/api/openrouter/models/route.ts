@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function filterModels(response: OpenRouterModelsResponse, q: string): { data: Array<{ id: string; name: string; description: string; context_length: number | null; created: number; pricing: { prompt: number; completion: number } }> } {
+function filterModels(response: OpenRouterModelsResponse, q: string): { data: Array<{ id: string; name: string; description: string; context_length: number | null; created: number; pricing: { prompt: number; completion: number }; input_modalities: string[]; output_modalities: string[]; supported_parameters: string[]; default_parameters: any }> } {
   const items = response.data
     .filter((m) => {
       if (!q) return true;
@@ -127,6 +127,10 @@ function filterModels(response: OpenRouterModelsResponse, q: string): { data: Ar
         prompt: parseFloat(m.pricing.prompt),
         completion: parseFloat(m.pricing.completion),
       },
+      input_modalities: m.architecture.input_modalities,
+      output_modalities: m.architecture.output_modalities,
+      supported_parameters: m.supported_parameters,
+      default_parameters: m.default_parameters,
     }));
 
   return { data: items };

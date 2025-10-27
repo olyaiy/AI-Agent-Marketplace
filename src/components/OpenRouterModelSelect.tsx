@@ -16,6 +16,10 @@ interface SlimModel {
     prompt: number;
     completion: number;
   };
+  input_modalities: string[];
+  output_modalities: string[];
+  supported_parameters: string[];
+  default_parameters: any;
 }
 
 // Enhanced model with pre-computed expensive values
@@ -206,6 +210,12 @@ export function OpenRouterModelSelect({
     const res = await fetch(url.toString(), { method: "GET" });
     if (!res.ok) throw new Error("Failed to load models");
     const json = (await res.json()) as ModelsResponse;
+    // Console log the entire response for each model
+    if (json.data && Array.isArray(json.data)) {
+      json.data.forEach((model, index) => {
+        console.log(`Model ${index + 1} response:`, model);
+      });
+    }
     
     // Enhance models with pre-computed values (provider slug, date labels)
     const enhanced = enhanceModels(json.data);
@@ -252,8 +262,27 @@ export function OpenRouterModelSelect({
     const formatPrice = (price: number) => {
       if (price === 0) return 'Free';
       const perMillion = price * 1_000_000;
-      return `$${perMillion.toFixed(2)}`;
+      return `${perMillion.toFixed(2)}`;
     };
+
+    // Get input modalities that are not just "text" or "file"
+    const getInputModalityBadges = () => {
+      if (!m.input_modalities || m.input_modalities.length === 0) return null;
+      
+      const filteredModalities = m.input_modalities.filter(modality => 
+        modality !== "text" && modality !== "file"
+      );
+      
+      if (filteredModalities.length === 0) return null;
+      
+      return filteredModalities.map((modality, index) => (
+        <Badge key={index} variant="default" className="text-xs bg-blue-500 hover:bg-blue-600">
+          {modality}
+        </Badge>
+      ));
+    };
+
+    const inputModalityBadges = getInputModalityBadges();
 
     return (
       <div className="flex items-center gap-3 min-w-0 w-full">
@@ -262,20 +291,22 @@ export function OpenRouterModelSelect({
           <span className="text-sm font-medium truncate">{m._displayName}</span>
           <span className="text-xs text-muted-foreground truncate">{m.id}</span>
         </div>
-        <div className="flex items-center gap-1.5 ml-auto shrink-0">
+        <div className="flex items-center gap-2 ml-auto shrink-0">
+          {inputModalityBadges}
           {m.pricing && (
-            <>
-              <Badge variant="outline" className="text-xs">
-                In: {formatPrice(m.pricing.prompt)}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                Out: {formatPrice(m.pricing.completion)}
-              </Badge>
-            </>
+            <div className="flex items-center gap-1 border rounded-md px-2 py-1 bg-muted/30">
+              <span className="text-xs font-medium text-muted-foreground">In:</span>
+              <span className="text-xs font-semibold">{formatPrice(m.pricing.prompt)}</span>
+              <span className="text-xs text-muted-foreground">|</span>
+              <span className="text-xs font-medium text-muted-foreground">Out:</span>
+              <span className="text-xs font-semibold">{formatPrice(m.pricing.completion)}</span>
+            </div>
           )}
-          {m.context_length ? (
-            <Badge variant="secondary" className="text-xs">{m.context_length}</Badge>
-          ) : null}
+          {m.context_length && (
+            <Badge variant="secondary" className="text-xs font-medium">
+              {m.context_length >= 1000 ? `${(m.context_length / 1000).toFixed(0)}k` : m.context_length}
+            </Badge>
+          )}
         </div>
       </div>
     );

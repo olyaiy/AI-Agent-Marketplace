@@ -15,7 +15,8 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
   const headerList = await headers();
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   const isAuthenticated = Boolean(session?.user);
-  const canEdit = Boolean(session?.user?.id && found.creatorId && session.user.id === found.creatorId);
+  const isAdmin = session?.user?.role === 'admin';
+  const canEdit = Boolean(isAdmin || (session?.user?.id && found.creatorId && session.user.id === found.creatorId));
 
   const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
 
