@@ -481,11 +481,14 @@ const Chat = React.memo(function Chat({
                 </PromptInputAttachments>
                 <div
                   className={cn(
-                    'grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] w-full',
+                    'grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] w-full transition-all duration-200 ease-in-out',
                     isMultiLine ? 'grid-rows-[auto_auto]' : 'grid-rows-1'
                   )}
                 >
-                  <div className={cn(isMultiLine ? 'row-start-2 col-start-1' : 'row-start-1 col-start-1')}>
+                  <div className={cn(
+                    'transition-all duration-200 ease-in-out',
+                    isMultiLine ? 'row-start-2 col-start-1' : 'row-start-1 col-start-1'
+                  )}>
                     <PromptInputActionMenu>
                       <PromptInputActionMenuTrigger />
                       <PromptInputActionMenuContent>
@@ -500,13 +503,16 @@ const Chat = React.memo(function Chat({
                     value={text}
                     placeholder="Type your message..."
                     className={cn(
-                      'min-h-[40px] py-2 text-sm md:text-base',
+                      'min-h-[40px] py-2 text-sm md:text-base transition-all duration-200 ease-in-out',
                       isMultiLine
                         ? 'row-start-1 col-start-1 col-end-4'
                         : 'row-start-1 col-start-2 col-end-3'
                     )}
                   />
-                  <div className={cn(isMultiLine ? 'row-start-2 col-start-3' : 'row-start-1 col-start-3')}>
+                  <div className={cn(
+                    'transition-all duration-200 ease-in-out',
+                    isMultiLine ? 'row-start-2 col-start-3' : 'row-start-1 col-start-3'
+                  )}>
                     <PromptInputSubmit 
                       disabled={!text.trim()} 
                       status={status}
@@ -533,11 +539,14 @@ const Chat = React.memo(function Chat({
               </PromptInputAttachments>
               <div
                 className={cn(
-                  'grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] w-full',
+                  'grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] w-full transition-all duration-200 ease-in-out',
                   isMultiLine ? 'grid-rows-[auto_auto]' : 'grid-rows-1'
                 )}
               >
-                <div className={cn(isMultiLine ? 'row-start-2 col-start-1' : 'row-start-1 col-start-1')}>
+                <div className={cn(
+                  'transition-all duration-200 ease-in-out',
+                  isMultiLine ? 'row-start-2 col-start-1' : 'row-start-1 col-start-1'
+                )}>
                   <PromptInputActionMenu>
                     <PromptInputActionMenuTrigger />
                     <PromptInputActionMenuContent>
@@ -552,13 +561,16 @@ const Chat = React.memo(function Chat({
                   value={text}
                   placeholder="Type your message..."
                   className={cn(
-                    'min-h-[40px] py-2 text-sm md:text-base',
+                    'min-h-[40px] py-2 text-sm md:text-base transition-all duration-200 ease-in-out',
                     isMultiLine
                       ? 'row-start-1 col-start-1 col-end-4'
                       : 'row-start-1 col-start-2 col-end-3'
                   )}
                 />
-                <div className={cn(isMultiLine ? 'row-start-2 col-start-3' : 'row-start-1 col-start-3')}>
+                <div className={cn(
+                  'transition-all duration-200 ease-in-out',
+                  isMultiLine ? 'row-start-2 col-start-3' : 'row-start-1 col-start-3'
+                )}>
                   <PromptInputSubmit 
                     disabled={!text.trim()} 
                     status={status}
