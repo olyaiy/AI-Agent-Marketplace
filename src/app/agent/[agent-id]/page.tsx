@@ -5,6 +5,8 @@ import { getAgentByTag } from '@/actions/agents';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
+import { getKnowledgeByAgent } from '@/actions/knowledge';
+import { buildKnowledgeSystemText } from '@/lib/knowledge';
 
 export default async function AgentPage({ params }: { params: Promise<{ 'agent-id': string }> }) {
   const { 'agent-id': id } = await params;
@@ -19,6 +21,11 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
   const canEdit = Boolean(isAdmin || (session?.user?.id && found.creatorId && session.user.id === found.creatorId));
 
   const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
+
+  // Fetch knowledge once at page render and build combined system string
+  const knowledge = await getKnowledgeByAgent(found.tag);
+  const knowledgeText = buildKnowledgeSystemText(knowledge.map(k => ({ name: k.name, content: k.content })));
+  const combinedSystem = [found.systemPrompt?.trim(), knowledgeText.trim()].filter(Boolean).join('\n\n');
 
   return (
     <main className="h-full ">
@@ -38,7 +45,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
         <div className="flex-1 overflow-hidden ">
           <Chat
             className="mx-auto h-full"
-            systemPrompt={found.systemPrompt}
+            systemPrompt={combinedSystem}
             model={found.model}
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
@@ -52,7 +59,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
         <div className="flex-1 max-w-[75%]">
           <Chat
             className="mx-auto"
-            systemPrompt={found.systemPrompt}
+            systemPrompt={combinedSystem}
             model={found.model}
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}

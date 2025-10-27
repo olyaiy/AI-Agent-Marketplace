@@ -477,7 +477,7 @@ const Chat = React.memo(function Chat({
             >
               <PromptInputBody>
                 <PromptInputAttachments>
-                  {(attachment) => <PromptInputAttachment data={attachment} />}
+                  {(attachment) => <PromptInputAttachment key={attachment.id} data={attachment} />}
                 </PromptInputAttachments>
                 <div
                   className={cn(
@@ -535,7 +535,7 @@ const Chat = React.memo(function Chat({
           >
             <PromptInputBody>
               <PromptInputAttachments>
-                {(attachment) => <PromptInputAttachment data={attachment} />}
+                {(attachment) => <PromptInputAttachment key={attachment.id} data={attachment} />}
               </PromptInputAttachments>
               <div
                 className={cn(
