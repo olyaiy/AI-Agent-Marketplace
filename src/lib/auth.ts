@@ -72,6 +72,7 @@ const pool = resolvePool(env.databaseUrl);
 
 export const auth = betterAuth({
   database: pool,
+  trustedOrigins: ['https://agentvendor.netlify.app'],
   socialProviders: {
     google: {
       clientId: env.googleClientId,
