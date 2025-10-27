@@ -36,7 +36,7 @@ Create OAuth credentials in the Google Cloud Console and configure the redirect 
 - `src/app/(auth)/sign-in`: minimal Google sign-in UI powered by Better Auth.
 
 ### Database schema
- 
+  
 Use the Better Auth CLI to generate and apply migrations:
 
 ```bash
