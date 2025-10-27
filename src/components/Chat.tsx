@@ -332,6 +332,8 @@ const Chat = React.memo(function Chat({
         },
       }
     );
+    setText('');
+    setIsMultiLine(false);
   };
 
   const handleSignIn = () => {
