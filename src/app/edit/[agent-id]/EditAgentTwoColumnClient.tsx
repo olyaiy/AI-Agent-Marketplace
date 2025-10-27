@@ -4,6 +4,7 @@ import * as React from "react";
 import Chat from "@/components/Chat";
 import { EditAgentClient } from "./EditAgentClient";
 import { EditAvatarClient } from "./EditAvatarClient";
+import { buildKnowledgeSystemText } from "@/lib/knowledge";
 
 interface ServerAction {
   (formData: FormData): Promise<void>;
@@ -21,6 +22,7 @@ interface Props {
   avatars: string[];
   onSave: ServerAction;
   onDelete: ServerAction;
+  knowledgeItems?: { name: string; content: string }[];
 }
 
 interface SendContext {
@@ -113,11 +115,24 @@ function TwoColumn(props: Props) {
 
   const getChatContext = React.useCallback(() => sendContextRef.current, []);
 
+  // Build combined system + knowledge text live for the right-side Chat
+  const combinedSystem = React.useMemo(() => {
+    const sys = sendContextRef.current.systemPrompt?.trim() || "";
+    const kb = buildKnowledgeSystemText(props.knowledgeItems || []);
+    return [sys, kb.trim()].filter(Boolean).join("\n\n");
+  }, [props.knowledgeItems]);
+
   return (
     <div className="mx-auto p-6 h-full grid grid-cols-1 gap-6 lg:grid-cols-2 max-w-6xl">
       <LeftForm {...props} sendContextRef={sendContextRef} />
       <div className="min-h-[60vh] h-full border rounded-md p-2">
-        <Chat className="h-full" getChatContext={getChatContext} />
+        <Chat
+          className="h-full"
+          systemPrompt={combinedSystem}
+          knowledgeText={combinedSystem}
+          agentTag={props.tag}
+          getChatContext={getChatContext}
+        />
       </div>
     </div>
   );

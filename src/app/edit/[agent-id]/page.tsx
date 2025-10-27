@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import EditAgentTwoColumnClient from './EditAgentTwoColumnClient';
+import { getKnowledgeByAgent } from '@/actions/knowledge';
 
 async function saveAction(formData: FormData) {
   'use server';
@@ -31,6 +32,8 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
   const tag = `@${id}`;
   const a = await getAgentByTag(tag);
   if (!a) notFound();
+  const knowledge = await getKnowledgeByAgent(tag);
+  const knowledgeItems = knowledge.map(k => ({ name: k.name, content: k.content }));
   const avatars = await (async () => {
     const folder = path.join(process.cwd(), 'public', 'avatars');
     try {
@@ -58,6 +61,7 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       avatars={avatars}
       onSave={saveAction}
       onDelete={deleteAction}
+      knowledgeItems={knowledgeItems}
     />
   );
 }

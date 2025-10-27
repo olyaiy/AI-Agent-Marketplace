@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
-import { conversation } from '@/db/schema';
+import { conversation, message } from '@/db/schema';
 import { sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const { agentTag, model, title }: { agentTag: string; model?: string; title?: string } = await req.json().catch(() => ({ agentTag: 'unknown' as string, model: undefined, title: undefined }));
+  const { agentTag, model, title, knowledgeText }: { agentTag: string; model?: string; title?: string; knowledgeText?: string } = await req.json().catch(() => ({ agentTag: 'unknown' as string, model: undefined, title: undefined, knowledgeText: undefined }));
 
   if (!agentTag || typeof agentTag !== 'string') {
     return new Response(JSON.stringify({ error: 'agentTag is required' }), {
@@ -77,6 +77,22 @@ export async function POST(req: Request) {
     modelId: (model && String(model)) || 'openai/gpt-5-nano',
     title: conversationTitle,
   });
+
+  // Optionally persist initial system message containing combined system/knowledge text
+  if (typeof knowledgeText === 'string' && knowledgeText.trim().length > 0) {
+    try {
+      await db.insert(message).values({
+        id: randomUUID(),
+        conversationId: id,
+        role: 'system',
+        uiParts: [{ type: 'text', text: knowledgeText }] as unknown as Record<string, unknown>[],
+        textPreview: knowledgeText.slice(0, 280),
+        hasToolCalls: false,
+      });
+    } catch {
+      // ignore
+    }
+  }
 
   return new Response(JSON.stringify({ id, agentTag, title: conversationTitle }), {
     status: 201,

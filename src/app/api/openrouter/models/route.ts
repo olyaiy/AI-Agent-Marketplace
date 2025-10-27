@@ -37,6 +37,7 @@ interface OpenRouterModel {
   top_provider: OpenRouterModelTopProvider;
   supported_parameters: string[];
   pricing: OpenRouterModelPricing;
+  default_parameters?: Record<string, string | number | boolean | null>;
 }
 
 interface OpenRouterModelsResponse {
@@ -110,7 +111,20 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function filterModels(response: OpenRouterModelsResponse, q: string): { data: Array<{ id: string; name: string; description: string; context_length: number | null; created: number; pricing: { prompt: number; completion: number }; input_modalities: string[]; output_modalities: string[]; supported_parameters: string[]; default_parameters: any }> } {
+type FilteredModel = {
+  id: string;
+  name: string;
+  description: string;
+  context_length: number | null;
+  created: number;
+  pricing: { prompt: number; completion: number };
+  input_modalities: string[];
+  output_modalities: string[];
+  supported_parameters: string[];
+  default_parameters?: Record<string, string | number | boolean | null>;
+};
+
+function filterModels(response: OpenRouterModelsResponse, q: string): { data: FilteredModel[] } {
   const items = response.data
     .filter((m) => {
       if (!q) return true;
@@ -135,5 +149,4 @@ function filterModels(response: OpenRouterModelsResponse, q: string): { data: Ar
 
   return { data: items };
 }
-
 

@@ -72,6 +72,8 @@ export interface FilterConfig<T> {
     defaultSortId?: string;
   };
 }
+
+type GroupedRow<T> = { type: "header"; label: string } | { type: "item"; option: T };
  
 export interface AsyncSelectProps<T> {
   /** Async function to fetch options */
@@ -390,8 +392,7 @@ export function AsyncSelect<T>({
     if (searchTerm) return null;
     // Build groups from the filteredOptions so sorting/filters apply
     const groups = groupByFn(filteredOptions);
-    type Row = { type: 'header'; label: string } | { type: 'item'; option: T };
-    const rows: Row[] = [];
+    const rows: GroupedRow<T>[] = [];
     for (const group of groups) {
       rows.push({ type: 'header', label: group.label });
       for (const option of group.items) {
@@ -644,8 +645,8 @@ export function AsyncSelect<T>({
             </div>
           )}
           <CommandList
-            ref={listRef as any}
-            onScroll={virtualize ? (e) => setScrollTop((e.currentTarget as HTMLDivElement).scrollTop) : undefined}
+            ref={listRef}
+            onScroll={virtualize ? (e) => setScrollTop(e.currentTarget.scrollTop) : undefined}
             style={virtualize ? { maxHeight: listHeight, overflowY: 'auto' } : undefined}
           >
             {error && (
@@ -683,34 +684,52 @@ export function AsyncSelect<T>({
               <>
                 {virtualize ? (
                   (() => {
-                    const isGrouped = !!groupedRows;
-                    const total = isGrouped ? groupedRows!.length : filteredOptions.length;
+                    const isGrouped = Array.isArray(groupedRows);
+                    const total = isGrouped && groupedRows ? groupedRows.length : filteredOptions.length;
                     const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
                     const visibleCount = Math.ceil(containerHeight / rowHeight) + overscan * 2;
                     const endIndex = Math.min(total, startIndex + visibleCount);
                     const offsetTop = startIndex * rowHeight;
                     const bottomSpacer = (total - endIndex) * rowHeight;
-                    const slice = isGrouped ? groupedRows!.slice(startIndex, endIndex) : filteredOptions.slice(startIndex, endIndex);
+                    const sharedHeading =
+                      !searchTerm && activeFilterCount === 0 && recommendedItems.length > 0 ? "All Models" : undefined;
                     return (
                       <div style={{ position: 'relative' }}>
                         <div style={{ height: offsetTop }} />
-                        <CommandGroup heading={!searchTerm && activeFilterCount === 0 && recommendedItems.length > 0 ? "All Models" : undefined}>
-                          {slice.map((row, idx) => {
-                            if (isGrouped && (row as any).type === 'header') {
-                              const header = row as { type: 'header'; label: string };
-                              return (
+                        {isGrouped && groupedRows ? (
+                          <CommandGroup heading={sharedHeading}>
+                            {groupedRows.slice(startIndex, endIndex).map((row, idx) =>
+                              row.type === "header" ? (
                                 <div
-                                  key={`__header-${header.label}-${startIndex + idx}`}
+                                  key={`__header-${row.label}-${startIndex + idx}`}
                                   className="px-2 py-1.5 text-xs font-medium text-muted-foreground"
-                                  style={{ height: rowHeight, display: 'flex', alignItems: 'center' }}
+                                  style={{ height: rowHeight, display: "flex", alignItems: "center" }}
                                   role="separator"
                                 >
-                                  {header.label}
+                                  {row.label}
                                 </div>
-                              );
-                            }
-                            const option = (isGrouped ? (row as { type: 'item'; option: T }).option : (row as T));
-                            return (
+                              ) : (
+                                <CommandItem
+                                  key={getOptionValue(row.option)}
+                                  value={getOptionValue(row.option)}
+                                  onSelect={handleSelect}
+                                  className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
+                                  style={{ height: rowHeight }}
+                                >
+                                  {renderOption(row.option)}
+                                  <Check
+                                    className={cn(
+                                      "ml-auto h-3 w-3 transition-opacity duration-150",
+                                      selectedValue === getOptionValue(row.option) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                </CommandItem>
+                              )
+                            )}
+                          </CommandGroup>
+                        ) : (
+                          <CommandGroup heading={sharedHeading}>
+                            {filteredOptions.slice(startIndex, endIndex).map((option) => (
                               <CommandItem
                                 key={getOptionValue(option)}
                                 value={getOptionValue(option)}
@@ -726,9 +745,9 @@ export function AsyncSelect<T>({
                                   )}
                                 />
                               </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
+                            ))}
+                          </CommandGroup>
+                        )}
                         <div style={{ height: bottomSpacer }} />
                       </div>
                     );

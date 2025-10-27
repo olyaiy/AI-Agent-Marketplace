@@ -14,6 +14,14 @@ interface UIMessageShape {
   parts: readonly UIMessagePartText[] | readonly unknown[];
 }
 
+const isTextPart = (part: unknown): part is UIMessagePartText =>
+  typeof part === 'object' &&
+  part !== null &&
+  'type' in part &&
+  (part as { type: unknown }).type === 'text' &&
+  'text' in part &&
+  typeof (part as { text: unknown }).text === 'string';
+
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
   if (!session?.user) {
@@ -44,13 +52,12 @@ export async function POST(req: Request) {
     });
   }
 
-  const textPreview = Array.isArray(uiMessage.parts)
-    ? (uiMessage.parts as any[])
-        .filter((p) => p && typeof p === 'object' && (p as any).type === 'text' && typeof (p as any).text === 'string')
-        .map((p) => (p as any).text as string)
-        .join(' ')
-        .slice(0, 280)
-    : null;
+  const partsArray = Array.isArray(uiMessage.parts) ? Array.from(uiMessage.parts) : [];
+  const textPreview = partsArray
+    .filter(isTextPart)
+    .map((part) => part.text)
+    .join(' ')
+    .slice(0, 280);
 
   await db
     .insert(message)
@@ -58,7 +65,7 @@ export async function POST(req: Request) {
       id: uiMessage.id,
       conversationId,
       role: uiMessage.role,
-      uiParts: uiMessage.parts as unknown as any,
+      uiParts: uiMessage.parts as typeof message.$inferInsert['uiParts'],
       textPreview: textPreview || null,
       hasToolCalls: false,
     })
@@ -125,4 +132,3 @@ export async function DELETE(req: Request) {
     headers: { 'content-type': 'application/json' },
   });
 }
-

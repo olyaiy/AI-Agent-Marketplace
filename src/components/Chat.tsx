@@ -54,6 +54,8 @@ interface ChatProps {
   agentTag?: string;
   initialConversationId?: string;
   initialMessages?: unknown[];
+  // Optional knowledge text to persist as a system message at conversation creation time
+  knowledgeText?: string;
 }
 
 const Chat = React.memo(function Chat({
@@ -65,6 +67,7 @@ const Chat = React.memo(function Chat({
   agentTag,
   initialConversationId,
   initialMessages,
+  knowledgeText,
 }: ChatProps) {
   const [text, setText] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -230,6 +233,7 @@ const Chat = React.memo(function Chat({
 
     // Ensure conversation exists before sending first message if agentTag is known
     let effectiveConversationId = conversationId;
+    let createdThisCall = false;
     if (!effectiveConversationId && agentTag) {
       try {
         // Generate temporary ID for optimistic update
@@ -249,7 +253,7 @@ const Chat = React.memo(function Chat({
         const res = await fetch('/api/conversations', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ agentTag, model, title: conversationTitle }),
+          body: JSON.stringify({ agentTag, model, title: conversationTitle, knowledgeText: knowledgeText || undefined }),
         });
         
         if (res.ok) {
@@ -257,6 +261,7 @@ const Chat = React.memo(function Chat({
           setConversationId(data.id);
           effectiveConversationId = data.id;
           conversationIdRef.current = data.id;
+          createdThisCall = true;
 
           // Revalidate to replace temp with real conversation
           await revalidateConversations();
@@ -313,11 +318,14 @@ const Chat = React.memo(function Chat({
     
     // TODO: Add file support to backend
     // For now, just send the text message
+    // Include system only for the first send immediately after creating the conversation
+    const systemForThisSend = createdThisCall ? (ctx?.systemPrompt ?? systemPrompt) : undefined;
+
     sendMessage(
       { text: trimmed },
       {
         body: {
-          systemPrompt: ctx?.systemPrompt ?? systemPrompt,
+          systemPrompt: systemForThisSend,
           model: ctx?.model ?? model,
           conversationId: effectiveConversationId,
           agentTag,

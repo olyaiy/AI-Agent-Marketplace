@@ -46,6 +46,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
           <Chat
             className="mx-auto h-full"
             systemPrompt={combinedSystem}
+            knowledgeText={combinedSystem}
             model={found.model}
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
@@ -60,6 +61,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
           <Chat
             className="mx-auto"
             systemPrompt={combinedSystem}
+            knowledgeText={combinedSystem}
             model={found.model}
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}

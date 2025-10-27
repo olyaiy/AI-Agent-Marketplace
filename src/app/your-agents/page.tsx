@@ -28,7 +28,7 @@ export default async function YourAgentsPage() {
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-semibold text-gray-900">Your Agents</h1>
             <p className="text-gray-600">
-              Manage and view all the agents you've created
+              Manage and view all the agents you&apos;ve created
             </p>
           </div>
           <Link href="/create">
@@ -39,7 +39,7 @@ export default async function YourAgentsPage() {
         {/* Agent Grid */}
         {agents.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">You haven't created any agents yet.</p>
+            <p className="text-gray-500 mb-4">You haven&apos;t created any agents yet.</p>
             <p className="text-sm text-gray-400 mb-6">
               Get started by creating your first AI agent.
             </p>
@@ -54,4 +54,3 @@ export default async function YourAgentsPage() {
     </main>
   );
 }
-

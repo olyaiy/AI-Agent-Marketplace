@@ -72,6 +72,23 @@ export async function POST(req: Request) {
         modelId,
         title,
       });
+      // If a system prompt was provided on-demand, persist it as an initial system message
+      if (systemPrompt && systemPrompt.trim().length > 0) {
+        try {
+          await db
+            .insert(message)
+            .values({
+              id: randomUUID(),
+              conversationId: ensuredConversationId!,
+              role: 'system',
+              uiParts: [{ type: 'text', text: systemPrompt }] as unknown as Record<string, unknown>[],
+              textPreview: systemPrompt.slice(0, 280),
+              hasToolCalls: false,
+            });
+        } catch {
+          // noop
+        }
+      }
     } catch {
       // noop
     }
