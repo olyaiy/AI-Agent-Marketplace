@@ -302,7 +302,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
       {...props}
     />
   )
-}
+} 
 
 function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
   return (
