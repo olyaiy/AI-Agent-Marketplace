@@ -3,8 +3,18 @@
 import * as React from 'react';
 import {
   PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
+  PromptInputAttachment,
+  PromptInputAttachments,
+  PromptInputBody,
+  PromptInputFooter,
   PromptInputSubmit,
   PromptInputTextarea,
+  PromptInputTools,
+  type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useChat } from '@ai-sdk/react';
@@ -102,14 +112,18 @@ const Chat = React.memo(function Chat({
     conversationIdRef.current = conversationId;
   }, [conversationId]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = text.trim();
-    if (!trimmed) return;
+  const handleSubmit = async (message: PromptInputMessage) => {
+    const trimmed = message.text.trim();
+    if (!trimmed && (!message.files || message.files.length === 0)) return;
 
     if (!isAuthenticated) {
       setIsDialogOpen(true);
       return;
+    }
+
+    // Log file attachments (UI only for now)
+    if (message.files && message.files.length > 0) {
+      console.log('📎 File attachments:', message.files);
     }
 
     // Ensure conversation exists before sending first message if agentTag is known
@@ -195,6 +209,8 @@ const Chat = React.memo(function Chat({
       }
     });
     
+    // TODO: Add file support to backend
+    // For now, just send the text message
     sendMessage(
       { text: trimmed },
       {
@@ -206,7 +222,6 @@ const Chat = React.memo(function Chat({
         },
       }
     );
-    setText('');
   };
 
   const handleSignIn = () => {
@@ -351,8 +366,17 @@ const Chat = React.memo(function Chat({
 
           {/* Fixed input bar at bottom - fixed on mobile, relative on desktop */}
           <div className="fixed md:relative bottom-0 left-0 right-0 md:flex-shrink-0 border-t md:border-t-0 bg-background py-2 md:pb-4 md:pt-0 z-10">
-            <PromptInput onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
-              <div className="flex items-center gap-2 p-1.5 md:p-2">
+            <PromptInput 
+              onSubmit={handleSubmit} 
+              className="w-full max-w-3xl mx-auto"
+              multiple
+              maxFiles={10}
+              maxFileSize={10 * 1024 * 1024} // 10MB
+            >
+              <PromptInputBody>
+                <PromptInputAttachments>
+                  {(attachment) => <PromptInputAttachment data={attachment} />}
+                </PromptInputAttachments>
                 <PromptInputTextarea
                   autoFocus
                   onChange={(e) => setText(e.target.value)}
@@ -360,19 +384,38 @@ const Chat = React.memo(function Chat({
                   placeholder="Type your message..."
                   className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
                 />
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <PromptInputActionMenu>
+                    <PromptInputActionMenuTrigger />
+                    <PromptInputActionMenuContent>
+                      <PromptInputActionAddAttachments />
+                    </PromptInputActionMenuContent>
+                  </PromptInputActionMenu>
+                </PromptInputTools>
                 <PromptInputSubmit 
                   disabled={!text.trim()} 
                   status={status}
                   className="shrink-0"
                 />
-              </div>
+              </PromptInputFooter>
             </PromptInput>
           </div>
         </>
       ) : (
         <div className="flex flex-col items-center justify-center h-full md:px-0">
-          <PromptInput onSubmit={handleSubmit} className="w-full max-w-2xl">
-            <div className="flex items-center gap-2 p-1.5 md:p-2">
+          <PromptInput 
+            onSubmit={handleSubmit} 
+            className="w-full max-w-2xl"
+            multiple
+            maxFiles={10}
+            maxFileSize={10 * 1024 * 1024} // 10MB
+          >
+            <PromptInputBody>
+              <PromptInputAttachments>
+                {(attachment) => <PromptInputAttachment data={attachment} />}
+              </PromptInputAttachments>
               <PromptInputTextarea
                 autoFocus
                 onChange={(e) => setText(e.target.value)}
@@ -380,12 +423,22 @@ const Chat = React.memo(function Chat({
                 placeholder="Type your message..."
                 className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
               />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools>
+                <PromptInputActionMenu>
+                  <PromptInputActionMenuTrigger />
+                  <PromptInputActionMenuContent>
+                    <PromptInputActionAddAttachments />
+                  </PromptInputActionMenuContent>
+                </PromptInputActionMenu>
+              </PromptInputTools>
               <PromptInputSubmit 
                 disabled={!text.trim()} 
                 status={status}
                 className="shrink-0"
               />
-            </div>
+            </PromptInputFooter>
           </PromptInput>
         </div>
       )}

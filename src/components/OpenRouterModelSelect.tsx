@@ -19,7 +19,11 @@ interface SlimModel {
   input_modalities: string[];
   output_modalities: string[];
   supported_parameters: string[];
-  default_parameters: any;
+  default_parameters: DefaultParameters;
+}
+
+interface DefaultParameters {
+  [key: string]: unknown;
 }
 
 // Enhanced model with pre-computed expensive values
@@ -210,13 +214,6 @@ export function OpenRouterModelSelect({
     const res = await fetch(url.toString(), { method: "GET" });
     if (!res.ok) throw new Error("Failed to load models");
     const json = (await res.json()) as ModelsResponse;
-    // Console log the entire response for each model
-    if (json.data && Array.isArray(json.data)) {
-      json.data.forEach((model, index) => {
-        console.log(`Model ${index + 1} response:`, model);
-      });
-    }
-    
     // Enhance models with pre-computed values (provider slug, date labels)
     const enhanced = enhanceModels(json.data);
     
@@ -262,7 +259,11 @@ export function OpenRouterModelSelect({
     const formatPrice = (price: number) => {
       if (price === 0) return 'Free';
       const perMillion = price * 1_000_000;
-      return `${perMillion.toFixed(2)}`;
+      // Show whole numbers without decimals, otherwise show 2 decimal places
+      if (Number.isInteger(perMillion)) {
+        return `$${perMillion}`;
+      }
+      return `$${perMillion.toFixed(2)}`;
     };
 
     // Get input modalities that are not just "text" or "file"
@@ -344,7 +345,15 @@ export function OpenRouterModelSelect({
       min: 0,
       max: 50,
       step: 0.5,
-      formatLabel: (value: number) => value === 0 ? 'Free' : `$${value.toFixed(2)}`,
+      formatLabel: (value: number) => {
+        if (value === 0) return 'Free';
+        const perMillion = value * 1_000_000;
+        // Show whole numbers without decimals, otherwise show 2 decimal places
+        if (Number.isInteger(perMillion)) {
+          return `${perMillion}`;
+        }
+        return `${perMillion.toFixed(2)}`;
+      },
     },
     sorting: {
       enabled: true,

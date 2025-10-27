@@ -384,6 +384,23 @@ export function AsyncSelect<T>({
     return count;
   }, [selectedProviders, contextLengthRange, priceRangeValue]);
   
+  // Build a flat list of rows (headers + items) for grouped virtualization
+  const groupedRows = useMemo(() => {
+    if (!groupByFn) return null;
+    if (searchTerm) return null;
+    // Build groups from the filteredOptions so sorting/filters apply
+    const groups = groupByFn(filteredOptions);
+    type Row = { type: 'header'; label: string } | { type: 'item'; option: T };
+    const rows: Row[] = [];
+    for (const group of groups) {
+      rows.push({ type: 'header', label: group.label });
+      for (const option of group.items) {
+        rows.push({ type: 'item', option });
+      }
+    }
+    return rows;
+  }, [groupByFn, filteredOptions, searchTerm]);
+
   // Clear all filters
   const clearAllFilters = useCallback(() => {
     setSelectedProviders(new Set());
@@ -662,51 +679,71 @@ export function AsyncSelect<T>({
                 ))}
               </CommandGroup>
             )}
-            {filteredOptions.length > 0 && !searchTerm && groupByFn ? (
-              <>
-                {groupByFn(filteredOptions).map((group) => (
-                  <CommandGroup key={group.label} heading={group.label}>
-                    {group.items.map((option) => (
-                      <CommandItem
-                        key={getOptionValue(option)}
-                        value={getOptionValue(option)}
-                        onSelect={handleSelect}
-                        className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
-                      >
-                        {renderOption(option)}
-                        <Check
-                          className={cn(
-                            "ml-auto h-3 w-3 transition-opacity duration-150",
-                            selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ))}
-              </>
-            ) : filteredOptions.length > 0 ? (
+            {filteredOptions.length > 0 ? (
               <>
                 {virtualize ? (
                   (() => {
-                    const total = filteredOptions.length;
+                    const isGrouped = !!groupedRows;
+                    const total = isGrouped ? groupedRows!.length : filteredOptions.length;
                     const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
                     const visibleCount = Math.ceil(containerHeight / rowHeight) + overscan * 2;
                     const endIndex = Math.min(total, startIndex + visibleCount);
                     const offsetTop = startIndex * rowHeight;
                     const bottomSpacer = (total - endIndex) * rowHeight;
-                    const slice = filteredOptions.slice(startIndex, endIndex);
+                    const slice = isGrouped ? groupedRows!.slice(startIndex, endIndex) : filteredOptions.slice(startIndex, endIndex);
                     return (
                       <div style={{ position: 'relative' }}>
                         <div style={{ height: offsetTop }} />
                         <CommandGroup heading={!searchTerm && activeFilterCount === 0 && recommendedItems.length > 0 ? "All Models" : undefined}>
-                          {slice.map((option) => (
+                          {slice.map((row, idx) => {
+                            if (isGrouped && (row as any).type === 'header') {
+                              const header = row as { type: 'header'; label: string };
+                              return (
+                                <div
+                                  key={`__header-${header.label}-${startIndex + idx}`}
+                                  className="px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                                  style={{ height: rowHeight, display: 'flex', alignItems: 'center' }}
+                                  role="separator"
+                                >
+                                  {header.label}
+                                </div>
+                              );
+                            }
+                            const option = (isGrouped ? (row as { type: 'item'; option: T }).option : (row as T));
+                            return (
+                              <CommandItem
+                                key={getOptionValue(option)}
+                                value={getOptionValue(option)}
+                                onSelect={handleSelect}
+                                className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
+                                style={{ height: rowHeight }}
+                              >
+                                {renderOption(option)}
+                                <Check
+                                  className={cn(
+                                    "ml-auto h-3 w-3 transition-opacity duration-150",
+                                    selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                        <div style={{ height: bottomSpacer }} />
+                      </div>
+                    );
+                  })()
+                ) : (
+                  groupedRows ? (
+                    <>
+                      {groupByFn!(filteredOptions).map((group) => (
+                        <CommandGroup key={group.label} heading={group.label}>
+                          {group.items.map((option) => (
                             <CommandItem
                               key={getOptionValue(option)}
                               value={getOptionValue(option)}
                               onSelect={handleSelect}
                               className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
-                              style={{ height: rowHeight }}
                             >
                               {renderOption(option)}
                               <Check
@@ -718,29 +755,28 @@ export function AsyncSelect<T>({
                             </CommandItem>
                           ))}
                         </CommandGroup>
-                        <div style={{ height: bottomSpacer }} />
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <CommandGroup heading={!searchTerm && activeFilterCount === 0 && recommendedItems.length > 0 ? "All Models" : undefined}>
-                    {filteredOptions.map((option) => (
-                      <CommandItem
-                        key={getOptionValue(option)}
-                        value={getOptionValue(option)}
-                        onSelect={handleSelect}
-                        className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
-                      >
-                        {renderOption(option)}
-                        <Check
-                          className={cn(
-                            "ml-auto h-3 w-3 transition-opacity duration-150",
-                            selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+                      ))}
+                    </>
+                  ) : (
+                    <CommandGroup heading={!searchTerm && activeFilterCount === 0 && recommendedItems.length > 0 ? "All Models" : undefined}>
+                      {filteredOptions.map((option) => (
+                        <CommandItem
+                          key={getOptionValue(option)}
+                          value={getOptionValue(option)}
+                          onSelect={handleSelect}
+                          className="cursor-pointer active:scale-[0.98] transition-transform duration-75"
+                        >
+                          {renderOption(option)}
+                          <Check
+                            className={cn(
+                              "ml-auto h-3 w-3 transition-opacity duration-150",
+                              selectedValue === getOptionValue(option) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )
                 )}
               </>
             ) : null}
