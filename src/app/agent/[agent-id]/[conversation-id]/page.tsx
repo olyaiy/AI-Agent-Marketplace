@@ -45,7 +45,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
   const rows = await db
     .select({ id: message.id, role: message.role, uiParts: message.uiParts, createdAt: message.createdAt })
     .from(message)
-    .where(sql`${message.conversationId} = ${conversationId}`)
+    .where(sql`${message.conversationId} = ${conversationId} AND ${message.role} != 'system'`)
     .orderBy(sql`${message.createdAt} ASC`);
 
   const initialMessages: UIMessageShape[] = rows.map((r) => ({ id: r.id, role: r.role as UIMessageShape['role'], parts: r.uiParts as readonly unknown[] }));
