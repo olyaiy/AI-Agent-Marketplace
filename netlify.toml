@@ -1,0 +1,10 @@
+[build]
+  command = "pnpm run build"
+  publish = ".next"
+
+[build.environment]
+  SECRETS_SCAN_OMIT_PATHS = "README.md"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
