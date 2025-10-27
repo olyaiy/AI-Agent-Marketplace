@@ -25,7 +25,7 @@ import type {
   HTMLAttributes,
   KeyboardEventHandler,
 } from 'react';
-import { Children, createContext, useContext, useRef, useState } from 'react';
+import { Children, createContext, forwardRef, useContext, useRef, useState } from 'react';
 
 // Types
 export interface PromptInputMessage {
@@ -223,12 +223,12 @@ export const PromptInput = ({
 
 export type PromptInputTextareaProps = ComponentProps<typeof Textarea>;
 
-export const PromptInputTextarea = ({
+export const PromptInputTextarea = forwardRef<HTMLTextAreaElement, PromptInputTextareaProps>(({
   onChange,
   className,
   placeholder = 'What would you like to know?',
   ...props
-}: PromptInputTextareaProps) => {
+}, ref) => {
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === 'Enter') {
       // Don't submit if IME composition is in progress
@@ -252,6 +252,7 @@ export const PromptInputTextarea = ({
 
   return (
     <Textarea
+      ref={ref}
       className={cn(
         'w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0 ',
         'field-sizing-content max-h-[6lh] bg-transparent dark:bg-transparent',
@@ -267,7 +268,9 @@ export const PromptInputTextarea = ({
       {...props}
     />
   );
-};
+});
+
+PromptInputTextarea.displayName = 'PromptInputTextarea';
 
 // Body Components
 export type PromptInputBodyProps = HTMLAttributes<HTMLDivElement>;
@@ -352,13 +355,25 @@ export const PromptInputAttachment = ({
   const { remove } = usePromptInputAttachments();
   const isImage = data.file.type.startsWith('image/');
   const isPDF = data.file.type === 'application/pdf';
+  const isExcel = data.file.type === 'application/vnd.ms-excel' || 
+                  data.file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                  data.file.type === 'text/csv';
+  const isWord = data.file.type === 'application/msword' || 
+                 data.file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+  const getFileStyles = () => {
+    if (isPDF) return 'bg-red-700 border-red-100 text-zinc-100';
+    if (isExcel) return 'bg-green-700 border-green-100 text-white';
+    if (isWord) return 'bg-blue-700 border-blue-100 text-white';
+    return 'bg-muted/50';
+  };
 
   return (
     <div
       className={cn(
         'group relative flex items-center gap-2 rounded-lg border p-2',
         isImage && 'flex-col',
-        isPDF ? 'bg-red-700 border-red-100 text-zinc-100' : 'bg-muted/50',
+        getFileStyles(),
         className
       )}
       {...props}
@@ -374,14 +389,14 @@ export const PromptInputAttachment = ({
       ) : (
         <FileIcon className={cn(
           "size-5",
-          isPDF ? "text-zinc-100" : "text-muted-foreground"
+          (isPDF || isExcel || isWord) ? "text-white" : "text-muted-foreground"
         )} />
       )}
       <div className="flex flex-col min-w-0 max-w-[120px]">
         <span className="truncate text-xs">{data.file.name}</span>
         <span className={cn(
           "text-xs",
-          isPDF ? "text-zinc-200/80" : "text-muted-foreground"
+          (isPDF || isExcel || isWord) ? "text-zinc-200/80" : "text-muted-foreground"
         )}>
           {(data.file.size / 1024).toFixed(1)} KB
         </span>

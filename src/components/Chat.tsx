@@ -10,10 +10,8 @@ import {
   PromptInputAttachment,
   PromptInputAttachments,
   PromptInputBody,
-  PromptInputFooter,
   PromptInputSubmit,
   PromptInputTextarea,
-  PromptInputTools,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
@@ -377,29 +375,27 @@ const Chat = React.memo(function Chat({
                 <PromptInputAttachments>
                   {(attachment) => <PromptInputAttachment data={attachment} />}
                 </PromptInputAttachments>
-                <PromptInputTextarea
-                  autoFocus
-                  onChange={(e) => setText(e.target.value)}
-                  value={text}
-                  placeholder="Type your message..."
-                  className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
-                />
-              </PromptInputBody>
-              <PromptInputFooter>
-                <PromptInputTools>
+                <div className="flex items-center gap-2 p-2">
                   <PromptInputActionMenu>
                     <PromptInputActionMenuTrigger />
                     <PromptInputActionMenuContent>
                       <PromptInputActionAddAttachments />
                     </PromptInputActionMenuContent>
                   </PromptInputActionMenu>
-                </PromptInputTools>
-                <PromptInputSubmit 
-                  disabled={!text.trim()} 
-                  status={status}
-                  className="shrink-0"
-                />
-              </PromptInputFooter>
+                  <PromptInputTextarea
+                    autoFocus
+                    onChange={(e) => setText(e.target.value)}
+                    value={text}
+                    placeholder="Type your message..."
+                    className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
+                  />
+                  <PromptInputSubmit 
+                    disabled={!text.trim()} 
+                    status={status}
+                    className="shrink-0"
+                  />
+                </div>
+              </PromptInputBody>
             </PromptInput>
           </div>
         </>
@@ -416,29 +412,27 @@ const Chat = React.memo(function Chat({
               <PromptInputAttachments>
                 {(attachment) => <PromptInputAttachment data={attachment} />}
               </PromptInputAttachments>
-              <PromptInputTextarea
-                autoFocus
-                onChange={(e) => setText(e.target.value)}
-                value={text}
-                placeholder="Type your message..."
-                className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
-              />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools>
+              <div className="flex items-center gap-2 p-2">
                 <PromptInputActionMenu>
                   <PromptInputActionMenuTrigger />
                   <PromptInputActionMenuContent>
                     <PromptInputActionAddAttachments />
                   </PromptInputActionMenuContent>
                 </PromptInputActionMenu>
-              </PromptInputTools>
-              <PromptInputSubmit 
-                disabled={!text.trim()} 
-                status={status}
-                className="shrink-0"
-              />
-            </PromptInputFooter>
+                <PromptInputTextarea
+                  autoFocus
+                  onChange={(e) => setText(e.target.value)}
+                  value={text}
+                  placeholder="Type your message..."
+                  className="flex-1 min-h-[40px] py-2 text-sm md:text-base"
+                />
+                <PromptInputSubmit 
+                  disabled={!text.trim()} 
+                  status={status}
+                  className="shrink-0"
+                />
+              </div>
+            </PromptInputBody>
           </PromptInput>
         </div>
       )}
