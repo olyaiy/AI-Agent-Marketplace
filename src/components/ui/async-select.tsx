@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Check, ChevronsUpDown, Search, Loader2, Filter, X } from "lucide-react";
+import { Check, ChevronsUpDown, Search, Loader2, Filter } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
  
 import { cn } from "@/lib/utils";

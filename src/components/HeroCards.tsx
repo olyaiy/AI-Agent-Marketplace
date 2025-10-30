@@ -1,7 +1,7 @@
 // src/components/HeroCards.tsx
 // Hero cards component for the home page featuring AI customization and monetization
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';

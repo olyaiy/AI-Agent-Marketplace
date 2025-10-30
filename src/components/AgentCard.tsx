@@ -10,7 +10,7 @@ interface AgentCardProps {
   tagline?: string | null;
 }
 
-export function AgentCard({ tag, name, avatar, systemPrompt, tagline }: AgentCardProps) {
+export function AgentCard({ tag, name, avatar, tagline }: AgentCardProps) {
   const agentId = encodeURIComponent(tag.replace(/^@/, ''));
 
   return (

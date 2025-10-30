@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +87,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [searchValue, setSearchValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState<'email' | 'name'>('email');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,15 +101,15 @@ export default function AdminDashboard() {
 
   const pageSize = 10;
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await authClient.admin.listUsers({
         query: {
           limit: pageSize,
           offset: (currentPage - 1) * pageSize,
-          searchValue: searchValue || undefined,
-          searchField: searchValue ? searchField : undefined,
+          searchValue: searchQuery || undefined,
+          searchField: searchQuery ? searchField : undefined,
           sortBy: 'createdAt',
           sortDirection: 'desc',
         },
@@ -125,15 +126,15 @@ export default function AdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [currentPage, pageSize, searchField, searchQuery]);
 
   useEffect(() => {
-    loadUsers();
-  }, [currentPage, searchField]);
+    void loadUsers();
+  }, [loadUsers]);
 
   function handleSearch() {
     setCurrentPage(1);
-    loadUsers();
+    setSearchQuery(searchValue);
   }
 
   async function handleSetRole(userId: string, role: AdminRole) {
@@ -143,7 +144,7 @@ export default function AdminDashboard() {
         role,
       });
       toast.success('Role updated successfully');
-      loadUsers();
+      await loadUsers();
       setDialogType(null);
       setSelectedUser(null);
     } catch (error) {
@@ -161,7 +162,7 @@ export default function AdminDashboard() {
         banExpiresIn,
       });
       toast.success('User banned successfully');
-      loadUsers();
+      await loadUsers();
       setDialogType(null);
       setSelectedUser(null);
       setBanReason('');
@@ -176,7 +177,7 @@ export default function AdminDashboard() {
     try {
       await authClient.admin.unbanUser({ userId });
       toast.success('User unbanned successfully');
-      loadUsers();
+      await loadUsers();
     } catch (error) {
       toast.error('Failed to unban user');
       console.error(error);
@@ -190,7 +191,7 @@ export default function AdminDashboard() {
         newPassword,
       });
       toast.success('Password updated successfully');
-      loadUsers();
+      await loadUsers();
       setDialogType(null);
       setSelectedUser(null);
       setNewPassword('');
@@ -210,7 +211,7 @@ export default function AdminDashboard() {
         data: {},
       });
       toast.success('User created successfully');
-      loadUsers();
+      await loadUsers();
       setDialogType(null);
       setCreateForm(createInitialFormState());
     } catch (error) {
@@ -225,7 +226,7 @@ export default function AdminDashboard() {
     try {
       await authClient.admin.removeUser({ userId });
       toast.success('User removed successfully');
-      loadUsers();
+      await loadUsers();
     } catch (error) {
       toast.error('Failed to remove user');
       console.error(error);

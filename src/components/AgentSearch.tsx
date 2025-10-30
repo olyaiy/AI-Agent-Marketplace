@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { SearchIcon } from 'lucide-react';
@@ -30,7 +30,6 @@ export function AgentSearch({ className }: AgentSearchProps) {
   useEffect(() => {
     // keep input in sync when user navigates back/forward
     setValue(existingQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingQuery]);
 
   return (
@@ -56,5 +55,4 @@ function useDebouncedValue<T>(input: T, delayMs: number): T {
   }, [input, delayMs]);
   return debouncedValue;
 }
-
 

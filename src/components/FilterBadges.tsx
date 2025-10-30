@@ -1,5 +1,4 @@
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Grid3X3,
   PenTool,
