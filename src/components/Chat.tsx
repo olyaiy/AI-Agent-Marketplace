@@ -81,12 +81,12 @@ const Chat = React.memo(function Chat({
   const lastAssistantMessageRef = useRef<UIMessage | null>(null);
   const { messages, status, sendMessage, stop } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
-    onFinish: async ({ message, finishReason }) => {
+    onFinish: async ({ message }) => {
       try {
         const cid = conversationIdRef.current;
         if (!cid || message.role !== 'assistant') return;
 
-        console.log('🎯 onFinish called:', { finishReason, messageId: message.id, partsLength: message.parts?.length });
+        console.log('🎯 onFinish called:', { messageId: message.id, partsLength: message.parts?.length });
 
         // Save the message (whether completed or aborted)
         await fetch('/api/messages', {
