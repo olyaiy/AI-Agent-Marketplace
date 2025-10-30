@@ -3,7 +3,7 @@
 import { useCallback, useState, useEffect, useRef, useMemo, memo } from "react";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Brain } from "lucide-react";
 import * as LobehubIcons from '@lobehub/icons';
 
 interface SlimModel {
@@ -31,6 +31,7 @@ interface EnhancedModel extends SlimModel {
   _providerSlug: string | null;
   _monthYearLabel: string;
   _displayName: string;
+  _supportsReasoning: boolean;
 }
 
 const RECOMMENDED_MODEL_IDS = [
@@ -101,11 +102,15 @@ function enhanceModels(models: SlimModel[]): EnhancedModel[] {
     // Cache display name without provider prefix (e.g., "Claude Sonnet 4.5" instead of "Anthropic: Claude Sonnet 4.5")
     const _displayName = getDisplayName(model.name);
     
+    // Cache reasoning support (used in rendering badge)
+    const _supportsReasoning = model.supported_parameters.includes('reasoning');
+    
     return {
       ...model,
       _providerSlug,
       _monthYearLabel,
       _displayName,
+      _supportsReasoning,
     };
   });
 }
@@ -290,24 +295,23 @@ export function OpenRouterModelSelect({
         <ProviderAvatar name={m.name} size={32} providerSlug={m._providerSlug} />
         <div className="flex flex-col min-w-0 flex-1">
           <span className="text-sm font-medium truncate">{m._displayName}</span>
-          <span className="text-xs text-muted-foreground truncate">{m.id}</span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="truncate">{m.id}</span>
+            {m.pricing && (
+              <>
+                <span>•</span>
+                <span className="whitespace-nowrap">In: {formatPrice(m.pricing.prompt)}</span>
+                <span>|</span>
+                <span className="whitespace-nowrap">Out: {formatPrice(m.pricing.completion)}</span>
+              </>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 ml-auto shrink-0">
+          {m._supportsReasoning && (
+            <Brain className="w-4 h-4 text-purple-500" />
+          )}
           {inputModalityBadges}
-          {m.pricing && (
-            <div className="flex items-center gap-1 border rounded-md px-2 py-1 bg-muted/30">
-              <span className="text-xs font-medium text-muted-foreground">In:</span>
-              <span className="text-xs font-semibold">{formatPrice(m.pricing.prompt)}</span>
-              <span className="text-xs text-muted-foreground">|</span>
-              <span className="text-xs font-medium text-muted-foreground">Out:</span>
-              <span className="text-xs font-semibold">{formatPrice(m.pricing.completion)}</span>
-            </div>
-          )}
-          {m.context_length && (
-            <Badge variant="secondary" className="text-xs font-medium">
-              {m.context_length >= 1000 ? `${(m.context_length / 1000).toFixed(0)}k` : m.context_length}
-            </Badge>
-          )}
         </div>
       </div>
     );

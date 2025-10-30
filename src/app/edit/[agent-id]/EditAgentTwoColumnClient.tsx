@@ -132,16 +132,25 @@ function TwoColumn(props: Props) {
   }, [props.knowledgeItems]);
 
   return (
-    <div className="mx-auto p-6 h-full grid grid-cols-1 gap-6 lg:grid-cols-2 max-w-6xl">
-      <LeftForm {...props} sendContextRef={sendContextRef} onTabChange={setActiveTab} activeTab={activeTab} />
-      <div className="min-h-[60vh] h-full border rounded-md p-2">
-        <Chat
-          className="h-full"
-          systemPrompt={combinedSystem}
-          knowledgeText={combinedSystem}
-          agentTag={props.tag}
-          getChatContext={getChatContext}
-        />
+    <div className="mx-auto p-6 max-w-7xl">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+        {/* Left column - scrollable */}
+        <div className="w-full">
+          <LeftForm {...props} sendContextRef={sendContextRef} onTabChange={setActiveTab} activeTab={activeTab} />
+        </div>
+        
+        {/* Right column - sticky */}
+        <div className="lg:sticky lg:top-6 h-[calc(100vh-3rem)] min-h-[600px]">
+          <div className="h-full border rounded-lg p-2 bg-white shadow-sm">
+            <Chat
+              className="h-full"
+              systemPrompt={combinedSystem}
+              knowledgeText={combinedSystem}
+              agentTag={props.tag}
+              getChatContext={getChatContext}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
