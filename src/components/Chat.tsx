@@ -38,6 +38,7 @@ import { Trash2Icon, CopyIcon, CheckIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { 
+  addConversationOptimistically,
   revalidateConversations,
   generateConversationTitleAsync,
 } from '@/lib/conversations-cache';
@@ -164,6 +165,19 @@ const Chat = React.memo(function Chat({
         setConversationId(newId);
         conversationIdRef.current = newId;
         effectiveConversationId = newId;
+
+        // Optimistically add to sidebar without blocking
+        try {
+          const agentId = agentTag.startsWith('@') ? agentTag.slice(1) : agentTag;
+          const conversationTitle = trimmed.slice(0, 60);
+          // fire-and-forget
+          void addConversationOptimistically({
+            id: newId,
+            agentId,
+            dateIso: new Date().toISOString(),
+            title: conversationTitle,
+          });
+        } catch { /* ignore */ }
 
         // Update URL to include conversation id for a smoother UX
         if (pathname) {

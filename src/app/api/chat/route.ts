@@ -108,12 +108,26 @@ export async function POST(req: Request) {
       .limit(1);
     if (existing.length === 0) {
       try {
+        // Extract quick title from first user message (same logic as no-id branch)
+        const firstUserMsg = messages.find((m) => m.role === 'user');
+        let quickTitle: string | null = null;
+        if (firstUserMsg) {
+          const parts = firstUserMsg.parts as Array<{ type: string; text?: string }>;
+          const textContent = parts
+            .filter((p) => p.type === 'text' && typeof p.text === 'string')
+            .map((p) => p.text as string)
+            .join(' ')
+            .slice(0, 60)
+            .trim();
+          quickTitle = textContent || null;
+        }
+
         await db.insert(conversation).values({
           id: ensuredConversationId!,
           userId: session.user.id,
           agentTag: agentTag || 'unknown',
           modelId,
-          title: null,
+          title: quickTitle,
         });
         // Persist initial system if present
         if (systemPrompt && systemPrompt.trim().length > 0) {
