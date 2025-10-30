@@ -361,7 +361,11 @@ const Chat = React.memo(function Chat({
                                 <Reasoning
                                   key={`${message.id}-${i}`}
                                   className="w-full"
-                                  isStreaming={status === 'streaming'}
+                                  isStreaming={
+                                    status === 'streaming' && 
+                                    i === message.parts.length - 1 && 
+                                    message.id === displayedMessages.at(-1)?.id
+                                  }
                                 >
                                   <ReasoningTrigger />
                                   <ReasoningContent>{part.text}</ReasoningContent>
