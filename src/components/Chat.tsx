@@ -134,8 +134,9 @@ const Chat = React.memo(function Chat({
     if (process.env.NODE_ENV !== 'development') return;
     const last = messages.at(-1) as BasicUIMessage | undefined;
     if (!last) return;
+    type PartWithType = { type?: string };
     const reasoningParts = Array.isArray(last.parts)
-      ? last.parts.filter((part: any) => part?.type === 'reasoning')
+      ? (last.parts as PartWithType[]).filter((part) => part?.type === 'reasoning')
       : [];
     if (reasoningParts.length > 0) {
       console.log('🧠 Reasoning parts detected:', {
@@ -293,7 +294,7 @@ const Chat = React.memo(function Chat({
     
     // TODO: Add file support to backend
     // Only include system (combined system + knowledge) on the very first turn (no conversation id yet)
-    const includeSystem = !initialConversationId && !messages.some((m: any) => m.role === 'assistant');
+    const includeSystem = !initialConversationId && !messages.some((m) => m.role === 'assistant');
     const systemForThisSend = includeSystem ? (ctx?.systemPrompt ?? systemPrompt) : undefined;
 
     if (process.env.NODE_ENV === 'development') {
