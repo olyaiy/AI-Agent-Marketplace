@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { type ComponentProps, memo } from 'react';
+import { type ComponentProps, memo, useMemo } from 'react';
 import { Streamdown } from 'streamdown';
 
 type ResponseProps = Omit<ComponentProps<typeof Streamdown>, 'children'> & {
@@ -9,9 +9,16 @@ type ResponseProps = Omit<ComponentProps<typeof Streamdown>, 'children'> & {
 };
 
 export const Response = memo(
-  ({ className, ...props }: ResponseProps) => (
-    <Streamdown
-      className={cn(
+  ({ className, children, ...props }: ResponseProps) => {
+    // Escape dollar signs to prevent LaTeX math rendering
+    const escapedChildren = useMemo(() => {
+      if (typeof children !== 'string') return children;
+      return children.replace(/\$/g, '\\$');
+    }, [children]);
+
+    return (
+      <Streamdown
+        className={cn(
         'size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
         // Headings
         '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-4',
@@ -49,8 +56,11 @@ export const Response = memo(
         className
       )}
       {...props}
-    />
-  ),
+    >
+      {escapedChildren}
+    </Streamdown>
+    );
+  },
   (prevProps, nextProps) => prevProps.children === nextProps.children
 );
 
