@@ -38,7 +38,6 @@ import { Trash2Icon, CopyIcon, CheckIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { 
-  addConversationOptimistically, 
   revalidateConversations,
   generateConversationTitleAsync,
 } from '@/lib/conversations-cache';
@@ -66,7 +65,6 @@ const Chat = React.memo(function Chat({
   agentTag,
   initialConversationId,
   initialMessages,
-  knowledgeText,
 }: ChatProps) {
   const [text, setText] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -79,6 +77,9 @@ const Chat = React.memo(function Chat({
   const copyTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastAssistantMessageRef = useRef<UIMessage | null>(null);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const { messages, status, sendMessage, stop } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
     onFinish: async ({ message }) => {
@@ -86,7 +87,9 @@ const Chat = React.memo(function Chat({
         const cid = conversationIdRef.current;
         if (!cid || message.role !== 'assistant') return;
 
-        console.log('🎯 onFinish called:', { messageId: message.id, partsLength: message.parts?.length });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🎯 onFinish called:', { messageId: message.id, partsLength: message.parts?.length });
+        }
 
         // Save the message (whether completed or aborted)
         await fetch('/api/messages', {
@@ -96,7 +99,7 @@ const Chat = React.memo(function Chat({
         });
 
         // Revalidate conversations to update lastMessageAt timestamp
-        revalidateConversations();
+        try { revalidateConversations(); } catch { /* ignore */ }
 
         // Fire-and-forget: Generate AI-powered title after first message
         if (!hasGeneratedTitleRef.current && !initialConversationId) {
@@ -104,12 +107,13 @@ const Chat = React.memo(function Chat({
           generateConversationTitleAsync(cid);
         }
       } catch (error) {
-        console.error('❌ Failed to save message in onFinish:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ Failed to save message in onFinish:', error);
+        }
       }
     },
   });
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  // pathname and searchParams moved above to be available in callbacks
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -150,63 +154,32 @@ const Chat = React.memo(function Chat({
       console.log('📎 File attachments:', message.files);
     }
 
-    // Ensure conversation exists before sending first message if agentTag is known
+    // If there's no conversation yet, generate a client id and update URL immediately.
     let effectiveConversationId = conversationId;
-    // removed createdThisCall; we now always include system on every turn
     if (!effectiveConversationId && agentTag) {
       try {
-        // Generate temporary ID for optimistic update
-        const tempId = `temp-${Date.now()}`;
-        const agentId = agentTag.startsWith('@') ? agentTag.slice(1) : agentTag;
-        const conversationTitle = trimmed.slice(0, 60);
-        
-        // Optimistically add conversation to sidebar
-        await addConversationOptimistically({
-          id: tempId,
-          agentId,
-          dateIso: new Date().toISOString(),
-          title: conversationTitle,
-        });
+        const newId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `temp-${Date.now()}`;
+        setConversationId(newId);
+        conversationIdRef.current = newId;
+        effectiveConversationId = newId;
 
-        // Create actual conversation
-        const res = await fetch('/api/conversations', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ agentTag, model, title: conversationTitle, knowledgeText: knowledgeText || undefined }),
-        });
-        
-        if (res.ok) {
-          const data = (await res.json()) as { id: string; agentTag: string; title: string | null };
-          setConversationId(data.id);
-          effectiveConversationId = data.id;
-          conversationIdRef.current = data.id;
-
-          // Revalidate to replace temp with real conversation
-          await revalidateConversations();
-
-          // Replace URL to /agent/[agent-id]/[conversation-id]
-          if (pathname) {
-            const parts = pathname.split('/').filter(Boolean);
-            const agentIndex = parts.indexOf('agent');
-            if (agentIndex >= 0 && parts.length > agentIndex + 1) {
-              const slug = parts[agentIndex + 1];
-              const qs = searchParams?.toString();
-              const newUrl = qs ? `/agent/${slug}/${data.id}?${qs}` : `/agent/${slug}/${data.id}`;
-              if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
-                window.history.replaceState(null, '', newUrl);
-              } else if (typeof window !== 'undefined' && window.location) {
-                window.location.replace(newUrl);
-              }
+        // Update URL to include conversation id for a smoother UX
+        if (pathname) {
+          const parts = pathname.split('/').filter(Boolean);
+          const agentIndex = parts.indexOf('agent');
+          if (agentIndex >= 0 && parts.length > agentIndex + 1) {
+            const slug = parts[agentIndex + 1];
+            const qs = searchParams?.toString();
+            const newUrl = qs ? `/agent/${slug}/${newId}?${qs}` : `/agent/${slug}/${newId}`;
+            if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+              window.history.replaceState(null, '', newUrl);
             }
           }
-        } else {
-          // Rollback optimistic update on error
-          await revalidateConversations();
         }
       } catch {
-        // Rollback optimistic update on error
-        await revalidateConversations();
-        // Continue anyway; server will still create on-demand
+        // ignore URL update issues
       }
     }
 
@@ -215,28 +188,27 @@ const Chat = React.memo(function Chat({
       conversationIdRef.current = effectiveConversationId;
     }
     
-    // Log the entire conversation history before sending (including initialMessages from DB)
-    const fromServer = (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
-    const live = (messages as unknown as BasicUIMessage[]) || [];
-    const byId = new Map<string, BasicUIMessage>();
-    for (const m of fromServer) byId.set(m.id, m);
-    for (const m of live) byId.set(m.id, m);
-    const fullHistory = Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id));
-    
-    console.log('📝 Full Conversation History:', {
-      conversationId: effectiveConversationId,
-      messageCount: fullHistory.length,
-      messages: fullHistory,
-      breakdown: {
+    // Optional debug: summarize history size (avoid heavy JSON stringify in prod)
+    if (process.env.NODE_ENV === 'development') {
+      const fromServer = (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
+      const live = (messages as unknown as BasicUIMessage[]) || [];
+      const byId = new Map<string, BasicUIMessage>();
+      for (const m of fromServer) byId.set(m.id, m);
+      for (const m of live) byId.set(m.id, m);
+      const fullHistory = Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id));
+      console.log('📝 History summary:', {
+        conversationId: effectiveConversationId,
+        messageCount: fullHistory.length,
         fromDatabase: fromServer.length,
         fromLiveSession: live.length,
         deleted: deletedMessageIds.size,
-      }
-    });
+      });
+    }
     
     // TODO: Add file support to backend
-    // Always include the current system (combined system + knowledge) on every turn
-    const systemForThisSend = ctx?.systemPrompt ?? systemPrompt;
+    // Only include system (combined system + knowledge) on the very first turn (no conversation id yet)
+    const includeSystem = !initialConversationId && !messages.some((m: any) => m.role === 'assistant');
+    const systemForThisSend = includeSystem ? (ctx?.systemPrompt ?? systemPrompt) : undefined;
 
     sendMessage(
       { text: trimmed },
@@ -253,7 +225,9 @@ const Chat = React.memo(function Chat({
   };
 
   const handleStop = async () => {
-    console.log('🛑 Stop button clicked');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🛑 Stop button clicked');
+    }
 
     // First, stop the stream
     stop();
@@ -262,16 +236,20 @@ const Chat = React.memo(function Chat({
     const lastMessage = lastAssistantMessageRef.current;
     const cid = conversationIdRef.current;
 
-    console.log('🛑 Attempting to save partial message:', {
-      hasMessage: !!lastMessage,
-      hasConversationId: !!cid,
-      messageId: lastMessage?.id,
-      partsCount: lastMessage?.parts?.length
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🛑 Attempting to save partial message:', {
+        hasMessage: !!lastMessage,
+        hasConversationId: !!cid,
+        messageId: lastMessage?.id,
+        partsCount: lastMessage?.parts?.length
+      });
+    }
 
     if (lastMessage && cid) {
       try {
-        console.log('🛑 Saving message:', JSON.stringify(lastMessage, null, 2));
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🛑 Saving message:', { id: lastMessage.id, partsCount: lastMessage.parts?.length });
+        }
 
         await fetch('/api/messages', {
           method: 'POST',
@@ -279,15 +257,21 @@ const Chat = React.memo(function Chat({
           body: JSON.stringify({ conversationId: cid, message: lastMessage }),
         });
 
-        console.log('✅ Successfully saved partial message to database');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Successfully saved partial message to database');
+        }
 
         // Revalidate conversations to update lastMessageAt timestamp
-        revalidateConversations();
+        try { revalidateConversations(); } catch { /* ignore */ }
       } catch (error) {
-        console.error('❌ Failed to save partial message:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ Failed to save partial message:', error);
+        }
       }
     } else {
-      console.log('⚠️ Cannot save: missing message or conversation ID');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⚠️ Cannot save: missing message or conversation ID');
+      }
     }
   };
 

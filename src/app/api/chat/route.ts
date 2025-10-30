@@ -21,8 +21,12 @@ export async function POST(req: Request) {
     .catch(() => ({ messages: [], systemPrompt: undefined, model: undefined }));
   const systemPrompt = bodySystem ?? qpSystem;
   
-  // Log the entire message history when a prompt is sent
-  console.log('📨 Message History Received:', JSON.stringify(messages, null, 2));
+  // Optional debug logging (avoid heavy stringify in production)
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      console.log('📨 Message History Received (count):', messages?.length ?? 0);
+    } catch {}
+  }
   
   function normalizeModelId(input?: string | null): string | undefined {
     if (!input) return undefined;
@@ -96,17 +100,40 @@ export async function POST(req: Request) {
       // noop
     }
   } else {
-    // Optional: assert ownership using raw SQL where due to typed helpers not imported
+    // If a conversation id is provided but doesn't exist for this user, create it on-demand with that id.
     const existing = await db
       .select({ id: conversation.id })
       .from(conversation)
       .where(sql`${conversation.id} = ${ensuredConversationId} AND ${conversation.userId} = ${session.user.id}`)
       .limit(1);
     if (existing.length === 0) {
-      return new Response(JSON.stringify({ error: 'Conversation not found' }), {
-        status: 404,
-        headers: { 'content-type': 'application/json' },
-      });
+      try {
+        await db.insert(conversation).values({
+          id: ensuredConversationId!,
+          userId: session.user.id,
+          agentTag: agentTag || 'unknown',
+          modelId,
+          title: null,
+        });
+        // Persist initial system if present
+        if (systemPrompt && systemPrompt.trim().length > 0) {
+          try {
+            await db.insert(message).values({
+              id: randomUUID(),
+              conversationId: ensuredConversationId!,
+              role: 'system',
+              uiParts: [{ type: 'text', text: systemPrompt }] as unknown as Record<string, unknown>[],
+              textPreview: systemPrompt.slice(0, 280),
+              hasToolCalls: false,
+            });
+          } catch {}
+        }
+      } catch {
+        return new Response(JSON.stringify({ error: 'Conversation not found' }), {
+          status: 404,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
     }
   }
 
@@ -156,7 +183,11 @@ export async function POST(req: Request) {
     messages: convertToModelMessages(messages),
   });
 
-  console.log('📨 Message History Sent to AI:', JSON.stringify(messages, null, 2));
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      console.log('📨 Message History Sent to AI (count):', messages?.length ?? 0);
+    } catch {}
+  }
 
   // Attach conversation id header so clients can capture it if they didn't have one
   const response = result.toUIMessageStreamResponse({
