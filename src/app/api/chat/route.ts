@@ -16,17 +16,12 @@ export async function POST(req: Request) {
     model: bodyModel,
     conversationId: bodyConversationId,
     agentTag,
-  }: { messages: UIMessage[]; systemPrompt?: string; model?: string; conversationId?: string; agentTag?: string } = await req
+    reasoningEnabled: bodyReasoningEnabled,
+  }: { messages: UIMessage[]; systemPrompt?: string; model?: string; conversationId?: string; agentTag?: string; reasoningEnabled?: boolean } = await req
     .json()
     .catch(() => ({ messages: [], systemPrompt: undefined, model: undefined }));
   const systemPrompt = bodySystem ?? qpSystem;
-  
-  // Optional debug logging (avoid heavy stringify in production)
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      console.log('📨 Message History Received (count):', messages?.length ?? 0);
-    } catch {}
-  }
+  const reasoningEnabled = Boolean(bodyReasoningEnabled);
   
   function normalizeModelId(input?: string | null): string | undefined {
     if (!input) return undefined;
@@ -184,29 +179,29 @@ export async function POST(req: Request) {
   const result = streamText({
     model: openrouter(modelId),
     abortSignal: req.signal,
-    providerOptions: {
-      openai: {
-        reasoningEffort: 'minimal',
-      },
-    },
+    ...(reasoningEnabled
+      ? {
+          providerOptions: {
+            openrouter: {
+              includeReasoning: true,
+              reasoning: { effort: 'low', enabled: true } as const,
+            },
+          },
+        }
+      : {}),
     experimental_transform: smoothStream({
-      delayInMs: 20,
+      delayInMs: 30,
       chunking: 'word',
     }),
     system: systemPrompt,
     messages: convertToModelMessages(messages),
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      console.log('📨 Message History Sent to AI (count):', messages?.length ?? 0);
-    } catch {}
-  }
-
   // Attach conversation id header so clients can capture it if they didn't have one
   const response = result.toUIMessageStreamResponse({
     sendReasoning: true,
   });
   response.headers.set('x-conversation-id', ensuredConversationId!);
+  response.headers.set('x-reasoning-enabled', String(reasoningEnabled));
   return response;
 }

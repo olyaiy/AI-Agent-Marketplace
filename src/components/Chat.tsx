@@ -34,7 +34,7 @@ import { Actions, Action } from '@/components/ai-elements/actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { Trash2Icon, CopyIcon, CheckIcon } from 'lucide-react';
+import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { 
@@ -42,6 +42,8 @@ import {
   revalidateConversations,
   generateConversationTitleAsync,
 } from '@/lib/conversations-cache';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface ChatProps {
   className?: string;
@@ -78,6 +80,8 @@ const Chat = React.memo(function Chat({
   const copyTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastAssistantMessageRef = useRef<UIMessage | null>(null);
+  const [supportsReasoning, setSupportsReasoning] = useState<boolean>(false);
+  const [reasoningOn, setReasoningOn] = useState<boolean>(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -125,6 +129,74 @@ const Chat = React.memo(function Chat({
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const last = messages.at(-1) as BasicUIMessage | undefined;
+    if (!last) return;
+    const reasoningParts = Array.isArray(last.parts)
+      ? last.parts.filter((part: any) => part?.type === 'reasoning')
+      : [];
+    if (reasoningParts.length > 0) {
+      console.log('🧠 Reasoning parts detected:', {
+        messageId: last.id,
+        partsCount: reasoningParts.length,
+      });
+    }
+  }, [messages]);
+
+  // Detect reasoning capability for the current model
+  useEffect(() => {
+    let cancelled = false;
+    async function detect() {
+      try {
+        const effectiveModel = model?.trim();
+        if (!effectiveModel) {
+          if (!cancelled) { setSupportsReasoning(false); setReasoningOn(false); }
+          return;
+        }
+        const url = new URL('/api/openrouter/models', window.location.origin);
+        url.searchParams.set('q', effectiveModel);
+        url.searchParams.set('ttlMs', '60000');
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error('failed');
+        const json = await res.json();
+        const items: Array<{ id: string; supported_parameters?: string[] }> = json?.data ?? [];
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📦 Model search results:', {
+            query: effectiveModel,
+            count: items.length,
+            sampleIds: items.slice(0, 3).map((m) => m.id),
+          });
+        }
+        let supports = false;
+        // Prefer exact id match; fall back to any match that supports reasoning
+        const exact = items.find((m) => m.id === effectiveModel);
+        if (exact) {
+          supports = Array.isArray(exact.supported_parameters) && exact.supported_parameters.includes('reasoning');
+        } else {
+          supports = items.some((m) => Array.isArray(m.supported_parameters) && m.supported_parameters.includes('reasoning'));
+        }
+        if (!cancelled) {
+          setSupportsReasoning(supports);
+          if (!supports) setReasoningOn(false);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔎 Reasoning support check:', { model: effectiveModel, supports });
+          }
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Reasoning support check failed, assuming unsupported:', err);
+        }
+        if (!cancelled) {
+          setSupportsReasoning(false);
+          setReasoningOn(false);
+        }
+      }
+    }
+    detect();
+    return () => { cancelled = true; };
+  }, [model]);
 
   // Track the last assistant message for saving on abort
   useEffect(() => {
@@ -224,6 +296,16 @@ const Chat = React.memo(function Chat({
     const includeSystem = !initialConversationId && !messages.some((m: any) => m.role === 'assistant');
     const systemForThisSend = includeSystem ? (ctx?.systemPrompt ?? systemPrompt) : undefined;
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log('➡️ Sending message:', {
+        modelUsed: ctx?.model ?? model,
+        supportsReasoning,
+        reasoningEnabled: supportsReasoning ? reasoningOn : false,
+        includeSystem,
+        conversationId: effectiveConversationId,
+      });
+    }
+
     sendMessage(
       { text: trimmed },
       {
@@ -232,6 +314,7 @@ const Chat = React.memo(function Chat({
           model: ctx?.model ?? model,
           conversationId: effectiveConversationId,
           agentTag,
+          reasoningEnabled: supportsReasoning ? reasoningOn : false,
         },
       }
     );
@@ -489,12 +572,39 @@ const Chat = React.memo(function Chat({
                     className="min-h-[40px] py-2 text-sm md:text-base row-start-1 col-start-1 col-end-4"
                   />
                   <div className="row-start-2 col-start-1">
-                    <PromptInputActionMenu>
-                      <PromptInputActionMenuTrigger />
-                      <PromptInputActionMenuContent>
-                        <PromptInputActionAddAttachments />
-                      </PromptInputActionMenuContent>
-                    </PromptInputActionMenu>
+                    <div className="flex items-center gap-1">
+                      <PromptInputActionMenu>
+                        <PromptInputActionMenuTrigger />
+                        <PromptInputActionMenuContent>
+                          <PromptInputActionAddAttachments />
+                        </PromptInputActionMenuContent>
+                      </PromptInputActionMenu>
+                      {supportsReasoning && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={cn(
+                                'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
+                                reasoningOn && 'text-purple-600'
+                              )}
+                              onClick={() => {
+                                const next = !reasoningOn;
+                                if (process.env.NODE_ENV === 'development') {
+                                  console.log('🧠 Toggle reasoning:', { next, supportsReasoning });
+                                }
+                                setReasoningOn(next);
+                              }}
+                              aria-pressed={reasoningOn}
+                              aria-label={reasoningOn ? 'Turn reasoning off' : 'Turn reasoning on'}
+                            >
+                              <BrainIcon className="size-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent sideOffset={6}>{reasoningOn ? 'Reasoning: On' : 'Reasoning: Off'}</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   </div>
                   <div className="row-start-2 col-start-3">
                     <PromptInputSubmit
@@ -532,12 +642,39 @@ const Chat = React.memo(function Chat({
                   className="min-h-[40px] py-2 text-sm md:text-base row-start-1 col-start-1 col-end-4"
                 />
                 <div className="row-start-2 col-start-1">
-                  <PromptInputActionMenu>
-                    <PromptInputActionMenuTrigger />
-                    <PromptInputActionMenuContent>
-                      <PromptInputActionAddAttachments />
-                    </PromptInputActionMenuContent>
-                  </PromptInputActionMenu>
+                  <div className="flex items-center gap-1">
+                    <PromptInputActionMenu>
+                      <PromptInputActionMenuTrigger />
+                      <PromptInputActionMenuContent>
+                        <PromptInputActionAddAttachments />
+                      </PromptInputActionMenuContent>
+                    </PromptInputActionMenu>
+                    {supportsReasoning && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
+                              reasoningOn && 'text-purple-600'
+                            )}
+                            onClick={() => {
+                              const next = !reasoningOn;
+                              if (process.env.NODE_ENV === 'development') {
+                                console.log('🧠 Toggle reasoning:', { next, supportsReasoning });
+                              }
+                              setReasoningOn(next);
+                            }}
+                            aria-pressed={reasoningOn}
+                            aria-label={reasoningOn ? 'Turn reasoning off' : 'Turn reasoning on'}
+                          >
+                            <BrainIcon className="size-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent sideOffset={6}>{reasoningOn ? 'Reasoning: On' : 'Reasoning: Off'}</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                 </div>
                 <div className="row-start-2 col-start-3">
                   <PromptInputSubmit
