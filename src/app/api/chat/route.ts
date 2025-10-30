@@ -142,6 +142,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openrouter(modelId),
+    abortSignal: req.signal,
     providerOptions: {
       openai: {
         reasoningEffort: 'minimal',

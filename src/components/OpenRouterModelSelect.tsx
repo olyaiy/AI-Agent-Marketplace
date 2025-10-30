@@ -91,7 +91,7 @@ function getDisplayName(fullName: string): string {
 
 // Enhance models with pre-computed expensive values to avoid repeated calculations
 function enhanceModels(models: SlimModel[]): EnhancedModel[] {
-  return models.map((model) => {
+  const enhanced = models.map((model) => {
     // Cache provider slug (used in filtering, rendering, icon lookup)
     const _providerSlug = getProviderSlug(model.name);
     
@@ -105,6 +105,14 @@ function enhanceModels(models: SlimModel[]): EnhancedModel[] {
     // Cache reasoning support (used in rendering badge)
     const _supportsReasoning = model.supported_parameters.includes('reasoning');
     
+    // if (_supportsReasoning) {
+    //   console.log('Model with reasoning support:', {
+    //     id: model.id,
+    //     name: model.name,
+    //     supported_parameters: model.supported_parameters,
+    //   });
+    // }
+    
     return {
       ...model,
       _providerSlug,
@@ -113,6 +121,10 @@ function enhanceModels(models: SlimModel[]): EnhancedModel[] {
       _supportsReasoning,
     };
   });
+  
+  console.log(`Total models: ${models.length}, Models with reasoning: ${enhanced.filter(m => m._supportsReasoning).length}`);
+  
+  return enhanced;
 }
 
 // Memoized avatar component to prevent unnecessary re-renders

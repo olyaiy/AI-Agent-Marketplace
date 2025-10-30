@@ -78,28 +78,33 @@ const Chat = React.memo(function Chat({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { messages, status, sendMessage } = useChat({
+  const lastAssistantMessageRef = useRef<UIMessage | null>(null);
+  const { messages, status, sendMessage, stop } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
-    onFinish: async ({ message }) => {
+    onFinish: async ({ message, finishReason }) => {
       try {
         const cid = conversationIdRef.current;
         if (!cid || message.role !== 'assistant') return;
+
+        console.log('🎯 onFinish called:', { finishReason, messageId: message.id, partsLength: message.parts?.length });
+
+        // Save the message (whether completed or aborted)
         await fetch('/api/messages', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ conversationId: cid, message }),
         });
-        
+
         // Revalidate conversations to update lastMessageAt timestamp
         revalidateConversations();
-        
+
         // Fire-and-forget: Generate AI-powered title after first message
         if (!hasGeneratedTitleRef.current && !initialConversationId) {
           hasGeneratedTitleRef.current = true;
           generateConversationTitleAsync(cid);
         }
-      } catch {
-        // ignore
+      } catch (error) {
+        console.error('❌ Failed to save message in onFinish:', error);
       }
     },
   });
@@ -115,6 +120,14 @@ const Chat = React.memo(function Chat({
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
+
+  // Track the last assistant message for saving on abort
+  useEffect(() => {
+    const lastAssistantMessage = messages.findLast((m) => m.role === 'assistant');
+    if (lastAssistantMessage) {
+      lastAssistantMessageRef.current = lastAssistantMessage;
+    }
+  }, [messages]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -237,6 +250,45 @@ const Chat = React.memo(function Chat({
       }
     );
     setText('');
+  };
+
+  const handleStop = async () => {
+    console.log('🛑 Stop button clicked');
+
+    // First, stop the stream
+    stop();
+
+    // Then save whatever message content we have so far
+    const lastMessage = lastAssistantMessageRef.current;
+    const cid = conversationIdRef.current;
+
+    console.log('🛑 Attempting to save partial message:', {
+      hasMessage: !!lastMessage,
+      hasConversationId: !!cid,
+      messageId: lastMessage?.id,
+      partsCount: lastMessage?.parts?.length
+    });
+
+    if (lastMessage && cid) {
+      try {
+        console.log('🛑 Saving message:', JSON.stringify(lastMessage, null, 2));
+
+        await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ conversationId: cid, message: lastMessage }),
+        });
+
+        console.log('✅ Successfully saved partial message to database');
+
+        // Revalidate conversations to update lastMessageAt timestamp
+        revalidateConversations();
+      } catch (error) {
+        console.error('❌ Failed to save partial message:', error);
+      }
+    } else {
+      console.log('⚠️ Cannot save: missing message or conversation ID');
+    }
   };
 
   const handleSignIn = () => {
@@ -447,9 +499,10 @@ const Chat = React.memo(function Chat({
                     </PromptInputActionMenu>
                   </div>
                   <div className="row-start-2 col-start-3">
-                    <PromptInputSubmit 
-                      disabled={!text.trim()} 
+                    <PromptInputSubmit
+                      disabled={status !== 'streaming' && !text.trim()}
                       status={status}
+                      onStop={handleStop}
                       className="shrink-0"
                     />
                   </div>
@@ -489,9 +542,10 @@ const Chat = React.memo(function Chat({
                   </PromptInputActionMenu>
                 </div>
                 <div className="row-start-2 col-start-3">
-                  <PromptInputSubmit 
-                    disabled={!text.trim()} 
+                  <PromptInputSubmit
+                    disabled={status !== 'streaming' && !text.trim()}
                     status={status}
+                    onStop={handleStop}
                     className="shrink-0"
                   />
                 </div>
