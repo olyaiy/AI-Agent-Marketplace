@@ -12,9 +12,10 @@ interface Props {
   initialDescription?: string;
   onChange?: (model: string | undefined) => void;
   onContextChange?: (update: { model?: string; systemPrompt?: string; tagline?: string; description?: string }) => void;
+  onTabChange?: (tab: "behaviour" | "details" | "knowledge") => void;
 }
 
-export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, initialModel, initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange }: Props) {
+export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, initialModel, initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange, onTabChange }: Props) {
   const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge">("behaviour");
 
@@ -22,6 +23,10 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
     if (onChange) onChange(selectedModel || undefined);
     if (onContextChange) onContextChange({ model: selectedModel || undefined });
   }, [selectedModel, onChange, onContextChange]);
+
+  React.useEffect(() => {
+    if (onTabChange) onTabChange(activeTab);
+  }, [activeTab, onTabChange]);
 
   return (
     <div className="space-y-4">
@@ -63,41 +68,55 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
       </div>
 
       {/* Tabs content */}
-      <div className="pt-1 space-y-3">
+      <div className="pt-4">
         {activeTab === "behaviour" ? (
-          <label className="flex flex-col gap-1">
-            <span>System prompt</span>
-            <textarea
-              name="systemPrompt"
-              defaultValue={initialSystemPrompt}
-              onInput={(e) => onContextChange && onContextChange({ systemPrompt: e.currentTarget.value })}
-              rows={8}
-              className="border p-2"
-            />
-          </label>
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-900">System Prompt</label>
+              <p className="text-sm text-gray-500">
+                Define how your agent behaves and responds. This sets the personality, tone, and expertise of your agent.
+              </p>
+              <textarea
+                name="systemPrompt"
+                defaultValue={initialSystemPrompt}
+                onInput={(e) => onContextChange && onContextChange({ systemPrompt: e.currentTarget.value })}
+                rows={8}
+                placeholder="e.g., You are a helpful assistant specialized in..."
+                className="border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all resize-none text-sm"
+              />
+            </div>
+          </div>
         ) : activeTab === "details" ? (
-          <>
-            <label className="flex flex-col gap-1">
-              <span>Tagline</span>
+          <div className="space-y-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-900">Tagline</label>
+              <p className="text-sm text-gray-500">
+                A short, catchy phrase that describes your agent in a few words.
+              </p>
               <input
                 name="tagline"
                 defaultValue={initialTagline}
                 onInput={(e) => onContextChange && onContextChange({ tagline: e.currentTarget.value })}
-                className="border p-2"
+                placeholder="e.g., Your personal coding assistant"
+                className="border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all text-sm"
               />
-            </label>
+            </div>
 
-            <label className="flex flex-col gap-1">
-              <span>Description</span>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-900">Description</label>
+              <p className="text-sm text-gray-500">
+                Provide a detailed description of what your agent does and how it can help users.
+              </p>
               <textarea
                 name="description"
                 defaultValue={initialDescription}
                 onInput={(e) => onContextChange && onContextChange({ description: e.currentTarget.value })}
                 rows={6}
-                className="border p-2"
+                placeholder="Describe your agent's capabilities, use cases, and what makes it special..."
+                className="border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all resize-none text-sm"
               />
-            </label>
-          </>
+            </div>
+          </div>
         ) : (
           <KnowledgeManager agentTag={agentTag} />
         )}

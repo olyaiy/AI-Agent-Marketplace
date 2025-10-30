@@ -34,6 +34,8 @@ interface SendContext {
 
 interface LeftFormProps extends Props {
   sendContextRef: React.MutableRefObject<SendContext>;
+  onTabChange: (tab: "behaviour" | "details" | "knowledge") => void;
+  activeTab: "behaviour" | "details" | "knowledge";
 }
 
 function LeftForm({
@@ -49,6 +51,8 @@ function LeftForm({
   onSave,
   onDelete,
   sendContextRef,
+  onTabChange,
+  activeTab,
 }: LeftFormProps) {
   return (
     <div className="max-w-xl">
@@ -90,12 +94,15 @@ function LeftForm({
             if (u.tagline !== undefined) sendContextRef.current.tagline = u.tagline;
             if (u.description !== undefined) sendContextRef.current.description = u.description;
           }}
+          onTabChange={onTabChange}
         />
 
-        <div className="flex items-center gap-3">
-          <button type="submit" className="border p-2">Save</button>
-          <button formAction={onDelete} className="border p-2">Delete</button>
-        </div>
+        {activeTab !== "knowledge" && (
+          <div className="flex items-center gap-3">
+            <button type="submit" className="border p-2 hover:bg-gray-50 rounded-md transition-colors">Save</button>
+            <button formAction={onDelete} className="border p-2 hover:bg-red-50 hover:border-red-300 hover:text-red-700 rounded-md transition-colors">Delete</button>
+          </div>
+        )}
       </form>
     </div>
   );
@@ -106,6 +113,8 @@ export default function EditAgentTwoColumnClient(props: Props) {
 }
 
 function TwoColumn(props: Props) {
+  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge">("behaviour");
+  
   const sendContextRef = React.useRef<SendContext>({
     model: props.initialModel,
     systemPrompt: props.initialSystemPrompt,
@@ -124,7 +133,7 @@ function TwoColumn(props: Props) {
 
   return (
     <div className="mx-auto p-6 h-full grid grid-cols-1 gap-6 lg:grid-cols-2 max-w-6xl">
-      <LeftForm {...props} sendContextRef={sendContextRef} />
+      <LeftForm {...props} sendContextRef={sendContextRef} onTabChange={setActiveTab} activeTab={activeTab} />
       <div className="min-h-[60vh] h-full border rounded-md p-2">
         <Chat
           className="h-full"
