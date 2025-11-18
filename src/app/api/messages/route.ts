@@ -12,6 +12,7 @@ interface UIMessageShape {
   id: string;
   role: 'user' | 'assistant' | 'system';
   parts: readonly UIMessagePartText[] | readonly unknown[];
+  annotations?: readonly unknown[];
 }
 
 const isTextPart = (part: unknown): part is UIMessagePartText =>
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
       conversationId,
       role: uiMessage.role,
       uiParts: uiMessage.parts as typeof message.$inferInsert['uiParts'],
+      annotations: uiMessage.annotations as typeof message.$inferInsert['annotations'],
       textPreview: textPreview || null,
       hasToolCalls: false,
     })

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil } from 'lucide-react';
+import { dispatchAgentNewChat } from '@/lib/agent-events';
 
 interface AgentInfoSidebarProps {
   name: string;
@@ -39,7 +40,17 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
             size="sm"
             aria-label="New chat"
           >
-            <Link href={`/agent/${agentId}`}>
+            <Link
+              href={`/agent/${agentId}`}
+              prefetch={false}
+              onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+                  return;
+                }
+                event.preventDefault();
+                dispatchAgentNewChat(agentTag);
+              }}
+            >
               <Plus className="w-4 h-4 mr-1" />
               New Chat
             </Link>

@@ -166,6 +166,7 @@ export const message = pgTable('message', {
     .references(() => conversation.id, { onDelete: 'cascade' }),
   role: varchar('role', { length: 16 }).notNull(), // 'user' | 'assistant' | 'system'
   uiParts: jsonb('ui_parts').notNull(), // Array<UIMessagePart>
+  annotations: jsonb('annotations'), // Array<UIMessageAnnotation> (e.g., sources)
   textPreview: text('text_preview'),
   hasToolCalls: boolean('has_tool_calls').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),

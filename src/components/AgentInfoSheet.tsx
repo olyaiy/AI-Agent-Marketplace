@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { dispatchAgentNewChat } from '@/lib/agent-events';
 
 interface AgentInfoSheetProps {
   name: string;
@@ -86,7 +87,18 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                   variant="outline"
                   className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300"
                 >
-                  <Link href={`/agent/${agentId}`}>
+                  <Link
+                    href={`/agent/${agentId}`}
+                    prefetch={false}
+                    onClick={(event) => {
+                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+                        return;
+                      }
+                      event.preventDefault();
+                      dispatchAgentNewChat(agentTag);
+                      setOpen(false);
+                    }}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     New Chat
                   </Link>
@@ -99,4 +111,3 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
     </Sheet>
   );
 }
-

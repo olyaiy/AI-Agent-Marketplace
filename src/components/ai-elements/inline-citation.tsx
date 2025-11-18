@@ -64,15 +64,18 @@ export const InlineCitationCardTrigger = ({
 }: InlineCitationCardTriggerProps) => (
   <HoverCardTrigger asChild>
     <Badge
-      className={cn('ml-1 rounded-full', className)}
-      variant="secondary"
+      variant="outline"
+      className={cn(
+        'ml-1 inline-flex h-5 items-center rounded-full px-1.5 py-0 align-text-bottom text-[10px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer transition-colors',
+        className
+      )}
       {...props}
     >
-      {sources.length ? (
-        <>
+      {sources.length ? ( 
+        <span className="truncate max-w-[150px]">
           {new URL(sources[0]).hostname}{' '}
           {sources.length > 1 && `+${sources.length - 1}`}
-        </>
+        </span>
       ) : (
         'unknown'
       )}

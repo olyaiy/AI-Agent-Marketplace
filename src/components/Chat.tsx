@@ -14,7 +14,8 @@ import {
   PromptInputTextarea,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input';
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import {
@@ -37,13 +38,14 @@ import Image from 'next/image';
 import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { 
+import {
   addConversationOptimistically,
   revalidateConversations,
   generateConversationTitleAsync,
 } from '@/lib/conversations-cache';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { AGENT_NEW_CHAT_EVENT, AgentNewChatEvent } from '@/lib/agent-events';
 import {
   Sources,
   SourcesTrigger,
@@ -69,7 +71,7 @@ function extractSources(text: string) {
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
   const sources: Array<{ title: string; url: string }> = [];
   const seenUrls = new Set<string>();
-  
+
   let match;
   while ((match = regex.exec(text)) !== null) {
     const [, title, url] = match;
@@ -97,18 +99,19 @@ const Chat = React.memo(function Chat({
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   const conversationIdRef = useRef<string | null>(initialConversationId || null);
   const hasGeneratedTitleRef = useRef<boolean>(false);
+  const shouldGenerateTitleRef = useRef<boolean>(!initialConversationId);
   const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastAssistantMessageRef = useRef<UIMessage | null>(null);
   const [supportsReasoning, setSupportsReasoning] = useState<boolean>(false);
-  const [reasoningOn, setReasoningOn] = useState<boolean>(false);
-  const [webSearchOn, setWebSearchOn] = useState<boolean>(false);
+  const [reasoningOn, setReasoningOn] = useLocalStorage<boolean>('chat_reasoning_on', false);
+  const [webSearchOn, setWebSearchOn] = useLocalStorage<boolean>('chat_web_search_on', false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { messages, status, sendMessage, stop } = useChat({
+  const { messages, status, sendMessage, stop, setMessages } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
     onFinish: async ({ message }) => {
       try {
@@ -130,8 +133,9 @@ const Chat = React.memo(function Chat({
         try { revalidateConversations(); } catch { /* ignore */ }
 
         // Fire-and-forget: Generate AI-powered title after first message
-        if (!hasGeneratedTitleRef.current && !initialConversationId) {
+        if (!hasGeneratedTitleRef.current && shouldGenerateTitleRef.current) {
           hasGeneratedTitleRef.current = true;
+          shouldGenerateTitleRef.current = false;
           generateConversationTitleAsync(cid);
         }
       } catch (error) {
@@ -186,7 +190,7 @@ const Chat = React.memo(function Chat({
       try {
         const effectiveModel = model?.trim();
         if (!effectiveModel) {
-          if (!cancelled) { setSupportsReasoning(false); setReasoningOn(false); }
+          if (!cancelled) { setSupportsReasoning(false); }
           return;
         }
         const url = new URL('/api/openrouter/models', window.location.origin);
@@ -213,7 +217,7 @@ const Chat = React.memo(function Chat({
         }
         if (!cancelled) {
           setSupportsReasoning(supports);
-          if (!supports) setReasoningOn(false);
+          // if (!supports) setReasoningOn(false); // Don't disable user preference
           if (process.env.NODE_ENV === 'development') {
             console.log('🔎 Reasoning support check:', { model: effectiveModel, supports });
           }
@@ -224,7 +228,6 @@ const Chat = React.memo(function Chat({
         }
         if (!cancelled) {
           setSupportsReasoning(false);
-          setReasoningOn(false);
         }
       }
     }
@@ -247,6 +250,40 @@ const Chat = React.memo(function Chat({
     };
   }, []);
 
+  const startNewChat = useCallback(() => {
+    setConversationId(null);
+    conversationIdRef.current = null;
+    hasGeneratedTitleRef.current = false;
+    shouldGenerateTitleRef.current = true;
+    lastAssistantMessageRef.current = null;
+    setDeletedMessageIds(new Set());
+    setCopiedMessageId(null);
+    if (copyTimeoutRef.current) {
+      window.clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = null;
+    }
+    setText('');
+    setMessages([]);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🆕 Starting a new chat session');
+    }
+  }, [setMessages]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleNewChatEvent = (event: Event) => {
+      const detail = (event as AgentNewChatEvent).detail;
+      const targetTag = detail?.agentTag;
+      if (targetTag && agentTag && targetTag !== agentTag) return;
+      if (targetTag && !agentTag) return;
+      startNewChat();
+    };
+    window.addEventListener(AGENT_NEW_CHAT_EVENT, handleNewChatEvent as EventListener);
+    return () => {
+      window.removeEventListener(AGENT_NEW_CHAT_EVENT, handleNewChatEvent as EventListener);
+    };
+  }, [agentTag, startNewChat]);
+
   const handleSubmit = async (message: PromptInputMessage) => {
     const trimmed = message.text.trim();
     if (!trimmed && (!message.files || message.files.length === 0)) return;
@@ -260,6 +297,8 @@ const Chat = React.memo(function Chat({
     if (message.files && message.files.length > 0) {
       console.log('📎 File attachments:', message.files);
     }
+
+    const shouldIncludeSystemPrompt = !conversationId && !messages.some((m) => m.role === 'assistant');
 
     // If there's no conversation yet, generate a client id and update URL immediately.
     let effectiveConversationId = conversationId;
@@ -307,7 +346,7 @@ const Chat = React.memo(function Chat({
     if (effectiveConversationId) {
       conversationIdRef.current = effectiveConversationId;
     }
-    
+
     // Optional debug: summarize history size (avoid heavy JSON stringify in prod)
     if (process.env.NODE_ENV === 'development') {
       const fromServer = (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
@@ -324,10 +363,10 @@ const Chat = React.memo(function Chat({
         deleted: deletedMessageIds.size,
       });
     }
-    
+
     // TODO: Add file support to backend
     // Only include system (combined system + knowledge) on the very first turn (no conversation id yet)
-    const includeSystem = !initialConversationId && !messages.some((m) => m.role === 'assistant');
+    const includeSystem = shouldIncludeSystemPrompt;
     const systemForThisSend = includeSystem ? (ctx?.systemPrompt ?? systemPrompt) : undefined;
 
     if (process.env.NODE_ENV === 'development') {
@@ -422,14 +461,14 @@ const Chat = React.memo(function Chat({
   const handleDeleteMessage = async (messageId: string) => {
     // Optimistically remove from UI
     setDeletedMessageIds((prev) => new Set(prev).add(messageId));
-    
+
     try {
       const res = await fetch('/api/messages', {
         method: 'DELETE',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ messageId }),
       });
-      
+
       if (!res.ok) {
         // Rollback on error
         setDeletedMessageIds((prev) => {
@@ -471,9 +510,21 @@ const Chat = React.memo(function Chat({
   };
 
   interface BasicUIPart { type: string; text: string }
-  interface BasicUIMessage { id: string; role: 'user' | 'assistant' | 'system'; parts: BasicUIPart[] }
+  interface BasicUISource { title: string; url: string }
+  interface BasicUIAnnotation { type: string; value?: BasicUISource[] }
+  interface BasicUIMessage {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    parts: BasicUIPart[];
+    annotations?: BasicUIAnnotation[];
+  }
   const allMessages = useMemo<BasicUIMessage[]>(() => {
-    const fromServer = (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
+    const normalizedInitialConversationId = initialConversationId ?? null;
+    const normalizedConversationId = conversationId ?? null;
+    const shouldUseServerMessages = normalizedConversationId === normalizedInitialConversationId;
+    const fromServer = shouldUseServerMessages
+      ? ((Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[])
+      : [];
     const live = (messages as unknown as BasicUIMessage[]) || [];
     if (fromServer.length === 0) return live;
     const byId = new Map<string, BasicUIMessage>();
@@ -481,7 +532,7 @@ const Chat = React.memo(function Chat({
     for (const m of live) byId.set(m.id, m);
     // Filter out deleted messages
     return Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id));
-  }, [initialMessages, messages, deletedMessageIds]);
+  }, [initialMessages, messages, deletedMessageIds, conversationId, initialConversationId]);
   const hasMessages = allMessages.length > 0;
   const displayedMessages = useMemo(() => allMessages, [allMessages]);
 
@@ -522,7 +573,22 @@ const Chat = React.memo(function Chat({
                 {displayedMessages.map((message: BasicUIMessage) => {
                   // Calculate sources for this message
                   const allText = message.parts.map(p => p.text).join(' ');
-                  const sources = message.role === 'assistant' ? extractSources(allText) : [];
+                  const extractedSources = message.role === 'assistant' ? extractSources(allText) : [];
+
+                  // Combine extracted sources with annotation sources
+                  const annotationSources = message.annotations?.find((annotation) => annotation.type === 'sources')?.value ?? [];
+
+                  // Deduplicate sources by URL
+                  const sourcesMap = new Map<string, { title: string; url: string }>();
+                  extractedSources.forEach(s => sourcesMap.set(s.url, s));
+                  annotationSources.forEach((source) => {
+                    if (!source) return;
+                    if (!sourcesMap.has(source.url)) {
+                      sourcesMap.set(source.url, { title: source.title, url: source.url });
+                    }
+                  });
+
+                  const sources = Array.from(sourcesMap.values());
 
                   return (
                     <div key={message.id} className="group/message">
@@ -540,8 +606,8 @@ const Chat = React.memo(function Chat({
                                     key={`${message.id}-${i}`}
                                     className="w-full"
                                     isStreaming={
-                                      status === 'streaming' && 
-                                      i === message.parts.length - 1 && 
+                                      status === 'streaming' &&
+                                      i === message.parts.length - 1 &&
                                       message.id === displayedMessages.at(-1)?.id
                                     }
                                   >
@@ -553,17 +619,17 @@ const Chat = React.memo(function Chat({
                                 return null;
                             }
                           })}
-                          
+
                           {/* New Sources UI */}
                           {sources.length > 0 && (
                             <Sources className="mt-2 border-t pt-2">
                               <SourcesTrigger count={sources.length} />
                               <SourcesContent>
                                 {sources.map((source, idx) => (
-                                  <Source 
-                                    key={idx} 
-                                    href={source.url} 
-                                    title={source.title} 
+                                  <Source
+                                    key={idx}
+                                    href={source.url}
+                                    title={source.title}
                                   />
                                 ))}
                               </SourcesContent>
@@ -571,31 +637,30 @@ const Chat = React.memo(function Chat({
                           )}
                         </MessageContent>
                       </Message>
-                    <Actions 
-                      className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${
-                        message.role === 'user' ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
-                      <Action
-                        onClick={() => handleCopyMessage(message)}
-                        tooltip={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
-                        label={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
+                      <Actions
+                        className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${message.role === 'user' ? 'justify-end' : 'justify-start'
+                          }`}
                       >
-                        {copiedMessageId === message.id ? (
-                          <CheckIcon className="size-4" />
-                        ) : (
-                          <CopyIcon className="size-4" />
-                        )}
-                      </Action>
-                      {isAuthenticated && (
                         <Action
-                          onClick={() => handleDeleteMessage(message.id)}
-                          label="Delete message"
+                          onClick={() => handleCopyMessage(message)}
+                          tooltip={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
+                          label={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
                         >
-                          <Trash2Icon className="size-4" />
+                          {copiedMessageId === message.id ? (
+                            <CheckIcon className="size-4" />
+                          ) : (
+                            <CopyIcon className="size-4" />
+                          )}
                         </Action>
-                      )}
-                    </Actions>
+                        {isAuthenticated && (
+                          <Action
+                            onClick={() => handleDeleteMessage(message.id)}
+                            label="Delete message"
+                          >
+                            <Trash2Icon className="size-4" />
+                          </Action>
+                        )}
+                      </Actions>
                     </div>
                   );
                 })}
@@ -613,8 +678,8 @@ const Chat = React.memo(function Chat({
 
           {/* Fixed input bar at bottom - fixed on mobile, relative on desktop */}
           <div className="fixed md:relative bottom-0 left-0 right-0 md:flex-shrink-0 border-t md:border-t-0 bg-background py-2 md:pb-4 md:pt-0 z-10">
-            <PromptInput 
-              onSubmit={handleSubmit} 
+            <PromptInput
+              onSubmit={handleSubmit}
               className="w-full max-w-3xl mx-auto"
               multiple
               maxFiles={10}
@@ -700,8 +765,8 @@ const Chat = React.memo(function Chat({
         </>
       ) : (
         <div className="flex flex-col items-center justify-center h-full md:px-0">
-          <PromptInput 
-            onSubmit={handleSubmit} 
+          <PromptInput
+            onSubmit={handleSubmit}
             className="w-full max-w-2xl"
             multiple
             maxFiles={10}

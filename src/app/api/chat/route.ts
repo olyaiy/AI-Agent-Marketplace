@@ -6,6 +6,8 @@ import { conversation, message } from '@/db/schema';
 import { sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
+type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
+
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const qpSystem = url.searchParams.get('systemPrompt') || undefined;
@@ -179,7 +181,7 @@ export async function POST(req: Request) {
   }
 
   // Construct OpenRouter provider options
-  const openrouterOptions: Record<string, unknown> = {};
+  const openrouterOptions: Record<string, JsonValue> = {};
   if (reasoningEnabled) {
     openrouterOptions.includeReasoning = true;
     openrouterOptions.reasoning = { effort: 'low', enabled: true };
@@ -198,11 +200,16 @@ export async function POST(req: Request) {
     }),
     system: systemPrompt,
     messages: convertToModelMessages(messages),
+    onFinish: async (result) => {
+      if (webSearchEnabled) {
+        console.log('🔍 Web Search Result:', JSON.stringify(result, null, 2));
+      }
+    },
   });
 
-  // Attach conversation id header so clients can capture it if they didn't have one
   const response = result.toUIMessageStreamResponse({
     sendReasoning: true,
+    sendSources: true,
   });
   response.headers.set('x-conversation-id', ensuredConversationId!);
   response.headers.set('x-reasoning-enabled', String(reasoningEnabled));
