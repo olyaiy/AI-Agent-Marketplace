@@ -126,6 +126,16 @@ const Chat = React.memo(function Chat({
     }
   }, [isAuthenticated]);
 
+  // Restore draft message if one exists (e.g. from before a sign-in redirect)
+  useEffect(() => {
+    const key = `chat_draft_${agentTag || 'global'}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      setText(saved);
+      localStorage.removeItem(key);
+    }
+  }, [agentTag]);
+
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
@@ -374,6 +384,11 @@ const Chat = React.memo(function Chat({
   };
 
   const handleSignIn = () => {
+    // Save draft before redirecting
+    if (text.trim()) {
+      localStorage.setItem(`chat_draft_${agentTag || 'global'}`, text);
+    }
+
     startSignInTransition(async () => {
       const redirectUrl = typeof window !== 'undefined' ? window.location.href : pathname ?? '/';
       await authClient.signIn.social({ provider: 'google', callbackURL: redirectUrl });
