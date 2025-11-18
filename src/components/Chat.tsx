@@ -44,6 +44,12 @@ import {
 } from '@/lib/conversations-cache';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import {
+  Sources,
+  SourcesTrigger,
+  SourcesContent,
+  Source,
+} from '@/components/ai-elements/source';
 
 interface ChatProps {
   className?: string;
@@ -57,6 +63,22 @@ interface ChatProps {
   initialMessages?: unknown[];
   // Optional knowledge text to persist as a system message at conversation creation time
   knowledgeText?: string;
+}
+
+function extractSources(text: string) {
+  const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const sources: Array<{ title: string; url: string }> = [];
+  const seenUrls = new Set<string>();
+  
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const [, title, url] = match;
+    if (!seenUrls.has(url)) {
+      sources.push({ title, url });
+      seenUrls.add(url);
+    }
+  }
+  return sources;
 }
 
 const Chat = React.memo(function Chat({
@@ -497,64 +519,86 @@ const Chat = React.memo(function Chat({
           <div className="flex-1 overflow-hidden pb-20 md:pb-0">
             <Conversation className="h-full overflow-y-scroll md:overflow-y-visible">
               <ConversationContent className="">
-                {displayedMessages.map((message: BasicUIMessage) => (
-                  <div key={message.id} className="group/message">
-                    <Message from={message.role}>
-                      <MessageContent>
-                        {message.parts.map((part: BasicUIPart, i: number) => {
-                          switch (part.type) {
-                            case 'text':
-                              return (
-                                <Response key={`${message.id}-${i}`}>{part.text}</Response>
-                              );
-                            case 'reasoning':
-                              return (
-                                <Reasoning
-                                  key={`${message.id}-${i}`}
-                                  className="w-full"
-                                  isStreaming={
-                                    status === 'streaming' && 
-                                    i === message.parts.length - 1 && 
-                                    message.id === displayedMessages.at(-1)?.id
-                                  }
-                                >
-                                  <ReasoningTrigger />
-                                  <ReasoningContent>{part.text}</ReasoningContent>
-                                </Reasoning>
-                              );
-                            default:
-                              return null;
-                          }
-                        })}
-                      </MessageContent>
-                    </Message>
-                  <Actions 
-                    className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${
-                      message.role === 'user' ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    <Action
-                      onClick={() => handleCopyMessage(message)}
-                      tooltip={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
-                      label={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
+                {displayedMessages.map((message: BasicUIMessage) => {
+                  // Calculate sources for this message
+                  const allText = message.parts.map(p => p.text).join(' ');
+                  const sources = message.role === 'assistant' ? extractSources(allText) : [];
+
+                  return (
+                    <div key={message.id} className="group/message">
+                      <Message from={message.role}>
+                        <MessageContent>
+                          {message.parts.map((part: BasicUIPart, i: number) => {
+                            switch (part.type) {
+                              case 'text':
+                                return (
+                                  <Response key={`${message.id}-${i}`}>{part.text}</Response>
+                                );
+                              case 'reasoning':
+                                return (
+                                  <Reasoning
+                                    key={`${message.id}-${i}`}
+                                    className="w-full"
+                                    isStreaming={
+                                      status === 'streaming' && 
+                                      i === message.parts.length - 1 && 
+                                      message.id === displayedMessages.at(-1)?.id
+                                    }
+                                  >
+                                    <ReasoningTrigger />
+                                    <ReasoningContent>{part.text}</ReasoningContent>
+                                  </Reasoning>
+                                );
+                              default:
+                                return null;
+                            }
+                          })}
+                          
+                          {/* New Sources UI */}
+                          {sources.length > 0 && (
+                            <Sources className="mt-2 border-t pt-2">
+                              <SourcesTrigger count={sources.length} />
+                              <SourcesContent>
+                                {sources.map((source, idx) => (
+                                  <Source 
+                                    key={idx} 
+                                    href={source.url} 
+                                    title={source.title} 
+                                  />
+                                ))}
+                              </SourcesContent>
+                            </Sources>
+                          )}
+                        </MessageContent>
+                      </Message>
+                    <Actions 
+                      className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${
+                        message.role === 'user' ? 'justify-end' : 'justify-start'
+                      }`}
                     >
-                      {copiedMessageId === message.id ? (
-                        <CheckIcon className="size-4" />
-                      ) : (
-                        <CopyIcon className="size-4" />
-                      )}
-                    </Action>
-                    {isAuthenticated && (
                       <Action
-                        onClick={() => handleDeleteMessage(message.id)}
-                        label="Delete message"
+                        onClick={() => handleCopyMessage(message)}
+                        tooltip={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
+                        label={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
                       >
-                        <Trash2Icon className="size-4" />
+                        {copiedMessageId === message.id ? (
+                          <CheckIcon className="size-4" />
+                        ) : (
+                          <CopyIcon className="size-4" />
+                        )}
                       </Action>
-                    )}
-                  </Actions>
-                  </div>
-                ))}
+                      {isAuthenticated && (
+                        <Action
+                          onClick={() => handleDeleteMessage(message.id)}
+                          label="Delete message"
+                        >
+                          <Trash2Icon className="size-4" />
+                        </Action>
+                      )}
+                    </Actions>
+                    </div>
+                  );
+                })}
                 {status === 'submitted' && (
                   <Message from="assistant">
                     <MessageContent>
