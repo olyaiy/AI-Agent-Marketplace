@@ -17,11 +17,13 @@ export async function POST(req: Request) {
     conversationId: bodyConversationId,
     agentTag,
     reasoningEnabled: bodyReasoningEnabled,
-  }: { messages: UIMessage[]; systemPrompt?: string; model?: string; conversationId?: string; agentTag?: string; reasoningEnabled?: boolean } = await req
+    webSearchEnabled: bodyWebSearchEnabled,
+  }: { messages: UIMessage[]; systemPrompt?: string; model?: string; conversationId?: string; agentTag?: string; reasoningEnabled?: boolean; webSearchEnabled?: boolean } = await req
     .json()
     .catch(() => ({ messages: [], systemPrompt: undefined, model: undefined }));
   const systemPrompt = bodySystem ?? qpSystem;
   const reasoningEnabled = Boolean(bodyReasoningEnabled);
+  const webSearchEnabled = Boolean(bodyWebSearchEnabled);
   
   function normalizeModelId(input?: string | null): string | undefined {
     if (!input) return undefined;
@@ -176,19 +178,20 @@ export async function POST(req: Request) {
     }
   }
 
+  // Construct OpenRouter provider options
+  const openrouterOptions: Record<string, unknown> = {};
+  if (reasoningEnabled) {
+    openrouterOptions.includeReasoning = true;
+    openrouterOptions.reasoning = { effort: 'low', enabled: true };
+  }
+  if (webSearchEnabled) {
+    openrouterOptions.plugins = [{ id: 'web' }];
+  }
+
   const result = streamText({
     model: openrouter(modelId),
     abortSignal: req.signal,
-    ...(reasoningEnabled
-      ? {
-          providerOptions: {
-            openrouter: {
-              includeReasoning: true,
-              reasoning: { effort: 'low', enabled: true } as const,
-            },
-          },
-        }
-      : {}),
+    providerOptions: Object.keys(openrouterOptions).length > 0 ? { openrouter: openrouterOptions } : undefined,
     experimental_transform: smoothStream({
       delayInMs: 30,
       chunking: 'word',
@@ -203,5 +206,6 @@ export async function POST(req: Request) {
   });
   response.headers.set('x-conversation-id', ensuredConversationId!);
   response.headers.set('x-reasoning-enabled', String(reasoningEnabled));
+  response.headers.set('x-web-search-enabled', String(webSearchEnabled));
   return response;
 }

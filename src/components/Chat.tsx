@@ -34,7 +34,7 @@ import { Actions, Action } from '@/components/ai-elements/actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon } from 'lucide-react';
+import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { 
@@ -82,6 +82,7 @@ const Chat = React.memo(function Chat({
   const lastAssistantMessageRef = useRef<UIMessage | null>(null);
   const [supportsReasoning, setSupportsReasoning] = useState<boolean>(false);
   const [reasoningOn, setReasoningOn] = useState<boolean>(false);
+  const [webSearchOn, setWebSearchOn] = useState<boolean>(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -326,6 +327,7 @@ const Chat = React.memo(function Chat({
           conversationId: effectiveConversationId,
           agentTag,
           reasoningEnabled: supportsReasoning ? reasoningOn : false,
+          webSearchEnabled: webSearchOn,
         },
       }
     );
@@ -595,6 +597,23 @@ const Chat = React.memo(function Chat({
                           <PromptInputActionAddAttachments />
                         </PromptInputActionMenuContent>
                       </PromptInputActionMenu>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
+                              webSearchOn && 'text-blue-600'
+                            )}
+                            onClick={() => setWebSearchOn(!webSearchOn)}
+                            aria-pressed={webSearchOn}
+                            aria-label={webSearchOn ? 'Turn web search off' : 'Turn web search on'}
+                          >
+                            <GlobeIcon className="size-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent sideOffset={6}>Web Search: {webSearchOn ? 'On' : 'Off'}</TooltipContent>
+                      </Tooltip>
                       {supportsReasoning && (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -665,6 +684,23 @@ const Chat = React.memo(function Chat({
                         <PromptInputActionAddAttachments />
                       </PromptInputActionMenuContent>
                     </PromptInputActionMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
+                            webSearchOn && 'text-blue-600'
+                          )}
+                          onClick={() => setWebSearchOn(!webSearchOn)}
+                          aria-pressed={webSearchOn}
+                          aria-label={webSearchOn ? 'Turn web search off' : 'Turn web search on'}
+                        >
+                          <GlobeIcon className="size-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent sideOffset={6}>Web Search: {webSearchOn ? 'On' : 'Off'}</TooltipContent>
+                    </Tooltip>
                     {supportsReasoning && (
                       <Tooltip>
                         <TooltipTrigger asChild>
