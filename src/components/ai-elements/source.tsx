@@ -70,7 +70,9 @@ export const Source = ({ href, title, children, ...props }: SourceProps) => (
     {children ?? (
       <>
         <BookIcon className="h-4 w-4" />
-        <span className="block font-medium">{title}</span>
+        <span className="block font-medium">
+          {title && title.length > 60 ? `${title.slice(0, 60)}...` : title}
+        </span>
       </>
     )}
   </a>

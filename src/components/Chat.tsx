@@ -583,9 +583,8 @@ const Chat = React.memo(function Chat({
                   extractedSources.forEach(s => sourcesMap.set(s.url, s));
                   annotationSources.forEach((source) => {
                     if (!source) return;
-                    if (!sourcesMap.has(source.url)) {
-                      sourcesMap.set(source.url, { title: source.title, url: source.url });
-                    }
+                    // Prioritize annotation sources as they contain the full page title
+                    sourcesMap.set(source.url, { title: source.title, url: source.url });
                   });
 
                   const sources = Array.from(sourcesMap.values());
