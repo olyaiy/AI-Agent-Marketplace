@@ -489,7 +489,7 @@ const Chat = React.memo(function Chat({
 
   function getMessageOriginalText(message: BasicUIMessage): string {
     const parts = Array.isArray(message.parts) ? message.parts : [];
-    return parts.map((p) => p.text).join('\n\n');
+    return parts.map((p) => p.text || '').join('\n\n');
   }
 
   const handleCopyMessage = async (message: BasicUIMessage) => {
@@ -509,7 +509,7 @@ const Chat = React.memo(function Chat({
     }
   };
 
-  interface BasicUIPart { type: string; text: string }
+  interface BasicUIPart { type: string; text?: string; title?: string; url?: string; sourceId?: string; }
   interface BasicUISource { title: string; url: string }
   interface BasicUIAnnotation { type: string; value?: BasicUISource[] }
   interface BasicUIMessage {
@@ -572,15 +572,33 @@ const Chat = React.memo(function Chat({
               <ConversationContent className="">
                 {displayedMessages.map((message: BasicUIMessage) => {
                   // Calculate sources for this message
-                  const allText = message.parts.map(p => p.text).join(' ');
+                  // Calculate sources for this message
+                  const allText = message.parts.map(p => p.text || '').join(' ');
                   const extractedSources = message.role === 'assistant' ? extractSources(allText) : [];
 
+                  // Extract sources from message parts (e.g. from OpenRouter/Anthropic)
+                  const partSources = message.parts
+                    .filter((part) => part.type === 'source-url' || part.type === 'source')
+                    .map((part) => ({
+                      title: part.title || '',
+                      url: part.url || '',
+                    }))
+                    .filter(s => s.url);
+
                   // Combine extracted sources with annotation sources
+                  if (process.env.NODE_ENV === 'development' && message.role === 'assistant') {
+                    console.log('🔍 Message Annotations:', {
+                      id: message.id,
+                      annotations: message.annotations,
+                      parts: message.parts
+                    });
+                  }
                   const annotationSources = message.annotations?.find((annotation) => annotation.type === 'sources')?.value ?? [];
 
                   // Deduplicate sources by URL
                   const sourcesMap = new Map<string, { title: string; url: string }>();
                   extractedSources.forEach(s => sourcesMap.set(s.url, s));
+                  partSources.forEach(s => sourcesMap.set(s.url, s));
                   annotationSources.forEach((source) => {
                     if (!source) return;
                     // Prioritize annotation sources as they contain the full page title
