@@ -149,10 +149,11 @@ export const ReasoningTrigger = memo(
   }
 );
 
-export type ReasoningContentProps = ComponentProps<
-  typeof CollapsibleContent
+export type ReasoningContentProps = Omit<
+  ComponentProps<typeof CollapsibleContent>,
+  'children'
 > & {
-  children: string;
+  children?: string;
 };
 
 export const ReasoningContent = memo(
