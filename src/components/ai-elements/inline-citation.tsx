@@ -61,27 +61,38 @@ export const InlineCitationCardTrigger = ({
   sources,
   className,
   ...props
-}: InlineCitationCardTriggerProps) => (
-  <HoverCardTrigger asChild>
-    <Badge
-      variant="outline"
-      className={cn(
-        'ml-1 inline-flex h-5 items-center rounded-full px-1.5 py-0 align-text-bottom text-[10px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer transition-colors',
-        className
-      )}
-      {...props}
-    >
-      {sources.length ? ( 
-        <span className="truncate max-w-[150px]">
-          {new URL(sources[0]).hostname}{' '}
-          {sources.length > 1 && `+${sources.length - 1}`}
-        </span>
-      ) : (
-        'unknown'
-      )}
-    </Badge>
-  </HoverCardTrigger>
-);
+}: InlineCitationCardTriggerProps) => {
+  let hostname = 'unknown';
+  if (sources.length > 0) {
+    try {
+      hostname = new URL(sources[0]).hostname;
+    } catch {
+      hostname = sources[0];
+    }
+  }
+
+  return (
+    <HoverCardTrigger asChild>
+      <Badge
+        variant="outline"
+        className={cn(
+          'ml-1 inline-flex h-5 items-center rounded-full px-1.5 py-0 align-text-bottom text-[10px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer transition-colors',
+          className
+        )}
+        {...props}
+      >
+        {sources.length ? (
+          <span className="truncate max-w-[150px]">
+            {hostname}{' '}
+            {sources.length > 1 && `+${sources.length - 1}`}
+          </span>
+        ) : (
+          'unknown'
+        )}
+      </Badge>
+    </HoverCardTrigger>
+  );
+};
 
 export type InlineCitationCardBodyProps = ComponentProps<'div'>;
 
@@ -254,22 +265,47 @@ export const InlineCitationSource = ({
   className,
   children,
   ...props
-}: InlineCitationSourceProps) => (
-  <div className={cn('space-y-1', className)} {...props}>
-    {title && (
-      <h4 className="truncate font-medium text-sm leading-tight">{title}</h4>
-    )}
-    {url && (
-      <p className="truncate break-all text-muted-foreground text-xs">{url}</p>
-    )}
-    {description && (
-      <p className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">
-        {description}
-      </p>
-    )}
-    {children}
-  </div>
-);
+}: InlineCitationSourceProps) => {
+  let hostname = '';
+  try {
+    if (url) hostname = new URL(url).hostname;
+  } catch { /* ignore */ }
+
+  const faviconUrl = url ? `https://www.google.com/s2/favicons?sz=128&domain_url=${url}` : null;
+
+  return (
+    <div className={cn('flex flex-col gap-2', className)} {...props}>
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {faviconUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={faviconUrl} alt="" className="size-4 rounded-sm" />
+        ) : (
+          <div className="size-4 rounded-sm bg-muted" />
+        )}
+        <span className="text-xs font-medium">{hostname}</span>
+      </div>
+
+      {title && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-sm leading-tight line-clamp-2 hover:underline decoration-primary/30 underline-offset-4 transition-all text-foreground"
+        >
+          {title}
+        </a>
+      )}
+
+      {description && (
+        <p className="line-clamp-3 text-muted-foreground text-xs leading-relaxed">
+          {description}
+        </p>
+      )}
+
+      {children}
+    </div>
+  );
+};
 
 export type InlineCitationQuoteProps = ComponentProps<'blockquote'>;
 

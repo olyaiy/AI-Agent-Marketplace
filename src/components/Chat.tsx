@@ -608,7 +608,7 @@ const Chat = React.memo(function Chat({
                             switch (part.type) {
                               case 'text':
                                 return (
-                                  <Response key={`${message.id}-${i}`}>{part.text}</Response>
+                                  <Response key={`${message.id}-${i}`} sources={sources}>{part.text}</Response>
                                 );
                               case 'reasoning':
                                 if (part.text === '[REDACTED]') return null;
@@ -634,7 +634,7 @@ const Chat = React.memo(function Chat({
                           {/* New Sources UI */}
                           {sources.length > 0 && (
                             <Sources className="mt-2 border-t pt-2">
-                              <SourcesTrigger count={sources.length} />
+                              <SourcesTrigger sources={sources} />
                               <SourcesContent>
                                 {sources.map((source, idx) => (
                                   <Source
