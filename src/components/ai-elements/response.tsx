@@ -11,6 +11,7 @@ import {
   InlineCitationCardBody,
   InlineCitationSource
 } from '@/components/ai-elements/inline-citation';
+import { CodeBlock, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
 
 type ResponseProps = Omit<ComponentProps<typeof ReactMarkdown>, 'children' | 'className'> & {
   children?: string;
@@ -51,7 +52,7 @@ export const Response = memo(
               <h6 className={cn('text-sm font-medium mt-3 mb-2', className)} {...props} />
             ),
             p: ({ className, ...props }) => (
-              <p className={cn('text-sm leading-relaxed my-2', className)} {...props} />
+              <p className={cn('text-sm leading-relaxed my-0', className)} {...props} />
             ),
             ul: ({ className, ...props }) => (
               <ul className={cn('list-disc pl-6 my-2 space-y-1', className)} {...props} />
@@ -62,12 +63,36 @@ export const Response = memo(
             li: ({ className, ...props }) => (
               <li className={cn('text-sm leading-relaxed', className)} {...props} />
             ),
-            code: ({ className, ...props }) => (
-              <code className={cn('text-xs bg-muted px-1.5 py-0.5 rounded font-mono', className)} {...props} />
-            ),
-            pre: ({ className, ...props }) => (
-              <pre className={cn('bg-muted p-4 rounded-lg my-3 overflow-x-auto', className)} {...props} />
-            ),
+            code: ({ className, children, ...props }) => {
+              const match = /language-(\w+)/.exec(className || '');
+              const isCodeBlock = match || (children && String(children).includes('\n'));
+
+              if (isCodeBlock) {
+                return (
+                  <CodeBlock
+                    language={match?.[1] || 'text'}
+                    code={String(children).replace(/\n$/, '')}
+                    className="my-3"
+                    {...props}
+                  >
+                    <CodeBlockCopyButton />
+                  </CodeBlock>
+                );
+              }
+
+              return (
+                <code
+                  className={cn(
+                    'text-xs bg-muted px-1.5 py-0.5 rounded font-mono',
+                    className
+                  )}
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            },
+            pre: ({ children }) => <>{children}</>,
             a: ({ href, children, className, ...props }) => {
               const url = href || '#';
               const linkText = String(children);
