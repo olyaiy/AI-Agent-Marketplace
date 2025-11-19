@@ -586,13 +586,6 @@ const Chat = React.memo(function Chat({
                     .filter(s => s.url);
 
                   // Combine extracted sources with annotation sources
-                  if (process.env.NODE_ENV === 'development' && message.role === 'assistant') {
-                    console.log('🔍 Message Annotations:', {
-                      id: message.id,
-                      annotations: message.annotations,
-                      parts: message.parts
-                    });
-                  }
                   const annotationSources = message.annotations?.find((annotation) => annotation.type === 'sources')?.value ?? [];
 
                   // Deduplicate sources by URL
@@ -618,6 +611,7 @@ const Chat = React.memo(function Chat({
                                   <Response key={`${message.id}-${i}`}>{part.text}</Response>
                                 );
                               case 'reasoning':
+                                if (part.text === '[REDACTED]') return null;
                                 return (
                                   <Reasoning
                                     key={`${message.id}-${i}`}
