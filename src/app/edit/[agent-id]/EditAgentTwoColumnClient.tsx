@@ -16,6 +16,7 @@ interface Props {
   initialName: string;
   initialSystemPrompt?: string;
   initialModel?: string;
+  initialSecondaryModels?: string[];
   initialAvatar?: string;
   initialTagline?: string;
   initialDescription?: string;
@@ -36,6 +37,8 @@ interface LeftFormProps extends Props {
   sendContextRef: React.MutableRefObject<SendContext>;
   onTabChange: (tab: "behaviour" | "details" | "knowledge") => void;
   activeTab: "behaviour" | "details" | "knowledge";
+  onModelPreviewChange: (model?: string) => void;
+  onSecondaryPreviewChange: (models: string[]) => void;
 }
 
 function LeftForm({
@@ -44,6 +47,7 @@ function LeftForm({
   initialName,
   initialSystemPrompt,
   initialModel,
+  initialSecondaryModels = [],
   initialAvatar,
   initialTagline,
   initialDescription,
@@ -53,6 +57,8 @@ function LeftForm({
   sendContextRef,
   onTabChange,
   activeTab,
+  onModelPreviewChange,
+  onSecondaryPreviewChange,
 }: LeftFormProps) {
   return (
     <div className="max-w-xl">
@@ -82,11 +88,13 @@ function LeftForm({
         <EditAgentClient
           agentTag={tag}
           initialModel={initialModel}
+          initialSecondaryModels={initialSecondaryModels}
           initialSystemPrompt={initialSystemPrompt}
           initialTagline={initialTagline}
           initialDescription={initialDescription}
           onChange={(value) => {
             sendContextRef.current.model = value;
+            onModelPreviewChange(value);
           }}
           onContextChange={(u) => {
             if (u.model !== undefined) sendContextRef.current.model = u.model;
@@ -95,6 +103,9 @@ function LeftForm({
             if (u.description !== undefined) sendContextRef.current.description = u.description;
           }}
           onTabChange={onTabChange}
+          onSecondaryModelsChange={(models) => {
+            onSecondaryPreviewChange(models);
+          }}
         />
 
         {activeTab !== "knowledge" && (
@@ -114,6 +125,8 @@ export default function EditAgentTwoColumnClient(props: Props) {
 
 function TwoColumn(props: Props) {
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge">("behaviour");
+  const [previewModel, setPreviewModel] = React.useState<string | undefined>(props.initialModel);
+  const [previewSecondaryModels, setPreviewSecondaryModels] = React.useState<string[]>(props.initialSecondaryModels || []);
   
   const sendContextRef = React.useRef<SendContext>({
     model: props.initialModel,
@@ -136,7 +149,14 @@ function TwoColumn(props: Props) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
         {/* Left column - scrollable */}
         <div className="w-full">
-          <LeftForm {...props} sendContextRef={sendContextRef} onTabChange={setActiveTab} activeTab={activeTab} />
+          <LeftForm
+            {...props}
+            sendContextRef={sendContextRef}
+            onTabChange={setActiveTab}
+            activeTab={activeTab}
+            onModelPreviewChange={setPreviewModel}
+            onSecondaryPreviewChange={setPreviewSecondaryModels}
+          />
         </div>
         
         {/* Right column - sticky */}
@@ -146,6 +166,8 @@ function TwoColumn(props: Props) {
               className="h-full"
               systemPrompt={combinedSystem}
               knowledgeText={combinedSystem}
+              model={previewModel}
+              modelOptions={[previewModel, ...(previewSecondaryModels || [])].filter(Boolean)}
               agentTag={props.tag}
               getChatContext={getChatContext}
             />
@@ -155,5 +177,3 @@ function TwoColumn(props: Props) {
     </div>
   );
 }
-
-

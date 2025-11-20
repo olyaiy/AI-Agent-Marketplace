@@ -34,6 +34,7 @@ import {
 import { Actions, Action } from '@/components/ai-elements/actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
@@ -52,11 +53,13 @@ import {
   SourcesContent,
   Source,
 } from '@/components/ai-elements/source';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ChatProps {
   className?: string;
   systemPrompt?: string;
   model?: string;
+  modelOptions?: string[];
   avatarUrl?: string; // optional avatar URL like /avatars/filename.png
   getChatContext?: () => { systemPrompt?: string; model?: string } | null;
   isAuthenticated?: boolean;
@@ -87,6 +90,7 @@ const Chat = React.memo(function Chat({
   className,
   systemPrompt,
   model,
+  modelOptions,
   getChatContext,
   isAuthenticated = false,
   agentTag,
@@ -110,6 +114,29 @@ const Chat = React.memo(function Chat({
   const [webSearchOn, setWebSearchOn] = useLocalStorage<boolean>('chat_web_search_on', false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const modelChoices = useMemo(() => {
+    const seen = new Set<string>();
+    const items: string[] = [];
+    const add = (val?: string | null) => {
+      if (!val) return;
+      const clean = String(val).trim();
+      if (!clean || seen.has(clean)) return;
+      seen.add(clean);
+      items.push(clean);
+    };
+    add(model);
+    if (Array.isArray(modelOptions)) {
+      modelOptions.forEach((m) => add(m));
+    }
+    return items;
+  }, [model, modelOptions]);
+  const [currentModel, setCurrentModel] = useState<string | undefined>(() => modelChoices[0]);
+  useEffect(() => {
+    setCurrentModel((prev) => {
+      if (prev && modelChoices.includes(prev)) return prev;
+      return modelChoices[0] ?? prev ?? undefined;
+    });
+  }, [modelChoices]);
 
   const { messages, status, sendMessage, stop, setMessages } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
@@ -188,7 +215,7 @@ const Chat = React.memo(function Chat({
     let cancelled = false;
     async function detect() {
       try {
-        const effectiveModel = model?.trim();
+        const effectiveModel = (currentModel ?? model)?.trim();
         if (!effectiveModel) {
           if (!cancelled) { setSupportsReasoning(false); }
           return;
@@ -233,7 +260,7 @@ const Chat = React.memo(function Chat({
     }
     detect();
     return () => { cancelled = true; };
-  }, [model]);
+  }, [currentModel, model]);
 
   // Track the last assistant message for saving on abort
   useEffect(() => {
@@ -343,6 +370,7 @@ const Chat = React.memo(function Chat({
     }
 
     const ctx = getChatContext ? getChatContext() || undefined : undefined;
+    const resolvedModel = ctx?.model ?? currentModel ?? model;
     if (effectiveConversationId) {
       conversationIdRef.current = effectiveConversationId;
     }
@@ -371,7 +399,7 @@ const Chat = React.memo(function Chat({
 
     if (process.env.NODE_ENV === 'development') {
       console.log('➡️ Sending message:', {
-        modelUsed: ctx?.model ?? model,
+        modelUsed: resolvedModel,
         supportsReasoning,
         reasoningEnabled: supportsReasoning ? reasoningOn : false,
         includeSystem,
@@ -384,7 +412,7 @@ const Chat = React.memo(function Chat({
       {
         body: {
           systemPrompt: systemForThisSend,
-          model: ctx?.model ?? model,
+          model: resolvedModel,
           conversationId: effectiveConversationId,
           agentTag,
           reasoningEnabled: supportsReasoning ? reasoningOn : false,
@@ -535,6 +563,8 @@ const Chat = React.memo(function Chat({
   }, [initialMessages, messages, deletedMessageIds, conversationId, initialConversationId]);
   const hasMessages = allMessages.length > 0;
   const displayedMessages = useMemo(() => allMessages, [allMessages]);
+  const hasModelOptions = modelChoices.length > 0;
+  const activeModelId = currentModel ?? modelChoices[0];
 
   return (
     <div className={`flex w-full max-w-3xl flex-col h-full ${className || ''}`}>
@@ -564,6 +594,29 @@ const Chat = React.memo(function Chat({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {hasModelOptions && (
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">Model</div>
+          {modelChoices.length > 1 ? (
+            <Select value={activeModelId || modelChoices[0]} onValueChange={(val) => setCurrentModel(val)}>
+              <SelectTrigger size="sm" className="h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {modelChoices.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Badge variant="outline" className="text-xs">
+              {activeModelId}
+            </Badge>
+          )}
+        </div>
+      )}
       {hasMessages ? (
         <>
           {/* Scrollable conversation area */}

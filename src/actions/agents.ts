@@ -11,13 +11,33 @@ export interface CreateAgentInput {
   name: string;
   systemPrompt: string;
   model?: string;
+  secondaryModels?: string[];
   avatar?: string; // filename in /public/avatar
   tagline?: string;
   description?: string;
 }
 
+function normalizeModelIds(list?: string[] | null): string[] {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of list) {
+    if (typeof raw !== 'string') continue;
+    let val = raw.trim();
+    if (!val) continue;
+    val = val.replace(/\s+/g, '');
+    val = val.replace(':', '/');
+    if (!val.includes('/')) continue;
+    if (seen.has(val)) continue;
+    seen.add(val);
+    out.push(val);
+    if (out.length >= 16) break; // guardrail to avoid unbounded lists
+  }
+  return out;
+}
+
 export async function createAgent(input: CreateAgentInput) {
-  const { tag, name, systemPrompt, model, avatar, tagline, description } = input;
+  const { tag, name, systemPrompt, model, secondaryModels, avatar, tagline, description } = input;
   if (!tag || !name || !systemPrompt) return { ok: false, error: 'Missing fields' };
 
   // Get current user session
@@ -30,12 +50,16 @@ export async function createAgent(input: CreateAgentInput) {
   // if (!userId) return { ok: false, error: 'Authentication required' };
   // 2. Allow creation without a creator (current behavior - creatorId will be null)
 
-  const values: { tag: string; name: string; systemPrompt: string; model?: string; avatar?: string; tagline?: string | null; description?: string | null; creatorId?: string | null } = { tag, name, systemPrompt };
+  const values: { tag: string; name: string; systemPrompt: string; model?: string; secondaryModels?: string[]; avatar?: string; tagline?: string | null; description?: string | null; creatorId?: string | null } = { tag, name, systemPrompt };
   if (userId) {
     values.creatorId = userId;
   }
   if (typeof model === 'string' && model.trim().length > 0) {
     values.model = model.trim();
+  }
+   const normalizedSecondary = normalizeModelIds(secondaryModels);
+  if (normalizedSecondary.length > 0) {
+    values.secondaryModels = normalizedSecondary;
   }
   if (typeof avatar === 'string' && avatar.trim().length > 0) {
     values.avatar = avatar.trim();
@@ -79,18 +103,22 @@ export interface UpdateAgentInput {
   name?: string;
   systemPrompt?: string;
   model?: string;
+  secondaryModels?: string[];
   avatar?: string;
   tagline?: string | null;
   description?: string | null;
 }
 
 export async function updateAgent(input: UpdateAgentInput) {
-  const { tag, name, systemPrompt, model, avatar, tagline, description } = input;
+  const { tag, name, systemPrompt, model, secondaryModels, avatar, tagline, description } = input;
   if (!tag) return { ok: false, error: 'Missing tag' };
-  const values: { name?: string; systemPrompt?: string; model?: string; avatar?: string | null; tagline?: string | null; description?: string | null; updatedAt?: Date } = {};
+  const values: { name?: string; systemPrompt?: string; model?: string; secondaryModels?: string[]; avatar?: string | null; tagline?: string | null; description?: string | null; updatedAt?: Date } = {};
   if (typeof name === 'string') values.name = name;
   if (typeof systemPrompt === 'string') values.systemPrompt = systemPrompt;
   if (typeof model === 'string' && model.trim().length > 0) values.model = model.trim();
+  if (Array.isArray(secondaryModels)) {
+    values.secondaryModels = normalizeModelIds(secondaryModels);
+  }
   if (typeof avatar === 'string') values.avatar = avatar.trim().length > 0 ? avatar.trim() : null;
   if (typeof tagline === 'string' || tagline === null) values.tagline = tagline && tagline.trim ? (tagline.trim().length > 0 ? tagline.trim() : null) : tagline;
   if (typeof description === 'string' || description === null) values.description = description && description.trim ? (description.trim().length > 0 ? description.trim() : null) : description;

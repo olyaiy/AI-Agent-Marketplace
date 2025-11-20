@@ -3,20 +3,24 @@
 import * as React from "react";
 import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
 import { KnowledgeManager } from "./KnowledgeManager";
+import { SecondaryModelsInput } from "@/components/SecondaryModelsInput";
 
 interface Props {
   agentTag: string;
   initialModel: string | undefined;
+  initialSecondaryModels?: string[];
   initialSystemPrompt?: string;
   initialTagline?: string;
   initialDescription?: string;
   onChange?: (model: string | undefined) => void;
   onContextChange?: (update: { model?: string; systemPrompt?: string; tagline?: string; description?: string }) => void;
   onTabChange?: (tab: "behaviour" | "details" | "knowledge") => void;
+  onSecondaryModelsChange?: (models: string[]) => void;
 }
 
-export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, initialModel, initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange, onTabChange }: Props) {
+export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, initialModel, initialSecondaryModels = [], initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange, onTabChange, onSecondaryModelsChange }: Props) {
   const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
+  const [secondaryModels, setSecondaryModels] = React.useState<string[]>(initialSecondaryModels || []);
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge">("behaviour");
 
   React.useEffect(() => {
@@ -27,6 +31,10 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
   React.useEffect(() => {
     if (onTabChange) onTabChange(activeTab);
   }, [activeTab, onTabChange]);
+
+  React.useEffect(() => {
+    if (onSecondaryModelsChange) onSecondaryModelsChange(secondaryModels);
+  }, [secondaryModels, onSecondaryModelsChange]);
 
   return (
     <div className="space-y-4">
@@ -40,6 +48,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
           label="Model"
         />
         <input type="hidden" name="model" value={selectedModel || ""} />
+        <SecondaryModelsInput value={secondaryModels} onChange={setSecondaryModels} />
       </div>
 
       {/* Tabs header */}
@@ -124,5 +133,3 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
     </div>
   );
 });
-
-

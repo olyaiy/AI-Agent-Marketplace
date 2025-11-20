@@ -26,6 +26,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
   const knowledge = await getKnowledgeByAgent(found.tag);
   const knowledgeText = buildKnowledgeSystemText(knowledge.map(k => ({ name: k.name, content: k.content })));
   const combinedSystem = [found.systemPrompt?.trim(), knowledgeText.trim()].filter(Boolean).join('\n\n');
+  const modelOptions = [found.model, ...(Array.isArray(found.secondaryModels) ? found.secondaryModels : [])].filter(Boolean);
 
   return (
     <main className="h-full ">
@@ -48,6 +49,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
             systemPrompt={combinedSystem}
             knowledgeText={combinedSystem}
             model={found.model}
+            modelOptions={modelOptions}
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
             agentTag={found.tag}
@@ -63,6 +65,7 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
             systemPrompt={combinedSystem}
             knowledgeText={combinedSystem}
             model={found.model}
+            modelOptions={modelOptions}
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
             agentTag={found.tag}
@@ -76,6 +79,8 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
             description={found.description}
             agentTag={found.tag}
             canEdit={canEdit}
+            modelOptions={modelOptions}
+            activeModel={found.model}
           />
         </div>
       </div>

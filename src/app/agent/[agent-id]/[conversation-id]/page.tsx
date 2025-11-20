@@ -44,7 +44,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
   const [convo, rows, knowledge] = await Promise.all([
     // Verify conversation ownership and agent binding
     db
-      .select({ id: conversation.id, agentTag: conversation.agentTag })
+      .select({ id: conversation.id, agentTag: conversation.agentTag, modelId: conversation.modelId })
       .from(conversation)
       .where(sql`${conversation.id} = ${conversationId} AND ${conversation.userId} = ${session.user.id}`)
       .limit(1),
@@ -70,6 +70,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
   // Build combined system from agent prompt + knowledge
   const knowledgeText = buildKnowledgeSystemText(knowledge.map(k => ({ name: k.name, content: k.content })));
   const combinedSystem = [found.systemPrompt?.trim(), knowledgeText.trim()].filter(Boolean).join('\n\n');
+  const modelOptions = [found.model, ...(Array.isArray(found.secondaryModels) ? found.secondaryModels : [])].filter(Boolean);
+  const initialModel = convo[0].modelId || found.model;
 
   return (
     <div className="relative md:max-h-[calc(100vh-200px)]">
@@ -90,7 +92,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
           <Chat
             className="mx-auto h-full"
             systemPrompt={combinedSystem}
-            model={found.model}
+            model={initialModel}
+            modelOptions={modelOptions}
             avatarUrl={avatarUrl}
             isAuthenticated={true}
             agentTag={found.tag}
@@ -106,7 +109,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
           <Chat
             className="mx-auto"
             systemPrompt={combinedSystem}
-            model={found.model}
+            model={initialModel}
+            modelOptions={modelOptions}
             avatarUrl={avatarUrl}
             isAuthenticated={true}
             agentTag={found.tag}
@@ -122,11 +126,11 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
             description={found.description}
             agentTag={found.tag}
             canEdit={canEdit}
+            modelOptions={modelOptions}
+            activeModel={initialModel}
           />
         </div>
       </div>
     </div>
   );
 }
-
-

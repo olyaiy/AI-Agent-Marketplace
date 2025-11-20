@@ -2,8 +2,8 @@ import { streamText, smoothStream, UIMessage, convertToModelMessages } from 'ai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
-import { conversation, message } from '@/db/schema';
-import { sql } from 'drizzle-orm';
+import { agent, conversation, message } from '@/db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
@@ -38,8 +38,6 @@ export async function POST(req: Request) {
     return raw;
   }
   
-  const modelId = normalizeModelId(bodyModel ?? qpModel) ?? 'openai/gpt-5-nano';
-
   // Initialize OpenRouter
   const openrouter = createOpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -53,8 +51,52 @@ export async function POST(req: Request) {
     });
   }
 
+  const requestedModelId = normalizeModelId(bodyModel ?? qpModel);
+  let ensuredConversationId = bodyConversationId ?? null;
+  let conversationModelFromDb: string | undefined;
+  let effectiveAgentTag = agentTag;
+  let existingConversation: { id: string; modelId: string | null; agentTag: string | null } | null = null;
+
+  if (ensuredConversationId) {
+    const existing = await db
+      .select({ id: conversation.id, modelId: conversation.modelId, agentTag: conversation.agentTag })
+      .from(conversation)
+      .where(sql`${conversation.id} = ${ensuredConversationId} AND ${conversation.userId} = ${session.user.id}`)
+      .limit(1);
+    if (existing.length > 0) {
+      existingConversation = existing[0];
+      conversationModelFromDb = existing[0].modelId || undefined;
+      if (!effectiveAgentTag && existing[0].agentTag) {
+        effectiveAgentTag = existing[0].agentTag;
+      }
+    }
+  }
+
+  let agentRecord: { model: string; secondaryModels: string[] } | null = null;
+  if (effectiveAgentTag) {
+    try {
+      const rows = await db
+        .select({ model: agent.model, secondaryModels: agent.secondaryModels })
+        .from(agent)
+        .where(eq(agent.tag, effectiveAgentTag))
+        .limit(1);
+      agentRecord = rows[0] ?? null;
+    } catch {
+      agentRecord = null;
+    }
+  }
+
+  const allowedModels = agentRecord
+    ? [agentRecord.model, ...(Array.isArray(agentRecord.secondaryModels) ? agentRecord.secondaryModels : [])].filter(Boolean)
+    : [];
+  const fallbackModel = agentRecord?.model ?? 'openai/gpt-5-mini';
+
+  let modelId = requestedModelId ?? conversationModelFromDb ?? fallbackModel ?? 'openai/gpt-5-nano';
+  if (allowedModels.length > 0 && !allowedModels.includes(modelId)) {
+    modelId = allowedModels[0];
+  }
+
   // Ensure conversation exists or create one on-demand
-  let ensuredConversationId = bodyConversationId;
   if (!ensuredConversationId) {
     ensuredConversationId = randomUUID();
     // Extract title from first user message
@@ -74,7 +116,7 @@ export async function POST(req: Request) {
       await db.insert(conversation).values({
         id: ensuredConversationId,
         userId: session.user.id,
-        agentTag: agentTag || 'unknown',
+        agentTag: effectiveAgentTag || 'unknown',
         modelId,
         title,
       });
@@ -98,55 +140,57 @@ export async function POST(req: Request) {
     } catch {
       // noop
     }
-  } else {
+  } else if (!existingConversation) {
     // If a conversation id is provided but doesn't exist for this user, create it on-demand with that id.
-    const existing = await db
-      .select({ id: conversation.id })
-      .from(conversation)
-      .where(sql`${conversation.id} = ${ensuredConversationId} AND ${conversation.userId} = ${session.user.id}`)
-      .limit(1);
-    if (existing.length === 0) {
-      try {
-        // Extract quick title from first user message (same logic as no-id branch)
-        const firstUserMsg = messages.find((m) => m.role === 'user');
-        let quickTitle: string | null = null;
-        if (firstUserMsg) {
-          const parts = firstUserMsg.parts as Array<{ type: string; text?: string }>;
-          const textContent = parts
-            .filter((p) => p.type === 'text' && typeof p.text === 'string')
-            .map((p) => p.text as string)
-            .join(' ')
-            .slice(0, 60)
-            .trim();
-          quickTitle = textContent || null;
-        }
-
-        await db.insert(conversation).values({
-          id: ensuredConversationId!,
-          userId: session.user.id,
-          agentTag: agentTag || 'unknown',
-          modelId,
-          title: quickTitle,
-        });
-        // Persist initial system if present
-        if (systemPrompt && systemPrompt.trim().length > 0) {
-          try {
-            await db.insert(message).values({
-              id: randomUUID(),
-              conversationId: ensuredConversationId!,
-              role: 'system',
-              uiParts: [{ type: 'text', text: systemPrompt }] as unknown as Record<string, unknown>[],
-              textPreview: systemPrompt.slice(0, 280),
-              hasToolCalls: false,
-            });
-          } catch {}
-        }
-      } catch {
-        return new Response(JSON.stringify({ error: 'Conversation not found' }), {
-          status: 404,
-          headers: { 'content-type': 'application/json' },
-        });
+    try {
+      // Extract quick title from first user message (same logic as no-id branch)
+      const firstUserMsg = messages.find((m) => m.role === 'user');
+      let quickTitle: string | null = null;
+      if (firstUserMsg) {
+        const parts = firstUserMsg.parts as Array<{ type: string; text?: string }>;
+        const textContent = parts
+          .filter((p) => p.type === 'text' && typeof p.text === 'string')
+          .map((p) => p.text as string)
+          .join(' ')
+          .slice(0, 60)
+          .trim();
+        quickTitle = textContent || null;
       }
+
+      await db.insert(conversation).values({
+        id: ensuredConversationId!,
+        userId: session.user.id,
+        agentTag: effectiveAgentTag || 'unknown',
+        modelId,
+        title: quickTitle,
+      });
+      // Persist initial system if present
+      if (systemPrompt && systemPrompt.trim().length > 0) {
+        try {
+          await db.insert(message).values({
+            id: randomUUID(),
+            conversationId: ensuredConversationId!,
+            role: 'system',
+            uiParts: [{ type: 'text', text: systemPrompt }] as unknown as Record<string, unknown>[],
+            textPreview: systemPrompt.slice(0, 280),
+            hasToolCalls: false,
+          });
+        } catch {}
+      }
+    } catch {
+      return new Response(JSON.stringify({ error: 'Conversation not found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+  } else if (existingConversation.modelId !== modelId) {
+    try {
+      await db
+        .update(conversation)
+        .set({ modelId })
+        .where(eq(conversation.id, ensuredConversationId));
+    } catch {
+      // noop
     }
   }
 

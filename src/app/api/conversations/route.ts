@@ -1,8 +1,19 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
-import { conversation, message } from '@/db/schema';
-import { sql } from 'drizzle-orm';
+import { agent, conversation, message } from '@/db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+
+function normalizeModelId(input?: string | null): string | undefined {
+  if (!input) return undefined;
+  let raw = String(input).trim();
+  if (!raw) return undefined;
+  raw = raw.replace(/\s+/g, '');
+  raw = raw.replace(':', '/');
+  const slashIndex = raw.indexOf('/');
+  if (slashIndex <= 0 || slashIndex === raw.length - 1) return undefined;
+  return raw;
+}
 
 export async function GET(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
@@ -70,11 +81,33 @@ export async function POST(req: Request) {
   // Truncate title to first 60 characters if provided
   const conversationTitle = title ? title.slice(0, 60).trim() : null;
 
+  const requestedModelId = normalizeModelId(model);
+  let allowedModels: string[] = [];
+  let fallbackModel: string | undefined;
+  try {
+    const rows = await db
+      .select({ primary: agent.model, secondary: agent.secondaryModels })
+      .from(agent)
+      .where(eq(agent.tag, agentTag))
+      .limit(1);
+    const record = rows[0];
+    if (record) {
+      fallbackModel = record.primary;
+      allowedModels = [record.primary, ...(Array.isArray(record.secondary) ? record.secondary : [])].filter(Boolean);
+    }
+  } catch {
+    // ignore validation issues and fall back to default
+  }
+  let modelId = requestedModelId ?? fallbackModel ?? 'openai/gpt-5-nano';
+  if (allowedModels.length > 0 && !allowedModels.includes(modelId)) {
+    modelId = allowedModels[0];
+  }
+
   await db.insert(conversation).values({
     id,
     userId: session.user.id,
     agentTag,
-    modelId: (model && String(model)) || 'openai/gpt-5-nano',
+    modelId,
     title: conversationTitle,
   });
 
@@ -102,5 +135,3 @@ export async function POST(req: Request) {
     },
   });
 }
-
-

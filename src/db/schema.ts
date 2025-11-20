@@ -1,11 +1,12 @@
 import { pgTable, text, varchar, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 export const agent = pgTable('agent', {
   tag: varchar('tag', { length: 64 }).primaryKey(),
   name: text('name').notNull(),
   systemPrompt: text('system_prompt').notNull(),
   model: varchar('model', { length: 128 }).notNull().default('openai/gpt-5-mini'),
+  secondaryModels: jsonb('secondary_models').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   avatar: varchar('avatar', { length: 256 }),
   tagline: text('tagline'),
   description: text('description'),

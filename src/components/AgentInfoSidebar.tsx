@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil } from 'lucide-react';
 import { dispatchAgentNewChat } from '@/lib/agent-events';
+import { Badge } from '@/components/ui/badge';
 
 interface AgentInfoSidebarProps {
   name: string;
@@ -15,9 +16,11 @@ interface AgentInfoSidebarProps {
   variant?: 'sidebar' | 'sheet';
   agentTag?: string;
   canEdit?: boolean;
+  modelOptions?: string[];
+  activeModel?: string;
 }
 
-export default function AgentInfoSidebar({ name, avatarUrl, tagline, description, variant = 'sidebar', agentTag, canEdit }: AgentInfoSidebarProps) {
+export default function AgentInfoSidebar({ name, avatarUrl, tagline, description, variant = 'sidebar', agentTag, canEdit, modelOptions, activeModel }: AgentInfoSidebarProps) {
   const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your creative thinking partner';
   const effectiveDescription = (description && description.trim().length > 0)
     ? description
@@ -25,6 +28,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
   
   // Extract agent ID from tag (remove @ prefix)
   const agentId = agentTag ? agentTag.replace('@', '') : null;
+  const availableModels = Array.isArray(modelOptions) ? Array.from(new Set(modelOptions.filter(Boolean))) : [];
 
   return (
     <div className={cn(
@@ -94,6 +98,19 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
         <p className="text-xs text-gray-500 font-mono">
           {agentTag}
         </p>
+      )}
+
+      {availableModels.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500">Models</p>
+          <div className="flex flex-wrap gap-2">
+            {availableModels.map((m) => (
+              <Badge key={m} variant={activeModel && activeModel === m ? 'default' : 'outline'} className="text-[11px]">
+                {m}
+              </Badge>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Description */}

@@ -5,6 +5,7 @@ import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
 import { AgentForm } from "./AgentForm";
 import { AvatarPicker } from "@/components/avatar-picker";
 import Chat from "@/components/Chat";
+import { SecondaryModelsInput } from "@/components/SecondaryModelsInput";
 
 interface Props {
   avatars: string[];
@@ -17,6 +18,7 @@ interface SendContext {
 
 export function CreateAgentClient({ avatars }: Props) {
   const [selectedModelId, setSelectedModelId] = React.useState<string>("");
+  const [secondaryModels, setSecondaryModels] = React.useState<string[]>([]);
   const [selectedAvatar, setSelectedAvatar] = React.useState<string | undefined>(undefined);
 
   const sendContextRef = React.useRef<SendContext>({});
@@ -57,11 +59,15 @@ export function CreateAgentClient({ avatars }: Props) {
           />
         </div>
         <div className="mb-4">
+          <SecondaryModelsInput value={secondaryModels} onChange={setSecondaryModels} />
+        </div>
+        <div className="mb-4">
           <div className="mb-2 text-sm font-medium">Avatar</div>
           <AvatarPicker avatars={avatars} value={selectedAvatar} onChange={setSelectedAvatar} />
         </div>
         <AgentForm
           model={selectedModelId || undefined}
+          secondaryModels={secondaryModels}
           avatar={selectedAvatarFile}
           onSystemPromptChange={(value) => {
             sendContextRef.current.systemPrompt = value;
@@ -69,10 +75,13 @@ export function CreateAgentClient({ avatars }: Props) {
         />
       </div>
       <div className="min-h-[60vh] h-full border rounded-md p-2">
-        <Chat className="h-full" getChatContext={getChatContext} />
+        <Chat
+          className="h-full"
+          getChatContext={getChatContext}
+          model={selectedModelId || undefined}
+          modelOptions={[selectedModelId, ...secondaryModels].filter(Boolean)}
+        />
       </div>
     </div>
   );
 }
-
-

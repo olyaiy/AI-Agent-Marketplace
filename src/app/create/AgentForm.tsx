@@ -14,11 +14,12 @@ function slugify(value: string): string {
 
 interface AgentFormProps {
   model?: string;
+  secondaryModels?: string[];
   avatar?: string; // filename from /public/avatar
   onSystemPromptChange?: (systemPrompt: string) => void;
 }
 
-export function AgentForm({ model, avatar, onSystemPromptChange }: AgentFormProps) {
+export function AgentForm({ model, secondaryModels, avatar, onSystemPromptChange }: AgentFormProps) {
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [isTagEdited, setIsTagEdited] = useState(false);
@@ -38,6 +39,7 @@ export function AgentForm({ model, avatar, onSystemPromptChange }: AgentFormProp
       name: name.trim(),
       systemPrompt: systemPrompt.trim(),
       model,
+      secondaryModels,
       avatar,
     });
     if (res?.ok) {

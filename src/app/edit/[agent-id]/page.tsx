@@ -11,11 +11,21 @@ async function saveAction(formData: FormData) {
   const name = (formData.get('name') as string)?.trim();
   const systemPrompt = (formData.get('systemPrompt') as string)?.trim();
   const model = (formData.get('model') as string | undefined)?.trim();
+  const secondaryModelsRaw = formData.get('secondaryModels') as string | undefined;
   const avatar = (formData.get('avatar') as string | undefined)?.trim();
   const tagline = (formData.get('tagline') as string | undefined)?.trim();
   const description = (formData.get('description') as string | undefined)?.trim();
+  let secondaryModels: string[] | undefined = undefined;
+  if (typeof secondaryModelsRaw === 'string' && secondaryModelsRaw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(secondaryModelsRaw);
+      if (Array.isArray(parsed)) secondaryModels = parsed as string[];
+    } catch {
+      secondaryModels = undefined;
+    }
+  }
   const tag = `@${id}`;
-  await updateAgent({ tag, name, systemPrompt, model, avatar, tagline: tagline ?? null, description: description ?? null });
+  await updateAgent({ tag, name, systemPrompt, model, secondaryModels, avatar, tagline: tagline ?? null, description: description ?? null });
   redirect(`/agent/${encodeURIComponent(id)}`);
 }
 
@@ -55,6 +65,7 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       initialName={a.name}
       initialSystemPrompt={a.systemPrompt || undefined}
       initialModel={a.model || undefined}
+      initialSecondaryModels={Array.isArray(a.secondaryModels) ? a.secondaryModels : []}
       initialAvatar={a.avatar || undefined}
       initialTagline={a.tagline || undefined}
       initialDescription={a.description || undefined}
