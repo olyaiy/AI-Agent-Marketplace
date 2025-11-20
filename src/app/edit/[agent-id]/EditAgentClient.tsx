@@ -38,19 +38,6 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
 
   return (
     <div className="space-y-4">
-      {/* Model selector */}
-      <div className="space-y-2">
-        <OpenRouterModelSelect
-          value={selectedModel}
-          onChange={(value) => setSelectedModel(value)}
-          placeholder="Select a model..."
-          width="100%"
-          label="Model"
-        />
-        <input type="hidden" name="model" value={selectedModel || ""} />
-        <SecondaryModelsInput value={secondaryModels} onChange={setSecondaryModels} />
-      </div>
-
       {/* Tabs header */}
       <div className="flex items-center gap-2 border-b">
         <button
@@ -80,6 +67,16 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
       <div className="pt-4">
         {activeTab === "behaviour" ? (
           <div className="space-y-3">
+            <div className="space-y-2">
+              <OpenRouterModelSelect
+                value={selectedModel}
+                onChange={(value) => setSelectedModel(value)}
+                placeholder="Select a model..."
+                width="100%"
+                label="Primary model"
+              />
+              <SecondaryModelsInput value={secondaryModels} onChange={setSecondaryModels} includeHiddenInput={false} />
+            </div>
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-gray-900">System Prompt</label>
               <p className="text-sm text-gray-500">
@@ -130,6 +127,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
           <KnowledgeManager agentTag={agentTag} />
         )}
       </div>
+      <input type="hidden" name="model" value={selectedModel || ""} />
+      <input type="hidden" name="secondaryModels" value={JSON.stringify(secondaryModels || [])} />
     </div>
   );
 });

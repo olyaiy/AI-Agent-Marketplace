@@ -11,9 +11,10 @@ interface Props {
   onChange: (next: string[]) => void;
   label?: string;
   placeholder?: string;
+  includeHiddenInput?: boolean;
 }
 
-export function SecondaryModelsInput({ value, onChange, label = "Secondary models", placeholder = "Search models to add..." }: Props) {
+export function SecondaryModelsInput({ value, onChange, label = "Secondary models", placeholder = "Search models to add...", includeHiddenInput = true }: Props) {
   const [pending, setPending] = React.useState<string>("");
 
   const addPending = React.useCallback(
@@ -85,7 +86,7 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
           </Button>
         </div>
       )}
-      <input type="hidden" name="secondaryModels" value={JSON.stringify(value)} />
+      {includeHiddenInput && <input type="hidden" name="secondaryModels" value={JSON.stringify(value)} />}
     </div>
   );
 }
