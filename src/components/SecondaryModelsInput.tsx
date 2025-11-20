@@ -16,6 +16,8 @@ interface Props {
 
 export function SecondaryModelsInput({ value, onChange, label = "Secondary models", placeholder = "Search models to add...", includeHiddenInput = true }: Props) {
   const [pending, setPending] = React.useState<string>("");
+  const [labels, setLabels] = React.useState<Record<string, string>>({});
+  const inflight = React.useRef<Set<string>>(new Set());
 
   const addPending = React.useCallback(
     (modelId?: string) => {
@@ -40,6 +42,32 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
     [onChange, value]
   );
 
+  // Fetch human-friendly names for selected ids so badges mirror primary select display
+  React.useEffect(() => {
+    const missing = value.filter((id) => !labels[id] && !inflight.current.has(id));
+    if (missing.length === 0) return;
+
+    missing.slice(0, 6).forEach(async (id) => {
+      try {
+        inflight.current.add(id);
+        const url = new URL("/api/openrouter/models", window.location.origin);
+        url.searchParams.set("q", id);
+        url.searchParams.set("ttlMs", "60000");
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("failed");
+        const json = await res.json();
+        const items: Array<{ id: string; name: string }> = json?.data ?? [];
+        const hit = items.find((m) => m.id === id) || items[0];
+        const display = hit?.name || hit?.id || id;
+        setLabels((prev) => ({ ...prev, [id]: display }));
+      } catch {
+        setLabels((prev) => ({ ...prev, [id]: id }));
+      } finally {
+        inflight.current.delete(id);
+      }
+    });
+  }, [value, labels]);
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -63,7 +91,7 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
         ) : (
           value.map((modelId) => (
             <Badge key={modelId} variant="outline" className="flex items-center gap-1 text-xs">
-              <span className="max-w-[260px] truncate">{modelId}</span>
+              <span className="max-w-[260px] truncate">{labels[modelId] || modelId}</span>
               <button
                 type="button"
                 className="inline-flex items-center justify-center rounded p-0.5 hover:bg-gray-100"

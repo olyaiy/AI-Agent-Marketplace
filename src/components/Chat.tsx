@@ -34,7 +34,6 @@ import {
 import { Actions, Action } from '@/components/ai-elements/actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
@@ -46,14 +45,13 @@ import {
 } from '@/lib/conversations-cache';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AGENT_NEW_CHAT_EVENT, AgentNewChatEvent } from '@/lib/agent-events';
+import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent } from '@/lib/agent-events';
 import {
   Sources,
   SourcesTrigger,
   SourcesContent,
   Source,
 } from '@/components/ai-elements/source';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ChatProps {
   className?: string;
@@ -137,6 +135,23 @@ const Chat = React.memo(function Chat({
       return modelChoices[0] ?? prev ?? undefined;
     });
   }, [modelChoices]);
+
+  // Listen for model changes emitted from AgentInfoSidebar
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (event: Event) => {
+      const detail = (event as AgentModelChangeEvent).detail;
+      if (!detail?.modelId) return;
+      const targetTag = detail.agentTag;
+      if (targetTag && agentTag && targetTag !== agentTag) return;
+      if (targetTag && !agentTag) return;
+      setCurrentModel(detail.modelId);
+    };
+    window.addEventListener(AGENT_MODEL_CHANGE_EVENT, handler as EventListener);
+    return () => {
+      window.removeEventListener(AGENT_MODEL_CHANGE_EVENT, handler as EventListener);
+    };
+  }, [agentTag]);
 
   const { messages, status, sendMessage, stop, setMessages } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
@@ -563,9 +578,6 @@ const Chat = React.memo(function Chat({
   }, [initialMessages, messages, deletedMessageIds, conversationId, initialConversationId]);
   const hasMessages = allMessages.length > 0;
   const displayedMessages = useMemo(() => allMessages, [allMessages]);
-  const hasModelOptions = modelChoices.length > 0;
-  const activeModelId = currentModel ?? modelChoices[0];
-
   return (
     <div className={`flex w-full max-w-3xl flex-col h-full ${className || ''}`}>
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -594,29 +606,6 @@ const Chat = React.memo(function Chat({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {hasModelOptions && (
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="text-xs text-muted-foreground">Model</div>
-          {modelChoices.length > 1 ? (
-            <Select value={activeModelId || modelChoices[0]} onValueChange={(val) => setCurrentModel(val)}>
-              <SelectTrigger size="sm" className="h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {modelChoices.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Badge variant="outline" className="text-xs">
-              {activeModelId}
-            </Badge>
-          )}
-        </div>
-      )}
       {hasMessages ? (
         <>
           {/* Scrollable conversation area */}
