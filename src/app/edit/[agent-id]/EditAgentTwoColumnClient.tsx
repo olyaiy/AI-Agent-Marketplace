@@ -62,7 +62,6 @@ function LeftForm({
 }: LeftFormProps) {
   return (
     <div className="max-w-xl">
-      <h1 className="text-2xl mb-4">Edit Agent</h1>
       <form action={onSave} className="flex flex-col gap-4">
         <input type="hidden" name="id" value={id} />
 

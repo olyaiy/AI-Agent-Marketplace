@@ -36,6 +36,26 @@ const PROVIDER_ICON_MAP: Record<string, any> = {
   zai: LobehubIcons.ZAI,
 };
 
+function formatModelIdToTitle(raw: string) {
+  const base = raw.trim();
+  // use the part after "/" if present (openrouter ids)
+  const right = base.includes('/') ? base.split('/').pop() || base : base;
+  const normalized = right.replace(/[_-]+/g, ' ');
+  const tokens = normalized.split(/\s+/).filter(Boolean).map((token) => {
+    const lower = token.toLowerCase();
+    if (lower === 'gpt') return 'GPT';
+    if (lower === 'llama') return 'LLaMA';
+    if (lower === 'o') return 'O';
+    if (/^[a-z]+$/.test(token)) {
+      // Short tokens (e.g., "gpt", "ai") get uppercased, others title-cased
+      return token.length <= 3 ? token.toUpperCase() : token.charAt(0).toUpperCase() + token.slice(1);
+    }
+    // Mixed alphanumerics: just cap the first letter/number to preserve version strings like "4o"
+    return token.charAt(0).toUpperCase() + token.slice(1);
+  });
+  return tokens.join(' ') || raw;
+}
+
 function deriveProviderSlug(name: string | null | undefined, id: string) {
   if (name) {
     const m = name.match(/^([^:]+):/);
@@ -46,14 +66,19 @@ function deriveProviderSlug(name: string | null | undefined, id: string) {
 }
 
 function getDisplayName(fullName: string | undefined, id: string) {
-  if (fullName && fullName.includes(':')) {
-    return fullName.split(':').slice(1).join(':').trim() || fullName;
+  let candidate = fullName?.trim() || id;
+  if (candidate.includes(':')) {
+    candidate = candidate.split(':').slice(1).join(':').trim() || candidate;
   }
-  if (id.includes('/')) return id.split('/').slice(1).join('/').trim() || id;
-  return fullName || id;
+  if (candidate.includes('/')) {
+    const right = candidate.split('/').pop() || candidate;
+    candidate = right;
+  }
+  // If it's already humanized (has caps), keep it; otherwise format from slug
+  return /[A-Z]/.test(candidate) ? candidate : formatModelIdToTitle(candidate);
 }
 
-const ProviderAvatar = React.memo(function ProviderAvatar({ providerSlug, size = 18 }: { providerSlug: string | null; size?: number }) {
+const ProviderAvatar = React.memo(function ProviderAvatar({ providerSlug, size = 24 }: { providerSlug: string | null; size?: number }) {
   const slug = providerSlug || '';
   const IconObj = PROVIDER_ICON_MAP[slug] || (LobehubIcons as Record<string, unknown>)[slug];
   if (!IconObj) {
@@ -66,7 +91,7 @@ const ProviderAvatar = React.memo(function ProviderAvatar({ providerSlug, size =
   type IconLike = React.ComponentType<{ size?: number; className?: string }> & { Avatar?: React.ComponentType<{ size?: number; className?: string }> };
   const Comp = IconObj as IconLike;
   const AvatarComp = Comp.Avatar || Comp;
-  return <AvatarComp size={size} className="shrink-0" />;
+  return <AvatarComp size={size} className={cn("shrink-0")} />;
 });
 ProviderAvatar.displayName = 'ProviderAvatar';
 
