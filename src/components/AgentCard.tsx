@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
+import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
+import { ProviderAvatar } from '@/components/ProviderAvatar';
 
 interface AgentCardProps {
   tag: string;
@@ -8,10 +11,13 @@ interface AgentCardProps {
   avatar?: string | null;
   systemPrompt: string;
   tagline?: string | null;
+  model: string;
 }
 
-export function AgentCard({ tag, name, avatar, tagline }: AgentCardProps) {
+export function AgentCard({ tag, name, avatar, tagline, model }: AgentCardProps) {
   const agentId = encodeURIComponent(tag.replace(/^@/, ''));
+  const displayLabel = useMemo(() => getDisplayName(undefined, model), [model]);
+  const providerSlug = useMemo(() => deriveProviderSlug(null, model), [model]);
 
   return (
     <div className="relative group h-full overflow-hidden border-black">
@@ -28,9 +34,10 @@ export function AgentCard({ tag, name, avatar, tagline }: AgentCardProps) {
             )}
           </div>
           <div className="mt-auto text-center md:text-left">
-            <p className="text-xs text-gray-500 font-mono">
-              {tag}
-            </p>
+            <div className="flex items-center justify-center md:justify-start gap-2 text-xs text-gray-600 truncate">
+              <ProviderAvatar providerSlug={providerSlug} size={20} />
+              <span className="truncate">{displayLabel}</span>
+            </div>
           </div>
         </div>
         

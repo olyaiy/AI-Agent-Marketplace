@@ -6,6 +6,7 @@ interface Agent {
   avatar?: string | null;
   systemPrompt: string;
   tagline?: string | null;
+  model: string;
 }
 
 interface AgentGridProps {
@@ -32,6 +33,7 @@ export function AgentGrid({ agents }: AgentGridProps) {
           avatar={agent.avatar}
           systemPrompt={agent.systemPrompt}
           tagline={agent.tagline}
+          model={agent.model}
         />
       ))}
     </div>
