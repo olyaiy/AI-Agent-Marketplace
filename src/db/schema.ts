@@ -124,7 +124,7 @@ export const agentKnowledge = pgTable('agent_knowledge', {
   order: varchar('order', { length: 16 }).default('0'), // For ordering knowledge items
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
-
+ 
 // Knowledgebase Relations
 export const knowledgebaseRelations = relations(knowledgebase, ({ many }) => ({
   agentLinks: many(agentKnowledge),
