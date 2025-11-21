@@ -18,7 +18,9 @@ async function saveAction(formData: FormData) {
   const tagline = (formData.get('tagline') as string | undefined)?.trim();
   const description = (formData.get('description') as string | undefined)?.trim();
   const visibilityRaw = formData.get('visibility');
-  const visibility = typeof visibilityRaw === 'string' ? visibilityRaw : undefined;
+  const visibility = typeof visibilityRaw === 'string' && (visibilityRaw === 'public' || visibilityRaw === 'invite_only' || visibilityRaw === 'private')
+    ? visibilityRaw
+    : undefined;
   let secondaryModels: string[] | undefined = undefined;
   if (typeof secondaryModelsRaw === 'string' && secondaryModelsRaw.trim().length > 0) {
     try {
@@ -54,6 +56,9 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
   if (!isAdmin && !isOwner) notFound();
   const knowledge = await getKnowledgeByAgent(tag);
   const knowledgeItems = knowledge.map(k => ({ name: k.name, content: k.content }));
+  const initialVisibility = a.visibility === 'public' || a.visibility === 'invite_only' || a.visibility === 'private'
+    ? a.visibility
+    : 'public';
   const avatars = await (async () => {
     const folder = path.join(process.cwd(), 'public', 'avatars');
     try {
@@ -79,7 +84,7 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       initialAvatar={a.avatar || undefined}
       initialTagline={a.tagline || undefined}
       initialDescription={a.description || undefined}
-      initialVisibility={a.visibility}
+      initialVisibility={initialVisibility}
       inviteCode={a.inviteCode || undefined}
       avatars={avatars}
       onSave={saveAction}

@@ -149,6 +149,11 @@ function TwoColumn(props: Props) {
     return [sys, kb.trim()].filter(Boolean).join("\n\n");
   }, [props.knowledgeItems]);
 
+  const modelOptions = React.useMemo(
+    () => [previewModel, ...(previewSecondaryModels || [])].filter((m): m is string => typeof m === 'string' && m.length > 0),
+    [previewModel, previewSecondaryModels]
+  );
+
   return (
     <div className="mx-auto p-6 max-w-7xl">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
@@ -172,7 +177,7 @@ function TwoColumn(props: Props) {
               systemPrompt={combinedSystem}
               knowledgeText={combinedSystem}
               model={previewModel}
-              modelOptions={[previewModel, ...(previewSecondaryModels || [])].filter(Boolean)}
+              modelOptions={modelOptions}
               agentTag={props.tag}
               getChatContext={getChatContext}
             />

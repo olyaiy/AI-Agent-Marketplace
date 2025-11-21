@@ -30,7 +30,12 @@ export default async function Home({ searchParams }: { searchParams?: { q?: stri
   const userId = session?.user?.id;
   
   // Fetch user's agents if logged in
-  const yourAgents = userId ? await getAgentsByCreator(userId) : [];
+  const yourAgentsRaw = userId ? await getAgentsByCreator(userId) : [];
+  const yourAgents = yourAgentsRaw.map((agent) => {
+    const visibility: 'public' | 'invite_only' | 'private' =
+      agent.visibility === 'invite_only' || agent.visibility === 'private' ? agent.visibility : 'public';
+    return { ...agent, visibility };
+  });
 
   // Load curated rows (published only)
   const curatedRows = await listHomeRows({ includeUnpublished: false });
@@ -135,8 +140,13 @@ function PaginatedAgentsList({
   pageSize: number;
   query?: string;
 }) {
+  const normalizedAgents = agents.map((agent) => {
+    const visibility: 'public' | 'invite_only' | 'private' =
+      agent.visibility === 'invite_only' || agent.visibility === 'private' ? agent.visibility : 'public';
+    return { ...agent, visibility };
+  });
   const totalPages = Math.ceil(total / pageSize);
-  const hasResults = agents.length > 0;
+  const hasResults = normalizedAgents.length > 0;
 
   return (
     <section className="space-y-4 mt-10">
@@ -148,7 +158,7 @@ function PaginatedAgentsList({
           {hasResults ? `Page ${page} of ${Math.max(totalPages, 1)}` : 'No agents found'}
         </p>
       </div>
-      <AgentGrid agents={agents} />
+      <AgentGrid agents={normalizedAgents} />
       <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} query={query} />
     </section>
   );

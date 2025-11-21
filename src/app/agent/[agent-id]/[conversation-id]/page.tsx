@@ -27,7 +27,7 @@ export default async function ConversationPage({ params, searchParams }: { param
   const tag = `@${agentId}`;
 
   const headerList = await headers();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const inviteParam = typeof searchParams?.invite === 'string' ? searchParams.invite : undefined;
   const cookieInvite = cookieStore.get(`agent_invite_${agentId}`)?.value;
 

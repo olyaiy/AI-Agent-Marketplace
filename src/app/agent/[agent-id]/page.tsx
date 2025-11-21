@@ -16,7 +16,7 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   const isAuthenticated = Boolean(session?.user);
   const isAdmin = session?.user?.role === 'admin';
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookieInvite = cookieStore.get(`agent_invite_${id}`)?.value;
   const inviteParam = typeof searchParams?.invite === 'string' ? searchParams.invite : undefined;
 

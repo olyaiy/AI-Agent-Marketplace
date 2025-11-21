@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { db } from '@/db/drizzle';
 import { agent, homeRow, homeRowAgent } from '@/db/schema';
 import { and, asc, eq, ilike, inArray, notInArray, or, sql } from 'drizzle-orm';
-import type { HomeRowWithAgents } from '@/types/homeRows';
+import type { HomeRowAgent, HomeRowWithAgents } from '@/types/homeRows';
 
 function sanitizeSlug(value: string) {
   return value
@@ -31,7 +31,7 @@ function sanitizeMaxItems(value?: number | null) {
 export async function listHomeRows(options?: { includeUnpublished?: boolean }): Promise<HomeRowWithAgents[]> {
   const includeUnpublished = options?.includeUnpublished ?? false;
 
-  let query = db
+  const baseQuery = db
     .select({
       id: homeRow.id,
       title: homeRow.title,
@@ -53,18 +53,16 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
     .leftJoin(homeRowAgent, eq(homeRow.id, homeRowAgent.rowId))
     .leftJoin(agent, eq(homeRowAgent.agentTag, agent.tag));
 
-  if (!includeUnpublished) {
-    query = query.where(eq(homeRow.isPublished, true));
-  }
+  const filteredQuery = includeUnpublished ? baseQuery : baseQuery.where(eq(homeRow.isPublished, true));
 
-  query = query.orderBy(
+  const orderedQuery = filteredQuery.orderBy(
     asc(homeRow.sortOrder),
     asc(homeRow.createdAt),
     asc(homeRowAgent.sortOrder),
     asc(homeRowAgent.createdAt)
   );
 
-  const rows = await query;
+  const rows = await orderedQuery;
   const grouped = new Map<string, HomeRowWithAgents>();
 
   for (const row of rows) {
@@ -81,9 +79,21 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
       });
     }
     const isPublicAgent = row.agentVisibility === 'public';
-    if (row.agentTag && row.agentName && (includeUnpublished || isPublicAgent)) {
+    if (
+      row.agentTag &&
+      row.agentName &&
+      row.agentModel &&
+      row.agentSystemPrompt &&
+      row.agentVisibility &&
+      (includeUnpublished || isPublicAgent)
+    ) {
       const current = grouped.get(row.id)!;
       if (!current.maxItems || current.agents.length < current.maxItems) {
+        const visibility: HomeRowAgent['visibility'] =
+          row.agentVisibility === 'public' || row.agentVisibility === 'invite_only' || row.agentVisibility === 'private'
+            ? row.agentVisibility
+            : 'public';
+
         current.agents.push({
           tag: row.agentTag,
           name: row.agentName,
@@ -91,7 +101,7 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
           tagline: row.agentTagline,
           model: row.agentModel,
           systemPrompt: row.agentSystemPrompt,
-          visibility: row.agentVisibility,
+          visibility,
         });
       }
     }
@@ -138,7 +148,7 @@ export async function createHomeRow(input: { title: string; slug?: string; descr
 export async function updateHomeRow(input: { id: string; title?: string; slug?: string; description?: string | null; isPublished?: boolean; maxItems?: number | null }) {
   if (!input.id) return { ok: false, error: 'Missing row id' };
 
-  const values: typeof homeRow.$inferInsert = { updatedAt: new Date() };
+  const values: Partial<typeof homeRow.$inferInsert> = { updatedAt: new Date() };
   if (typeof input.title === 'string') values.title = input.title.trim();
   if (typeof input.slug === 'string') values.slug = sanitizeSlug(input.slug);
   if (input.description !== undefined) values.description = input.description ?? null;
@@ -222,13 +232,14 @@ export async function listAgentsPaginated(options: { query?: string; page?: numb
   const trimmed = typeof options.query === 'string' ? options.query.trim() : '';
   if (trimmed) {
     const pattern = `%${trimmed}%`;
-    filters.push(
-      or(
-        ilike(agent.name, pattern),
-        ilike(agent.tag, pattern),
-        ilike(agent.systemPrompt, pattern)
-      )
+    const searchFilter = or(
+      ilike(agent.name, pattern),
+      ilike(agent.tag, pattern),
+      ilike(agent.systemPrompt, pattern)
     );
+    if (searchFilter) {
+      filters.push(searchFilter);
+    }
   }
 
   if (options.excludeTags && options.excludeTags.length > 0) {
@@ -237,21 +248,19 @@ export async function listAgentsPaginated(options: { query?: string; page?: numb
 
   const whereClause = filters.length ? and(...filters) : undefined;
 
-  let query = db.select().from(agent);
-  let countQuery = db.select({ count: sql<number>`count(*)` }).from(agent);
+  const baseQuery = db.select().from(agent);
+  const baseCountQuery = db.select({ count: sql<number>`count(*)` }).from(agent);
 
-  if (whereClause) {
-    query = query.where(whereClause);
-    countQuery = countQuery.where(whereClause);
-  }
+  const filteredQuery = whereClause ? baseQuery.where(whereClause) : baseQuery;
+  const filteredCountQuery = whereClause ? baseCountQuery.where(whereClause) : baseCountQuery;
 
-  const [{ count }] = await countQuery;
+  const [{ count }] = await filteredCountQuery;
   const total = Number(count ?? 0);
   const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
   const safePage = totalPages > 0 ? Math.min(requestedPage, totalPages) : 1;
   const offset = (safePage - 1) * pageSize;
 
-  const rows = total > 0 ? await query.limit(pageSize).offset(offset) : [];
+  const rows = total > 0 ? await filteredQuery.limit(pageSize).offset(offset) : [];
 
   return {
     agents: rows,
@@ -265,7 +274,12 @@ export async function searchAgentsForHomeRow(query: string, limit = 10) {
   const search = (query || '').trim();
   const pageSize = clampPageSize(limit, 10, 50);
 
-  let base = db
+  const nameOrTag = or(ilike(agent.name, `%${search}%`), ilike(agent.tag, `%${search}%`));
+  const condition = search && nameOrTag
+    ? and(eq(agent.visibility, 'public'), nameOrTag)
+    : eq(agent.visibility, 'public');
+
+  return db
     .select({
       tag: agent.tag,
       name: agent.name,
@@ -275,14 +289,7 @@ export async function searchAgentsForHomeRow(query: string, limit = 10) {
       systemPrompt: agent.systemPrompt,
     })
     .from(agent)
-    .where(eq(agent.visibility, 'public'))
+    .where(condition)
     .orderBy(asc(agent.name))
     .limit(pageSize);
-
-  if (search) {
-    const pattern = `%${search}%`;
-    base = base.where(and(eq(agent.visibility, 'public'), or(ilike(agent.name, pattern), ilike(agent.tag, pattern))));
-  }
-
-  return base;
 }

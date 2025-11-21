@@ -18,7 +18,12 @@ export default async function YourAgentsPage() {
   }
 
   // Fetch user's agents
-  const agents = await getAgentsByCreator(userId);
+  const agentsRaw = await getAgentsByCreator(userId);
+  const agents = agentsRaw.map((agent) => {
+    const visibility: 'public' | 'invite_only' | 'private' =
+      agent.visibility === 'invite_only' || agent.visibility === 'private' ? agent.visibility : 'public';
+    return { ...agent, visibility };
+  });
 
   return (
     <main className="min-h-screen px-4 sm:px-2 md:px-4">
