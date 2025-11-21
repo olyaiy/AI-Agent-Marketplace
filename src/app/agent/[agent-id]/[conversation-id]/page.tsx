@@ -22,13 +22,14 @@ interface UIMessageShape {
   parts: readonly UIMessagePartText[] | readonly unknown[];
 }
 
-export default async function ConversationPage({ params, searchParams }: { params: Promise<{ 'agent-id': string; 'conversation-id': string }>; searchParams?: { invite?: string } }) {
+export default async function ConversationPage({ params, searchParams }: { params: Promise<{ 'agent-id': string; 'conversation-id': string }>; searchParams?: { invite?: string; model?: string } }) {
   const { 'agent-id': agentId, 'conversation-id': conversationId } = await params;
   const tag = `@${agentId}`;
 
   const headerList = await headers();
   const cookieStore = await cookies();
   const inviteParam = typeof searchParams?.invite === 'string' ? searchParams.invite : undefined;
+  const modelParam = typeof searchParams?.model === 'string' ? searchParams.model : undefined;
   const cookieInvite = cookieStore.get(`agent_invite_${agentId}`)?.value;
 
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
@@ -88,8 +89,9 @@ export default async function ConversationPage({ params, searchParams }: { param
   // Build combined system from agent prompt + knowledge
   const knowledgeText = buildKnowledgeSystemText(knowledge.map(k => ({ name: k.name, content: k.content })));
   const combinedSystem = [found.systemPrompt?.trim(), knowledgeText.trim()].filter(Boolean).join('\n\n');
-  const modelOptions = [found.model, ...(Array.isArray(found.secondaryModels) ? found.secondaryModels : [])].filter(Boolean);
-  const initialModel = convo[0].modelId || found.model;
+  const modelOptions = Array.from(new Set([found.model, ...(Array.isArray(found.secondaryModels) ? found.secondaryModels : [])].filter(Boolean)));
+  const persistedModel = convo[0].modelId && modelOptions.includes(convo[0].modelId) ? convo[0].modelId : undefined;
+  const initialModel = (modelParam && modelOptions.includes(modelParam)) ? modelParam : found.model || persistedModel || modelOptions[0];
 
   return (
     <div className="relative md:max-h-[calc(100vh-200px)]">

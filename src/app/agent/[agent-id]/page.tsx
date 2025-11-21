@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth';
 import { getKnowledgeByAgent } from '@/actions/knowledge';
 import { buildKnowledgeSystemText } from '@/lib/knowledge';
 
-export default async function AgentPage({ params, searchParams }: { params: Promise<{ 'agent-id': string }>; searchParams?: Promise<{ invite?: string }> }) {
+export default async function AgentPage({ params, searchParams }: { params: Promise<{ 'agent-id': string }>; searchParams?: Promise<{ invite?: string; model?: string }> }) {
   const { 'agent-id': id } = await params;
   const tag = `@${id}`;
 
@@ -20,6 +20,7 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
   const cookieInvite = cookieStore.get(`agent_invite_${id}`)?.value;
   const resolvedSearchParams = await searchParams;
   const inviteParam = typeof resolvedSearchParams?.invite === 'string' ? resolvedSearchParams.invite : undefined;
+  const modelParam = typeof resolvedSearchParams?.model === 'string' ? resolvedSearchParams.model : undefined;
 
   const { agent: found, inviteAccepted } = await getAgentForViewer({
     tag,
@@ -48,7 +49,8 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
   const knowledge = await getKnowledgeByAgent(found.tag);
   const knowledgeText = buildKnowledgeSystemText(knowledge.map(k => ({ name: k.name, content: k.content })));
   const combinedSystem = [found.systemPrompt?.trim(), knowledgeText.trim()].filter(Boolean).join('\n\n');
-  const modelOptions = [found.model, ...(Array.isArray(found.secondaryModels) ? found.secondaryModels : [])].filter(Boolean);
+  const modelOptions = Array.from(new Set([found.model, ...(Array.isArray(found.secondaryModels) ? found.secondaryModels : [])].filter(Boolean)));
+  const initialModel = modelParam && modelOptions.includes(modelParam) ? modelParam : found.model;
 
   return (
     <main className="h-full ">
@@ -73,7 +75,7 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             className="mx-auto h-full"
             systemPrompt={combinedSystem}
             knowledgeText={combinedSystem}
-            model={found.model}
+            model={initialModel}
             modelOptions={modelOptions}
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
@@ -89,7 +91,7 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             className="mx-auto"
             systemPrompt={combinedSystem}
             knowledgeText={combinedSystem}
-            model={found.model}
+            model={initialModel}
             modelOptions={modelOptions}
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
@@ -105,7 +107,7 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             agentTag={found.tag}
             canEdit={canEdit}
             modelOptions={modelOptions}
-            activeModel={found.model}
+            activeModel={initialModel}
             visibility={found.visibility as 'public' | 'invite_only' | 'private'}
             inviteCode={canEdit ? found.inviteCode || undefined : undefined}
           />

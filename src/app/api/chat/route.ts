@@ -356,16 +356,18 @@ export async function POST(req: Request) {
     messages: convertToModelMessages(messages),
     onFinish: async (result) => {
       console.log('✨ Chat Route - Complete Output Result:', safeStringify(result));
+      const responseSummary = result.response
+        ? {
+            messageCount: result.response.messages?.length ?? 0,
+            hasBody: typeof result.response.body !== 'undefined',
+          }
+        : null;
+
       console.log('📊 Chat Route - Result Summary:', truncateLongStrings({
         finishReason: result.finishReason,
         usage: result.usage,
-        response: result.response ? {
-          text: result.response.text,
-          toolCalls: result.response.toolCalls,
-          toolResults: result.response.toolResults,
-        } : null,
+        response: responseSummary,
         warnings: result.warnings,
-        experimental_providerMetadata: result.experimental_providerMetadata,
       }));
       if (webSearchEnabled) {
         console.log('🔍 Chat Route - Web Search Details:', safeStringify(result));

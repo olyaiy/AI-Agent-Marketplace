@@ -65,19 +65,32 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
   );
   const [selectedModel, setSelectedModel] = React.useState<string | undefined>(() => activeModel || availableModels[0]);
   const [modelMeta, setModelMeta] = React.useState<Record<string, { label: string; providerSlug: string | null }>>({});
+  const replaceModelParam = React.useCallback((modelId: string | undefined) => {
+    if (typeof window === 'undefined' || !modelId) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('model') === modelId) return;
+    url.searchParams.set('model', modelId);
+    const nextSearch = url.searchParams.toString();
+    const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
+    window.history.replaceState(null, '', nextUrl);
+  }, []);
+  const applyModelSelection = React.useCallback((modelId: string, emitEvent = true) => {
+    setSelectedModel(modelId);
+    replaceModelParam(modelId);
+    if (emitEvent) dispatchAgentModelChange(agentTag, modelId);
+  }, [agentTag, replaceModelParam]);
   React.useEffect(() => {
     if (!selectedModel) {
       const first = activeModel || availableModels[0];
-      if (first) setSelectedModel(first);
+      if (first) applyModelSelection(first, false);
       return;
     }
     // keep selection if still available, otherwise fall back
     if (selectedModel && availableModels.length > 0 && !availableModels.includes(selectedModel)) {
       const next = availableModels[0];
-      setSelectedModel(next);
-      if (next) dispatchAgentModelChange(agentTag, next);
+      if (next) applyModelSelection(next);
     }
-  }, [availableModels, activeModel, selectedModel, agentTag]);
+  }, [activeModel, applyModelSelection, availableModels, selectedModel]);
 
   // Fetch model metadata (name + provider) for available models to render nicer labels/icons
   React.useEffect(() => {
