@@ -19,9 +19,15 @@ import { auth } from '@/lib/auth';
  * Displays a header with title and search bar, followed by the agents list
  * This is a server component that renders the AgentsList server component
  */
-export default async function Home({ searchParams }: { searchParams?: { q?: string; page?: string } }) {
-  const q = typeof searchParams?.q === 'string' ? searchParams.q : undefined;
-  const pageParam = typeof searchParams?.page === 'string' ? Number(searchParams.page) : 1;
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string; page?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const q = typeof resolvedSearchParams?.q === 'string' ? resolvedSearchParams.q : undefined;
+  const pageParam =
+    typeof resolvedSearchParams?.page === 'string' ? Number(resolvedSearchParams.page) : 1;
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
   
   // Get current user session

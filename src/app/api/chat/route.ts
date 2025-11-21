@@ -27,6 +27,19 @@ export async function POST(req: Request) {
   const reasoningEnabled = Boolean(bodyReasoningEnabled);
   const webSearchEnabled = Boolean(bodyWebSearchEnabled);
   
+  console.log('📥 Chat Route - Input Parameters:', {
+    qpSystem,
+    qpModel,
+    bodySystem,
+    bodyModel,
+    bodyConversationId,
+    agentTag,
+    bodyReasoningEnabled,
+    bodyWebSearchEnabled,
+    messagesCount: messages.length,
+    messages: JSON.stringify(messages, null, 2),
+  });
+  
   function normalizeModelId(input?: string | null): string | undefined {
     if (!input) return undefined;
     let raw = String(input).trim();
@@ -45,11 +58,17 @@ export async function POST(req: Request) {
 
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
   if (!session?.user) {
+    console.log('❌ Chat Route - Unauthorized');
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'content-type': 'application/json' },
     });
   }
+  
+  console.log('✅ Chat Route - Session:', {
+    userId: session.user.id,
+    userEmail: session.user.email,
+  });
 
   const requestedModelId = normalizeModelId(bodyModel ?? qpModel);
   let ensuredConversationId = bodyConversationId ?? null;
@@ -95,6 +114,17 @@ export async function POST(req: Request) {
   if (allowedModels.length > 0 && !allowedModels.includes(modelId)) {
     modelId = allowedModels[0];
   }
+  
+  console.log('🔧 Chat Route - Model Selection:', {
+    requestedModelId,
+    conversationModelFromDb,
+    fallbackModel,
+    finalModelId: modelId,
+    allowedModels,
+    agentRecord: agentRecord ? { model: agentRecord.model, secondaryModels: agentRecord.secondaryModels } : null,
+    effectiveAgentTag,
+    ensuredConversationId,
+  });
 
   // Ensure conversation exists or create one on-demand
   if (!ensuredConversationId) {
@@ -234,6 +264,16 @@ export async function POST(req: Request) {
     openrouterOptions.plugins = [{ id: 'web' }];
   }
 
+  console.log('🚀 Chat Route - Stream Configuration:', {
+    modelId,
+    systemPrompt,
+    reasoningEnabled,
+    webSearchEnabled,
+    openrouterOptions,
+    messagesCount: messages.length,
+    convertedMessages: JSON.stringify(convertToModelMessages(messages), null, 2),
+  });
+
   const result = streamText({
     model: openrouter(modelId),
     abortSignal: req.signal,
@@ -245,8 +285,20 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: convertToModelMessages(messages),
     onFinish: async (result) => {
+      console.log('✨ Chat Route - Complete Output Result:', JSON.stringify(result, null, 2));
+      console.log('📊 Chat Route - Result Summary:', {
+        finishReason: result.finishReason,
+        usage: result.usage,
+        response: result.response ? {
+          text: result.response.text,
+          toolCalls: result.response.toolCalls,
+          toolResults: result.response.toolResults,
+        } : null,
+        warnings: result.warnings,
+        experimental_providerMetadata: result.experimental_providerMetadata,
+      });
       if (webSearchEnabled) {
-        console.log('🔍 Web Search Result:', JSON.stringify(result, null, 2));
+        console.log('🔍 Chat Route - Web Search Details:', JSON.stringify(result, null, 2));
       }
     },
   });
@@ -258,5 +310,14 @@ export async function POST(req: Request) {
   response.headers.set('x-conversation-id', ensuredConversationId!);
   response.headers.set('x-reasoning-enabled', String(reasoningEnabled));
   response.headers.set('x-web-search-enabled', String(webSearchEnabled));
+  
+  console.log('📤 Chat Route - Response Headers:', {
+    'x-conversation-id': ensuredConversationId!,
+    'x-reasoning-enabled': String(reasoningEnabled),
+    'x-web-search-enabled': String(webSearchEnabled),
+    contentType: response.headers.get('content-type'),
+    status: response.status,
+  });
+  
   return response;
 }

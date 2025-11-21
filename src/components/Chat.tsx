@@ -552,7 +552,21 @@ const Chat = React.memo(function Chat({
     }
   };
 
-  interface BasicUIPart { type: string; text?: string; title?: string; url?: string; sourceId?: string; }
+  interface BasicUIPart {
+    type: string;
+    text?: string;
+    title?: string;
+    url?: string;
+    data?: string;
+    mediaType?: string;
+    filename?: string;
+    sourceId?: string;
+    file?: {
+      base64?: string;
+      mediaType?: string;
+      url?: string;
+    };
+  }
   interface BasicUISource { title: string; url: string }
   interface BasicUIAnnotation { type: string; value?: BasicUISource[] }
   interface BasicUIMessage {
@@ -561,6 +575,33 @@ const Chat = React.memo(function Chat({
     parts: BasicUIPart[];
     annotations?: BasicUIAnnotation[];
   }
+  const getImageSrcFromPart = (part: BasicUIPart): string | null => {
+    if (part.type !== 'file') return null;
+
+    const mediaType = (part.mediaType || part.file?.mediaType || '').trim();
+    const rawContent =
+      (typeof part.url === 'string' && part.url.trim()) ||
+      (typeof part.data === 'string' && part.data.trim()) ||
+      (typeof part.file?.url === 'string' && part.file.url.trim()) ||
+      (typeof part.file?.base64 === 'string' && part.file.base64.trim()) ||
+      '';
+
+    if (!rawContent) return null;
+
+    const isImageLike =
+      mediaType.startsWith('image/') ||
+      /^data:image\//i.test(rawContent) ||
+      /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(rawContent);
+
+    if (!isImageLike) return null;
+
+    if (/^(data:|[a-z][a-z0-9+.-]*:|\/)/i.test(rawContent)) {
+      return rawContent;
+    }
+
+    const safeMediaType = mediaType || 'image/png';
+    return `data:${safeMediaType};base64,${rawContent}`;
+  };
   const allMessages = useMemo<BasicUIMessage[]>(() => {
     const normalizedInitialConversationId = initialConversationId ?? null;
     const normalizedConversationId = conversationId ?? null;
@@ -668,6 +709,23 @@ const Chat = React.memo(function Chat({
                                     <ReasoningContent>{part.text}</ReasoningContent>
                                   </Reasoning>
                                 );
+                              case 'file': {
+                                const imageSrc = getImageSrcFromPart(part);
+                                if (!imageSrc) return null;
+                                return (
+                                  <div
+                                    key={`${message.id}-${i}`}
+                                    className="overflow-hidden rounded-lg border bg-background"
+                                  >
+                                    <img
+                                      src={imageSrc}
+                                      alt={part.title || part.filename || 'Generated image'}
+                                      className="h-auto w-full max-h-[512px] object-contain"
+                                      loading="lazy"
+                                    />
+                                  </div>
+                                );
+                              }
                               default:
                                 return null;
                             }
