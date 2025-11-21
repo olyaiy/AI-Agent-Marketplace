@@ -82,7 +82,7 @@ export default async function Home({
         <YourAgentsCarousel agents={yourAgents} />
         
         {/* Curated rows configured by admin */}
-        <CuratedRows rows={curatedRows} />
+        <CuratedRows rows={curatedRows} currentUserId={userId} />
 
         {/* Paginated list of the remaining agents */}
         <PaginatedAgentsList
@@ -91,6 +91,7 @@ export default async function Home({
           pageSize={paginated.pageSize}
           total={paginated.total}
           agents={paginated.agents}
+          currentUserId={userId}
         />
       </div>
     </main>
@@ -100,7 +101,7 @@ export default async function Home({
 /**
  * Render curated rows configured by admins
  */
-function CuratedRows({ rows }: { rows: Awaited<ReturnType<typeof listHomeRows>> }) {
+function CuratedRows({ rows, currentUserId }: { rows: Awaited<ReturnType<typeof listHomeRows>>; currentUserId?: string | null }) {
   const visibleRows = rows.filter((row) => row.isPublished && row.agents.length > 0);
   if (!visibleRows.length) return null;
 
@@ -123,7 +124,7 @@ function CuratedRows({ rows }: { rows: Awaited<ReturnType<typeof listHomeRows>> 
               <p className="text-sm text-gray-600 mt-1">{row.description}</p>
             )}
           </div>
-          <AgentGrid agents={row.agents} />
+          <AgentGrid agents={row.agents} currentUserId={currentUserId} />
         </section>
       ))}
     </div>
@@ -139,12 +140,14 @@ function PaginatedAgentsList({
   page,
   pageSize,
   query,
+  currentUserId,
 }: {
   agents: Awaited<ReturnType<typeof listAgentsPaginated>>['agents'];
   total: number;
   page: number;
   pageSize: number;
   query?: string;
+  currentUserId?: string | null;
 }) {
   const normalizedAgents = agents.map((agent) => {
     const visibility: 'public' | 'invite_only' | 'private' =
@@ -164,7 +167,7 @@ function PaginatedAgentsList({
           {hasResults ? `Page ${page} of ${Math.max(totalPages, 1)}` : 'No agents found'}
         </p>
       </div>
-      <AgentGrid agents={normalizedAgents} />
+      <AgentGrid agents={normalizedAgents} currentUserId={currentUserId} />
       <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} query={query} />
     </section>
   );

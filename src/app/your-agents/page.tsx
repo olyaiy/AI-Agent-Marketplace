@@ -53,7 +53,7 @@ export default async function YourAgentsPage() {
             </Link>
           </div>
         ) : (
-          <AgentGrid agents={agents} />
+          <AgentGrid agents={agents} currentUserId={userId} />
         )}
       </div>
     </main>

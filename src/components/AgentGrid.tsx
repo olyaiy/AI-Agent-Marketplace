@@ -8,13 +8,15 @@ interface Agent {
   tagline?: string | null;
   model: string;
   visibility?: 'public' | 'invite_only' | 'private';
+  creatorId?: string | null;
 }
 
 interface AgentGridProps {
   agents: Agent[];
+  currentUserId?: string | null;
 }
 
-export function AgentGrid({ agents }: AgentGridProps) {
+export function AgentGrid({ agents, currentUserId }: AgentGridProps) {
   if (!agents.length) {
     return (
       <div className="text-center py-12">
@@ -36,6 +38,7 @@ export function AgentGrid({ agents }: AgentGridProps) {
           tagline={agent.tagline}
           model={agent.model}
           visibility={agent.visibility}
+          isOwner={Boolean(currentUserId && agent.creatorId && currentUserId === agent.creatorId)}
         />
       ))}
     </div>

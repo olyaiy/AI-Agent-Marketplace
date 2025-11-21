@@ -13,9 +13,10 @@ interface AgentCardProps {
   tagline?: string | null;
   model: string;
   visibility?: 'public' | 'invite_only' | 'private';
+  isOwner?: boolean;
 }
 
-export function AgentCard({ tag, name, avatar, tagline, model, visibility }: AgentCardProps) {
+export function AgentCard({ tag, name, avatar, tagline, model, visibility, isOwner }: AgentCardProps) {
   const agentId = encodeURIComponent(tag.replace(/^@/, ''));
   const displayLabel = useMemo(() => getDisplayName(undefined, model), [model]);
   const providerSlug = useMemo(() => deriveProviderSlug(null, model), [model]);
@@ -67,7 +68,11 @@ export function AgentCard({ tag, name, avatar, tagline, model, visibility }: Age
       {/* Subtle edit button in top right */}
       <Link 
         href={`/edit/${agentId}`}
-        className="absolute top-2 right-2 z-10 p-2 text-gray-400 hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100"
+        className={`absolute top-2 right-2 z-10 p-2 text-gray-400 hover:text-gray-600 transition-colors ${
+          isOwner
+            ? 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
+            : 'opacity-0 group-hover:opacity-100'
+        }`}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>

@@ -6,6 +6,7 @@ export interface HomeRowAgent {
   model: string;
   systemPrompt: string;
   visibility?: 'public' | 'invite_only' | 'private';
+  creatorId?: string | null;
 }
 
 export interface HomeRowWithAgents {

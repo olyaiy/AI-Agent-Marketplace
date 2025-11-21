@@ -48,6 +48,7 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
       agentModel: agent.model,
       agentSystemPrompt: agent.systemPrompt,
       agentVisibility: agent.visibility,
+      agentCreatorId: agent.creatorId,
     })
     .from(homeRow)
     .leftJoin(homeRowAgent, eq(homeRow.id, homeRowAgent.rowId))
@@ -102,6 +103,7 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
           model: row.agentModel,
           systemPrompt: row.agentSystemPrompt,
           visibility,
+          creatorId: row.agentCreatorId ?? null,
         });
       }
     }
