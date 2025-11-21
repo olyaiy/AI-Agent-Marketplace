@@ -17,7 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useChat } from '@ai-sdk/react';
-import type { UIMessage } from 'ai';
+import type { FileUIPart, UIMessage } from 'ai';
 import {
   Conversation,
   ConversationContent,
@@ -35,7 +35,7 @@ import { Actions, Action } from '@/components/ai-elements/actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon } from 'lucide-react';
+import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -84,6 +84,43 @@ function extractSources(text: string) {
   return sources;
 }
 
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('Unsupported FileReader result'));
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('Failed to read file'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function convertFilesToUIParts(files: File[]): Promise<FileUIPart[]> {
+  const parts: FileUIPart[] = [];
+  for (const file of files) {
+    try {
+      const url = await fileToDataUrl(file);
+      parts.push({
+        type: 'file',
+        mediaType: file.type || 'application/octet-stream',
+        filename: file.name,
+        url,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to convert file to UI part', { fileName: file.name, error });
+      }
+    }
+  }
+  return parts;
+}
+
 const Chat = React.memo(function Chat({
   className,
   systemPrompt,
@@ -107,6 +144,7 @@ const Chat = React.memo(function Chat({
   const copyTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastAssistantMessageRef = useRef<UIMessage | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   const [supportsReasoning, setSupportsReasoning] = useState<boolean>(false);
   const [reasoningOn, setReasoningOn] = useLocalStorage<boolean>('chat_reasoning_on', false);
   const [webSearchOn, setWebSearchOn] = useLocalStorage<boolean>('chat_web_search_on', false);
@@ -328,16 +366,28 @@ const Chat = React.memo(function Chat({
 
   const handleSubmit = async (message: PromptInputMessage) => {
     const trimmed = message.text.trim();
-    if (!trimmed && (!message.files || message.files.length === 0)) return;
+    const hasRawFiles = Array.isArray(message.files) && message.files.length > 0;
+    if (!trimmed && !hasRawFiles) return;
 
     if (!isAuthenticated) {
       setIsDialogOpen(true);
       return;
     }
 
-    // Log file attachments (UI only for now)
-    if (message.files && message.files.length > 0) {
-      console.log('📎 File attachments:', message.files);
+    let fileParts: FileUIPart[] = [];
+    if (hasRawFiles) {
+      fileParts = await convertFilesToUIParts(message.files!);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📎 File attachments prepared:', {
+          count: fileParts.length,
+          filenames: message.files?.map((file) => file.name),
+        });
+      }
+    }
+
+    if (!trimmed && fileParts.length === 0) {
+      // All files failed to serialize; abort submission.
+      return;
     }
 
     const shouldIncludeSystemPrompt = !conversationId && !messages.some((m) => m.role === 'assistant');
@@ -422,8 +472,15 @@ const Chat = React.memo(function Chat({
       });
     }
 
+    const sendPayload =
+      trimmed && fileParts.length > 0
+        ? { text: trimmed, files: fileParts }
+        : trimmed
+          ? { text: trimmed }
+          : { files: fileParts };
+
     sendMessage(
-      { text: trimmed },
+      sendPayload,
       {
         body: {
           systemPrompt: systemForThisSend,
@@ -647,6 +704,30 @@ const Chat = React.memo(function Chat({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) setPreviewImage(null); }}>
+        <DialogContent className="sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Image preview</DialogTitle>
+          </DialogHeader>
+          {previewImage && (
+            <div className="relative">
+              <img
+                src={previewImage.src}
+                alt={previewImage.alt}
+                className="mx-auto max-h-[70vh] w-full object-contain rounded-lg bg-muted"
+              />
+              <a
+                href={previewImage.src}
+                download
+                className="absolute right-3 top-3 inline-flex items-center justify-center rounded-full border bg-background/90 p-2 text-foreground shadow-sm hover:bg-background"
+                aria-label="Download full image"
+              >
+                <DownloadIcon className="size-4" />
+              </a>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       {hasMessages ? (
         <>
           {/* Scrollable conversation area */}
@@ -687,49 +768,64 @@ const Chat = React.memo(function Chat({
                     <div key={message.id} className="group/message">
                       <Message from={message.role}>
                         <MessageContent>
-                          {message.parts.map((part: BasicUIPart, i: number) => {
-                            switch (part.type) {
-                              case 'text':
-                                return (
-                                  <Response key={`${message.id}-${i}`} sources={sources}>{part.text}</Response>
-                                );
-                              case 'reasoning':
-                                if (part.text === '[REDACTED]') return null;
-                                return (
-                                  <Reasoning
-                                    key={`${message.id}-${i}`}
-                                    className="w-full"
-                                    isStreaming={
-                                      status === 'streaming' &&
-                                      i === message.parts.length - 1 &&
-                                      message.id === displayedMessages.at(-1)?.id
-                                    }
-                                  >
-                                    <ReasoningTrigger />
-                                    <ReasoningContent>{part.text}</ReasoningContent>
-                                  </Reasoning>
-                                );
-                              case 'file': {
-                                const imageSrc = getImageSrcFromPart(part);
-                                if (!imageSrc) return null;
-                                return (
-                                  <div
-                                    key={`${message.id}-${i}`}
-                                    className="overflow-hidden rounded-lg border bg-background"
-                                  >
-                                    <img
-                                      src={imageSrc}
-                                      alt={part.title || part.filename || 'Generated image'}
-                                      className="h-auto w-full max-h-[512px] object-contain"
-                                      loading="lazy"
-                                    />
-                                  </div>
-                                );
+                          {(() => {
+                            const renderedImages = new Set<string>();
+                            return message.parts.map((part: BasicUIPart, i: number) => {
+                              switch (part.type) {
+                                case 'text':
+                                  return (
+                                    <Response key={`${message.id}-${i}`} sources={sources}>{part.text}</Response>
+                                  );
+                                case 'reasoning':
+                                  if (part.text === '[REDACTED]') return null;
+                                  return (
+                                    <Reasoning
+                                      key={`${message.id}-${i}`}
+                                      className="w-full"
+                                      isStreaming={
+                                        status === 'streaming' &&
+                                        i === message.parts.length - 1 &&
+                                        message.id === displayedMessages.at(-1)?.id
+                                      }
+                                    >
+                                      <ReasoningTrigger />
+                                      <ReasoningContent>{part.text}</ReasoningContent>
+                                    </Reasoning>
+                                  );
+                                case 'file': {
+                                  const imageSrc = getImageSrcFromPart(part);
+                                  if (!imageSrc || renderedImages.has(imageSrc)) return null;
+                                  renderedImages.add(imageSrc);
+                                  return (
+                                    <div key={`${message.id}-${i}`} className="group relative overflow-hidden rounded-lg border bg-background">
+                                      <button
+                                        type="button"
+                                        onClick={() => setPreviewImage({ src: imageSrc, alt: part.title || part.filename || 'Generated image' })}
+                                        className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
+                                      >
+                                        <img
+                                          src={imageSrc}
+                                          alt={part.title || part.filename || 'Generated image'}
+                                          className="h-auto w-full max-h-[512px] object-contain transition-transform duration-150 group-hover:scale-[1.01]"
+                                          loading="lazy"
+                                        />
+                                      </button>
+                                      <a
+                                        href={imageSrc}
+                                        download
+                                        className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border bg-background/80 p-1.5 text-foreground shadow-sm opacity-0 transition-opacity duration-150 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
+                                        aria-label="Download image"
+                                      >
+                                        <DownloadIcon className="size-4" />
+                                      </a>
+                                    </div>
+                                  );
+                                }
+                                default:
+                                  return null;
                               }
-                              default:
-                                return null;
-                            }
-                          })}
+                            });
+                          })()}
 
                           {/* New Sources UI */}
                           {sources.length > 0 && (

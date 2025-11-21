@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth';
 import { getKnowledgeByAgent } from '@/actions/knowledge';
 import { buildKnowledgeSystemText } from '@/lib/knowledge';
 
-export default async function AgentPage({ params, searchParams }: { params: Promise<{ 'agent-id': string }>; searchParams?: { invite?: string } }) {
+export default async function AgentPage({ params, searchParams }: { params: Promise<{ 'agent-id': string }>; searchParams?: Promise<{ invite?: string }> }) {
   const { 'agent-id': id } = await params;
   const tag = `@${id}`;
 
@@ -18,7 +18,8 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
   const isAdmin = session?.user?.role === 'admin';
   const cookieStore = await cookies();
   const cookieInvite = cookieStore.get(`agent_invite_${id}`)?.value;
-  const inviteParam = typeof searchParams?.invite === 'string' ? searchParams.invite : undefined;
+  const resolvedSearchParams = await searchParams;
+  const inviteParam = typeof resolvedSearchParams?.invite === 'string' ? resolvedSearchParams.invite : undefined;
 
   const { agent: found, inviteAccepted } = await getAgentForViewer({
     tag,

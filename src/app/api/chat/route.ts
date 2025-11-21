@@ -8,6 +8,28 @@ import { randomUUID } from 'node:crypto';
 
 type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
+function truncateLongStrings(obj: unknown, maxLength = 500): unknown {
+  if (typeof obj === 'string') {
+    return obj.length > maxLength ? `${obj.slice(0, maxLength)}... (truncated for length)` : obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => truncateLongStrings(item, maxLength));
+  }
+  if (obj !== null && typeof obj === 'object') {
+    const truncated: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      truncated[key] = truncateLongStrings(value, maxLength);
+    }
+    return truncated;
+  }
+  return obj;
+}
+
+function safeStringify(obj: unknown, maxLength = 500): string {
+  const truncated = truncateLongStrings(obj, maxLength);
+  return JSON.stringify(truncated, null, 2);
+}
+
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const qpSystem = url.searchParams.get('systemPrompt') || undefined;
@@ -37,7 +59,7 @@ export async function POST(req: Request) {
     bodyReasoningEnabled,
     bodyWebSearchEnabled,
     messagesCount: messages.length,
-    messages: JSON.stringify(messages, null, 2),
+    messages: safeStringify(messages),
   });
   
   function normalizeModelId(input?: string | null): string | undefined {
@@ -150,19 +172,34 @@ export async function POST(req: Request) {
         modelId,
         title,
       });
+      console.log('💾 Chat Route - Saved New Conversation:', {
+        id: ensuredConversationId,
+        userId: session.user.id,
+        agentTag: effectiveAgentTag || 'unknown',
+        modelId,
+        title,
+      });
       // If a system prompt was provided on-demand, persist it as an initial system message
       if (systemPrompt && systemPrompt.trim().length > 0) {
         try {
+          const systemMessageId = randomUUID();
           await db
             .insert(message)
             .values({
-              id: randomUUID(),
+              id: systemMessageId,
               conversationId: ensuredConversationId!,
               role: 'system',
               uiParts: [{ type: 'text', text: systemPrompt }] as unknown as Record<string, unknown>[],
               textPreview: systemPrompt.slice(0, 280),
               hasToolCalls: false,
             });
+          console.log('💾 Chat Route - Saved System Message:', {
+            id: systemMessageId,
+            conversationId: ensuredConversationId,
+            role: 'system',
+            textPreview: systemPrompt.slice(0, 280),
+            systemPrompt: safeStringify(systemPrompt),
+          });
         } catch {
           // noop
         }
@@ -194,16 +231,31 @@ export async function POST(req: Request) {
         modelId,
         title: quickTitle,
       });
+      console.log('💾 Chat Route - Saved Conversation (with provided ID):', {
+        id: ensuredConversationId,
+        userId: session.user.id,
+        agentTag: effectiveAgentTag || 'unknown',
+        modelId,
+        title: quickTitle,
+      });
       // Persist initial system if present
       if (systemPrompt && systemPrompt.trim().length > 0) {
         try {
+          const systemMessageId = randomUUID();
           await db.insert(message).values({
-            id: randomUUID(),
+            id: systemMessageId,
             conversationId: ensuredConversationId!,
             role: 'system',
             uiParts: [{ type: 'text', text: systemPrompt }] as unknown as Record<string, unknown>[],
             textPreview: systemPrompt.slice(0, 280),
             hasToolCalls: false,
+          });
+          console.log('💾 Chat Route - Saved System Message (with provided ID):', {
+            id: systemMessageId,
+            conversationId: ensuredConversationId,
+            role: 'system',
+            textPreview: systemPrompt.slice(0, 280),
+            systemPrompt: safeStringify(systemPrompt),
           });
         } catch {}
       }
@@ -219,6 +271,11 @@ export async function POST(req: Request) {
         .update(conversation)
         .set({ modelId })
         .where(eq(conversation.id, ensuredConversationId));
+      console.log('💾 Chat Route - Updated Conversation Model:', {
+        conversationId: ensuredConversationId,
+        oldModelId: existingConversation.modelId,
+        newModelId: modelId,
+      });
     } catch {
       // noop
     }
@@ -244,11 +301,24 @@ export async function POST(req: Request) {
           hasToolCalls: false,
         })
         .onConflictDoNothing();
+      console.log('💾 Chat Route - Saved User Message:', {
+        id: lastUser.id,
+        conversationId: ensuredConversationId,
+        role: 'user',
+        textPreview,
+        uiParts: safeStringify(lastUser.parts),
+      });
       // Update conversation timestamps
+      const updateTime = new Date();
       await db
         .update(conversation)
-        .set({ updatedAt: new Date(), lastMessageAt: new Date() })
+        .set({ updatedAt: updateTime, lastMessageAt: updateTime })
         .where(sql`${conversation.id} = ${ensuredConversationId!}`);
+      console.log('💾 Chat Route - Updated Conversation Timestamps:', {
+        conversationId: ensuredConversationId,
+        updatedAt: updateTime.toISOString(),
+        lastMessageAt: updateTime.toISOString(),
+      });
     } catch {
       // ignore duplicate insert errors
     }
@@ -271,7 +341,7 @@ export async function POST(req: Request) {
     webSearchEnabled,
     openrouterOptions,
     messagesCount: messages.length,
-    convertedMessages: JSON.stringify(convertToModelMessages(messages), null, 2),
+    convertedMessages: safeStringify(convertToModelMessages(messages)),
   });
 
   const result = streamText({
@@ -285,8 +355,8 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: convertToModelMessages(messages),
     onFinish: async (result) => {
-      console.log('✨ Chat Route - Complete Output Result:', JSON.stringify(result, null, 2));
-      console.log('📊 Chat Route - Result Summary:', {
+      console.log('✨ Chat Route - Complete Output Result:', safeStringify(result));
+      console.log('📊 Chat Route - Result Summary:', truncateLongStrings({
         finishReason: result.finishReason,
         usage: result.usage,
         response: result.response ? {
@@ -296,9 +366,9 @@ export async function POST(req: Request) {
         } : null,
         warnings: result.warnings,
         experimental_providerMetadata: result.experimental_providerMetadata,
-      });
+      }));
       if (webSearchEnabled) {
-        console.log('🔍 Chat Route - Web Search Details:', JSON.stringify(result, null, 2));
+        console.log('🔍 Chat Route - Web Search Details:', safeStringify(result));
       }
     },
   });
