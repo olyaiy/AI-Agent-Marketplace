@@ -6,7 +6,7 @@ import { MobileAgentHeader } from '@/components/MobileAgentHeader';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { dispatchAgentNewChat } from '@/lib/agent-events';
 
 interface AgentInfoSheetProps {
@@ -121,7 +121,7 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
 
             {/* New Chat Button */}
             {agentId && (
-              <div className="border-t border-gray-200 pt-4">
+              <div className="border-t border-gray-200 pt-4 flex gap-2">
                 <Button 
                   asChild 
                   variant="outline"
@@ -143,6 +143,19 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                     New Chat
                   </Link>
                 </Button>
+                {canEdit ? (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="icon"
+                    aria-label="Edit agent"
+                    className="shrink-0"
+                  >
+                    <Link href={`/edit/${agentId}`}>
+                      <Pencil className="w-4 h-4" />
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
             )}
           </div>
