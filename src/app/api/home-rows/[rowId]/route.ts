@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { deleteHomeRow, updateHomeRow } from '@/actions/homeRows';
+import { type NextRequest } from 'next/server';
 
 async function requireAdmin(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
@@ -12,7 +13,8 @@ async function requireAdmin(req: Request) {
   return { ok: true } as const;
 }
 
-export async function PATCH(req: Request, { params }: { params: { rowId: string } }) {
+export async function PATCH(req: NextRequest, context: { params: Promise<{ rowId: string }> }) {
+  const params = await context.params;
   const admin = await requireAdmin(req);
   if (!admin.ok) {
     return new Response(JSON.stringify({ error: admin.error }), {
@@ -39,7 +41,8 @@ export async function PATCH(req: Request, { params }: { params: { rowId: string 
   });
 }
 
-export async function DELETE(req: Request, { params }: { params: { rowId: string } }) {
+export async function DELETE(req: NextRequest, context: { params: Promise<{ rowId: string }> }) {
+  const params = await context.params;
   const admin = await requireAdmin(req);
   if (!admin.ok) {
     return new Response(JSON.stringify({ error: admin.error }), {

@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { setHomeRowAgents } from '@/actions/homeRows';
+import { type NextRequest } from 'next/server';
 
 async function requireAdmin(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
@@ -12,7 +13,8 @@ async function requireAdmin(req: Request) {
   return { ok: true } as const;
 }
 
-export async function POST(req: Request, { params }: { params: { rowId: string } }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ rowId: string }> }) {
+  const params = await context.params;
   const admin = await requireAdmin(req);
   if (!admin.ok) {
     return new Response(JSON.stringify({ error: admin.error }), {

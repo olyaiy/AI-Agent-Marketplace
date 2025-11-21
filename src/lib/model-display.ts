@@ -1,7 +1,8 @@
 import * as LobehubIcons from '@lobehub/icons';
+import type { IconType } from '@lobehub/icons';
 
 // Map provider slugs to Lobehub icon exports
-export const PROVIDER_ICON_MAP: Record<string, any> = {
+export const PROVIDER_ICON_MAP: Record<string, IconType> = {
   openai: LobehubIcons.OpenAI,
   anthropic: LobehubIcons.Claude,
   google: LobehubIcons.Gemini,

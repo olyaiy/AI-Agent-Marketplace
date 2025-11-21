@@ -93,7 +93,7 @@ export const Response = memo(
               );
             },
             pre: ({ children }) => <>{children}</>,
-            a: ({ href, children, className, ...props }) => {
+            a: ({ href, children }) => {
               const url = href || '#';
               const linkText = String(children);
               const source = sources.find((s) => s.url === url);
