@@ -23,6 +23,8 @@ export function AgentSearch({ className }: AgentSearchProps) {
     const params = new URLSearchParams(searchParams.toString());
     if (debounced) params.set('q', debounced);
     else params.delete('q');
+    // Reset pagination when search term changes
+    params.delete('page');
     const next = `${pathname}?${params.toString()}`;
     router.replace(next, { scroll: false });
   }, [debounced, pathname, router, searchParams]);
@@ -55,4 +57,3 @@ function useDebouncedValue<T>(input: T, delayMs: number): T {
   }, [input, delayMs]);
   return debouncedValue;
 }
-

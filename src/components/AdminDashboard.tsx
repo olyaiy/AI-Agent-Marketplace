@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -29,6 +30,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { HomepageRowsAdmin } from '@/components/HomepageRowsAdmin';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -236,172 +239,199 @@ export default function AdminDashboard() {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="space-y-4">
-      {/* Search and Actions */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1 flex gap-2">
-          <Select value={searchField} onValueChange={(value) => setSearchField(value as 'email' | 'name')}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="name">Name</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder={`Search by ${searchField}...`}
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="pl-9"
-            />
-          </div>
-          <Button onClick={handleSearch}>Search</Button>
-        </div>
-        <Button onClick={() => setDialogType('create')}>
-          <UserPlus className="size-4 mr-2" />
-          Create User
-        </Button>
-      </div>
+    <div className="space-y-6">
+      
 
-      {/* Users Table */}
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-[70px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  Loading users...
-                </TableCell>
-              </TableRow>
-            ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No users found
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                      {user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {user.banned ? (
-                      <Badge variant="destructive">Banned</Badge>
-                    ) : (
-                      <Badge variant="outline">Active</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setRoleValue(user.role);
-                            setDialogType('role');
-                          }}
-                        >
-                          <Shield className="size-4 mr-2" />
-                          Change Role
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setDialogType('password');
-                          }}
-                        >
-                          <Key className="size-4 mr-2" />
-                          Set Password
-                        </DropdownMenuItem>
-                        {user.banned ? (
-                          <DropdownMenuItem onClick={() => handleUnbanUser(user.id)}>
-                            <Unlock className="size-4 mr-2" />
-                            Unban User
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setDialogType('ban');
-                            }}
-                          >
-                            <Ban className="size-4 mr-2" />
-                            Ban User
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleRemoveUser(user.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="size-4 mr-2" />
-                          Delete User
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="homepage">Homepage rows</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-4">
+          <Card className="p-4 space-y-3">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">User directory</p>
+                <p className="text-xs text-muted-foreground">
+                  Search, filter, and act on users. Actions stay tucked in the kebab menu.
+                </p>
+              </div>
+              <Button onClick={() => setDialogType('create')}>
+                <UserPlus className="size-4 mr-2" />
+                Create user
+              </Button>
+            </div>
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="flex items-center gap-2">
+                <Select value={searchField} onValueChange={(value) => setSearchField(value as 'email' | 'name')}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Field" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="name">Name</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1 min-w-[220px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    placeholder={`Search by ${searchField}...`}
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="pl-9"
+                  />
+                </div>
+                <Button variant="secondary" onClick={handleSearch}>
+                  Apply
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground md:text-right md:ml-auto">
+                Keep filters light—only showing what you ask for.
+              </div>
+            </div>
+          </Card>
+
+          <Card className="border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-[70px]"></TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Loading users...
+                    </TableCell>
+                  </TableRow>
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {user.banned ? (
+                          <Badge variant="destructive">Banned</Badge>
+                        ) : (
+                          <Badge variant="outline">Active</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setRoleValue(user.role);
+                                setDialogType('role');
+                              }}
+                            >
+                              <Shield className="size-4 mr-2" />
+                              Change Role
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setDialogType('password');
+                              }}
+                            >
+                              <Key className="size-4 mr-2" />
+                              Set Password
+                            </DropdownMenuItem>
+                            {user.banned ? (
+                              <DropdownMenuItem onClick={() => handleUnbanUser(user.id)}>
+                                <Unlock className="size-4 mr-2" />
+                                Unban User
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setDialogType('ban');
+                                }}
+                              >
+                                <Ban className="size-4 mr-2" />
+                                Ban User
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleRemoveUser(user.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="size-4 mr-2" />
+                              Delete User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} users
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total} users
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="homepage">
+          <HomepageRowsAdmin />
+        </TabsContent>
+      </Tabs>
 
       {/* Dialogs */}
       <Dialog open={dialogType === 'role'} onOpenChange={(open) => !open && setDialogType(null)}>

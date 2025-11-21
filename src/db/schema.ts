@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, boolean, timestamp, jsonb, integer, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 export const agent = pgTable('agent', {
@@ -15,6 +15,36 @@ export const agent = pgTable('agent', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+export const homeRow = pgTable('home_row', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  slug: varchar('slug', { length: 128 }).notNull(),
+  description: text('description'),
+  isPublished: boolean('is_published').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  maxItems: integer('max_items'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  slugIndex: index('home_row_slug_idx').on(table.slug),
+  slugUnique: uniqueIndex('home_row_slug_unique').on(table.slug),
+  sortIndex: index('home_row_sort_idx').on(table.sortOrder),
+}));
+
+export const homeRowAgent = pgTable('home_row_agent', {
+  rowId: text('row_id')
+    .notNull()
+    .references(() => homeRow.id, { onDelete: 'cascade' }),
+  agentTag: varchar('agent_tag', { length: 64 })
+    .notNull()
+    .references(() => agent.tag, { onDelete: 'cascade' }),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.rowId, table.agentTag] }),
+  rowSortIndex: index('home_row_agent_sort_idx').on(table.rowId, table.sortOrder),
+}));
 
 // Better Auth Schema
 export const user = pgTable('user', {
@@ -101,6 +131,22 @@ export const agentRelations = relations(agent, ({ one, many }) => ({
     references: [user.id],
   }),
   knowledge: many(agentKnowledge),
+  homeRows: many(homeRowAgent),
+}));
+
+export const homeRowRelations = relations(homeRow, ({ many }) => ({
+  agents: many(homeRowAgent),
+}));
+
+export const homeRowAgentRelations = relations(homeRowAgent, ({ one }) => ({
+  row: one(homeRow, {
+    fields: [homeRowAgent.rowId],
+    references: [homeRow.id],
+  }),
+  agent: one(agent, {
+    fields: [homeRowAgent.agentTag],
+    references: [agent.tag],
+  }),
 }));
 
 // Knowledgebase

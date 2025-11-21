@@ -127,6 +127,13 @@
       "when": 1763678935772,
       "tag": "0017_primary_secondary_models",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1763683155527,
+      "tag": "0018_nice_star_brand",
+      "breakpoints": true
     }
   ]
 }
