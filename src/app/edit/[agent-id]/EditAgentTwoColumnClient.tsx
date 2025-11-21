@@ -20,6 +20,8 @@ interface Props {
   initialAvatar?: string;
   initialTagline?: string;
   initialDescription?: string;
+  initialVisibility?: 'public' | 'invite_only' | 'private';
+  inviteCode?: string;
   avatars: string[];
   onSave: ServerAction;
   onDelete: ServerAction;
@@ -51,6 +53,8 @@ function LeftForm({
   initialAvatar,
   initialTagline,
   initialDescription,
+  initialVisibility,
+  inviteCode,
   avatars,
   onSave,
   onDelete,
@@ -91,6 +95,8 @@ function LeftForm({
           initialSystemPrompt={initialSystemPrompt}
           initialTagline={initialTagline}
           initialDescription={initialDescription}
+          initialVisibility={initialVisibility}
+          inviteCode={inviteCode}
           onChange={(value) => {
             sendContextRef.current.model = value;
             onModelPreviewChange(value);

@@ -1,23 +1,44 @@
 import Chat from '@/components/Chat';
 import AgentInfoSidebar from '@/components/AgentInfoSidebar';
 import { AgentInfoSheet } from '@/components/AgentInfoSheet';
-import { getAgentByTag } from '@/actions/agents';
+import { getAgentForViewer } from '@/actions/agents';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getKnowledgeByAgent } from '@/actions/knowledge';
 import { buildKnowledgeSystemText } from '@/lib/knowledge';
 
-export default async function AgentPage({ params }: { params: Promise<{ 'agent-id': string }> }) {
+export default async function AgentPage({ params, searchParams }: { params: Promise<{ 'agent-id': string }>; searchParams?: { invite?: string } }) {
   const { 'agent-id': id } = await params;
   const tag = `@${id}`;
-  const found = await getAgentByTag(tag);
-  if (!found) notFound();
 
   const headerList = await headers();
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   const isAuthenticated = Boolean(session?.user);
   const isAdmin = session?.user?.role === 'admin';
+  const cookieStore = cookies();
+  const cookieInvite = cookieStore.get(`agent_invite_${id}`)?.value;
+  const inviteParam = typeof searchParams?.invite === 'string' ? searchParams.invite : undefined;
+
+  const { agent: found, inviteAccepted } = await getAgentForViewer({
+    tag,
+    userId: session?.user?.id,
+    userRole: session?.user?.role,
+    inviteCode: inviteParam || cookieInvite || null,
+  });
+  if (!found) notFound();
+
+  if (inviteAccepted && inviteParam) {
+    cookieStore.set({
+      name: `agent_invite_${id}`,
+      value: inviteParam,
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
   const canEdit = Boolean(isAdmin || (session?.user?.id && found.creatorId && session.user.id === found.creatorId));
 
   const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
@@ -40,6 +61,9 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
             tagline={found.tagline}
             description={found.description}
             agentTag={found.tag}
+            visibility={found.visibility as 'public' | 'invite_only' | 'private'}
+            inviteCode={canEdit ? found.inviteCode || undefined : undefined}
+            canEdit={canEdit}
           />
         </div>
         {/* Scrollable chat area */}
@@ -81,6 +105,8 @@ export default async function AgentPage({ params }: { params: Promise<{ 'agent-i
             canEdit={canEdit}
             modelOptions={modelOptions}
             activeModel={found.model}
+            visibility={found.visibility as 'public' | 'invite_only' | 'private'}
+            inviteCode={canEdit ? found.inviteCode || undefined : undefined}
           />
         </div>
       </div>

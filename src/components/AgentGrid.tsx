@@ -7,6 +7,7 @@ interface Agent {
   systemPrompt: string;
   tagline?: string | null;
   model: string;
+  visibility?: 'public' | 'invite_only' | 'private';
 }
 
 interface AgentGridProps {
@@ -34,6 +35,7 @@ export function AgentGrid({ agents }: AgentGridProps) {
           systemPrompt={agent.systemPrompt}
           tagline={agent.tagline}
           model={agent.model}
+          visibility={agent.visibility}
         />
       ))}
     </div>

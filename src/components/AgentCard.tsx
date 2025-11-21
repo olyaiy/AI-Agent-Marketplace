@@ -12,21 +12,27 @@ interface AgentCardProps {
   systemPrompt: string;
   tagline?: string | null;
   model: string;
+  visibility?: 'public' | 'invite_only' | 'private';
 }
 
-export function AgentCard({ tag, name, avatar, tagline, model }: AgentCardProps) {
+export function AgentCard({ tag, name, avatar, tagline, model, visibility }: AgentCardProps) {
   const agentId = encodeURIComponent(tag.replace(/^@/, ''));
   const displayLabel = useMemo(() => getDisplayName(undefined, model), [model]);
   const providerSlug = useMemo(() => deriveProviderSlug(null, model), [model]);
 
   return (
     <div className="relative group h-full overflow-hidden border-black">
-      <Card className="h-64 md:h-44 overflow-hidden hover:shadow-md transition-all duration-200 border-grey-200   hover:border-gray-900 bg-white p-4 relative">
+      <Card className="h-64 md:h-44 overflow-hidden hover:shadow-md transition-all duration-200 border-grey-200 hover:border-gray-900 bg-white p-4 relative">
         <div className="flex flex-col h-full justify-between">
           <div className="space-y-2 text-center md:text-left">
             <h3 className="font-semibold text-gray-900 text-base truncate">
               {name}
             </h3>
+            {visibility && visibility !== 'public' && (
+              <span className="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 uppercase tracking-wide text-[10px]">
+                {visibility === 'invite_only' ? 'Invite only' : 'Private'}
+              </span>
+            )}
             {tagline && (
               <p className="text-sm text-gray-600 line-clamp-2 leading-tight">
                 {tagline}

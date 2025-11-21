@@ -47,6 +47,7 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
       agentTagline: agent.tagline,
       agentModel: agent.model,
       agentSystemPrompt: agent.systemPrompt,
+      agentVisibility: agent.visibility,
     })
     .from(homeRow)
     .leftJoin(homeRowAgent, eq(homeRow.id, homeRowAgent.rowId))
@@ -79,7 +80,8 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
         agents: [],
       });
     }
-    if (row.agentTag && row.agentName) {
+    const isPublicAgent = row.agentVisibility === 'public';
+    if (row.agentTag && row.agentName && (includeUnpublished || isPublicAgent)) {
       const current = grouped.get(row.id)!;
       if (!current.maxItems || current.agents.length < current.maxItems) {
         current.agents.push({
@@ -89,6 +91,7 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
           tagline: row.agentTagline,
           model: row.agentModel,
           systemPrompt: row.agentSystemPrompt,
+          visibility: row.agentVisibility,
         });
       }
     }
@@ -184,7 +187,7 @@ export async function setHomeRowAgents(rowId: string, agentTags: string[]) {
   const existingAgents = await db
     .select({ tag: agent.tag })
     .from(agent)
-    .where(inArray(agent.tag, unique));
+    .where(and(inArray(agent.tag, unique), eq(agent.visibility, 'public')));
   const validTags = existingAgents.map((a) => a.tag);
 
   await db.delete(homeRowAgent).where(eq(homeRowAgent.rowId, rowId));
@@ -215,7 +218,7 @@ export async function listAgentsPaginated(options: { query?: string; page?: numb
   const parsedPage = Number(options.page ?? 1);
   const requestedPage = Math.max(1, Number.isFinite(parsedPage) ? Math.floor(parsedPage) : 1);
 
-  const filters = [];
+  const filters = [eq(agent.visibility, 'public')];
   const trimmed = typeof options.query === 'string' ? options.query.trim() : '';
   if (trimmed) {
     const pattern = `%${trimmed}%`;
@@ -272,12 +275,13 @@ export async function searchAgentsForHomeRow(query: string, limit = 10) {
       systemPrompt: agent.systemPrompt,
     })
     .from(agent)
+    .where(eq(agent.visibility, 'public'))
     .orderBy(asc(agent.name))
     .limit(pageSize);
 
   if (search) {
     const pattern = `%${search}%`;
-    base = base.where(or(ilike(agent.name, pattern), ilike(agent.tag, pattern)));
+    base = base.where(and(eq(agent.visibility, 'public'), or(ilike(agent.name, pattern), ilike(agent.tag, pattern))));
   }
 
   return base;

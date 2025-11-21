@@ -321,6 +321,7 @@ function RowCard({
   const [isSearching, setIsSearching] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAgents, setShowAgents] = useState(() => row.agents.length > 0);
+  const hasHiddenAgents = agents.some((a) => a.visibility && a.visibility !== 'public');
 
   useEffect(() => {
     setTitle(row.title);
@@ -417,6 +418,7 @@ function RowCard({
             <Badge variant="secondary">Row #{position}</Badge>
             {!isPublished && <Badge variant="outline">Draft</Badge>}
             <Badge variant="outline">Agents: {agents.length}</Badge>
+            {hasHiddenAgents && <Badge variant="destructive">Contains non-public agents</Badge>}
           </div>
           <p className="font-semibold text-sm">{title || row.title}</p>
           <p className="text-xs text-muted-foreground">Slug: {slug || 'n/a'}</p>
@@ -513,6 +515,11 @@ function RowCard({
                   <div>
                     <p className="font-medium text-sm">{agent.name}</p>
                     <p className="text-xs text-muted-foreground">{agent.tagline || agent.tag}</p>
+                    {agent.visibility && agent.visibility !== 'public' && (
+                      <Badge variant="outline" className="mt-1 text-[10px] uppercase tracking-wide">
+                        {agent.visibility === 'invite_only' ? 'Invite only' : 'Private'}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="icon" onClick={() => handleMoveAgent(agent.tag, 'up')}>

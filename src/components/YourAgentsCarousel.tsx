@@ -9,6 +9,7 @@ interface Agent {
   avatar?: string | null;
   systemPrompt: string;
   tagline?: string | null;
+  visibility?: 'public' | 'invite_only' | 'private';
 }
 
 interface YourAgentsCarouselProps {
@@ -44,6 +45,7 @@ export function YourAgentsCarousel({ agents }: YourAgentsCarouselProps) {
               name={agent.name}
               avatar={agent.avatar}
               tagline={agent.tagline}
+              visibility={agent.visibility}
             />
           ))}
         </div>
@@ -57,9 +59,10 @@ interface AgentCardSmallProps {
   name: string;
   avatar?: string | null;
   tagline?: string | null;
+  visibility?: 'public' | 'invite_only' | 'private';
 }
 
-function AgentCardSmall({ tag, name, avatar, tagline }: AgentCardSmallProps) {
+function AgentCardSmall({ tag, name, avatar, tagline, visibility }: AgentCardSmallProps) {
   const agentId = encodeURIComponent(tag.replace(/^@/, ''));
 
   return (
@@ -70,6 +73,11 @@ function AgentCardSmall({ tag, name, avatar, tagline }: AgentCardSmallProps) {
             <h3 className="font-semibold text-gray-900 text-sm truncate">
               {name}
             </h3>
+            {visibility && visibility !== 'public' && (
+              <Badge variant="outline" className="w-fit text-[10px] uppercase tracking-wide">
+                {visibility === 'invite_only' ? 'Invite only' : 'Private'}
+              </Badge>
+            )}
             {tagline && (
               <p className="text-xs text-gray-600 line-clamp-2 leading-tight">
                 {tagline}
@@ -113,4 +121,3 @@ function AgentCardSmall({ tag, name, avatar, tagline }: AgentCardSmallProps) {
     </div>
   );
 }
-

@@ -1,9 +1,9 @@
 import Chat from '@/components/Chat';
 import AgentInfoSidebar from '@/components/AgentInfoSidebar';
 import { AgentInfoSheet } from '@/components/AgentInfoSheet';
-import { getAgentByTag } from '@/actions/agents';
+import { getAgentForViewer } from '@/actions/agents';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
 import { conversation, message } from '@/db/schema';
@@ -22,20 +22,38 @@ interface UIMessageShape {
   parts: readonly UIMessagePartText[] | readonly unknown[];
 }
 
-export default async function ConversationPage({ params }: { params: Promise<{ 'agent-id': string; 'conversation-id': string }> }) {
+export default async function ConversationPage({ params, searchParams }: { params: Promise<{ 'agent-id': string; 'conversation-id': string }>; searchParams?: { invite?: string } }) {
   const { 'agent-id': agentId, 'conversation-id': conversationId } = await params;
   const tag = `@${agentId}`;
 
   const headerList = await headers();
+  const cookieStore = cookies();
+  const inviteParam = typeof searchParams?.invite === 'string' ? searchParams.invite : undefined;
+  const cookieInvite = cookieStore.get(`agent_invite_${agentId}`)?.value;
 
-  // Parallel fetch: Agent data and Session
-  const [found, session] = await Promise.all([
-    getAgentByTag(tag),
-    auth.api.getSession({ headers: headerList }).catch(() => null)
-  ]);
-
-  if (!found) notFound();
+  const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   if (!session?.user) notFound();
+
+  const viewer = await getAgentForViewer({
+    tag,
+    userId: session.user.id,
+    userRole: session.user.role,
+    inviteCode: inviteParam || cookieInvite || null,
+  });
+
+  if (!viewer.agent) notFound();
+  if (viewer.inviteAccepted && inviteParam) {
+    cookieStore.set({
+      name: `agent_invite_${agentId}`,
+      value: inviteParam,
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
+  const found = viewer.agent;
 
   const isAdmin = session.user.role === 'admin';
   const canEdit = Boolean(isAdmin || (session.user.id && found.creatorId && session.user.id === found.creatorId));
@@ -85,6 +103,9 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
             tagline={found.tagline}
             description={found.description}
             agentTag={found.tag}
+            visibility={found.visibility as 'public' | 'invite_only' | 'private'}
+            inviteCode={canEdit ? found.inviteCode || undefined : undefined}
+            canEdit={canEdit}
           />
         </div>
         {/* Scrollable chat area */}
@@ -128,6 +149,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ '
             canEdit={canEdit}
             modelOptions={modelOptions}
             activeModel={initialModel}
+            visibility={found.visibility as 'public' | 'invite_only' | 'private'}
+            inviteCode={canEdit ? found.inviteCode || undefined : undefined}
           />
         </div>
       </div>

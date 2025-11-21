@@ -4,6 +4,8 @@ import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import EditAgentTwoColumnClient from './EditAgentTwoColumnClient';
 import { getKnowledgeByAgent } from '@/actions/knowledge';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
 
 async function saveAction(formData: FormData) {
   'use server';
@@ -15,6 +17,8 @@ async function saveAction(formData: FormData) {
   const avatar = (formData.get('avatar') as string | undefined)?.trim();
   const tagline = (formData.get('tagline') as string | undefined)?.trim();
   const description = (formData.get('description') as string | undefined)?.trim();
+  const visibilityRaw = formData.get('visibility');
+  const visibility = typeof visibilityRaw === 'string' ? visibilityRaw : undefined;
   let secondaryModels: string[] | undefined = undefined;
   if (typeof secondaryModelsRaw === 'string' && secondaryModelsRaw.trim().length > 0) {
     try {
@@ -25,7 +29,7 @@ async function saveAction(formData: FormData) {
     }
   }
   const tag = `@${id}`;
-  await updateAgent({ tag, name, systemPrompt, model, secondaryModels, avatar, tagline: tagline ?? null, description: description ?? null });
+  await updateAgent({ tag, name, systemPrompt, model, secondaryModels, avatar, tagline: tagline ?? null, description: description ?? null, visibility });
   redirect(`/agent/${encodeURIComponent(id)}`);
 }
 
@@ -40,8 +44,14 @@ async function deleteAction(formData: FormData) {
 export default async function EditAgentPage({ params }: { params: Promise<{ 'agent-id': string }> }) {
   const { 'agent-id': id } = await params;
   const tag = `@${id}`;
+  const headerList = await headers();
+  const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
+  if (!session?.user) redirect('/');
   const a = await getAgentByTag(tag);
   if (!a) notFound();
+  const isAdmin = session.user.role === 'admin';
+  const isOwner = Boolean(a.creatorId && session.user.id === a.creatorId);
+  if (!isAdmin && !isOwner) notFound();
   const knowledge = await getKnowledgeByAgent(tag);
   const knowledgeItems = knowledge.map(k => ({ name: k.name, content: k.content }));
   const avatars = await (async () => {
@@ -69,6 +79,8 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       initialAvatar={a.avatar || undefined}
       initialTagline={a.tagline || undefined}
       initialDescription={a.description || undefined}
+      initialVisibility={a.visibility}
+      inviteCode={a.inviteCode || undefined}
       avatars={avatars}
       onSave={saveAction}
       onDelete={deleteAction}

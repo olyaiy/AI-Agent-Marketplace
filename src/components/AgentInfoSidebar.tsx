@@ -31,13 +31,31 @@ interface AgentInfoSidebarProps {
   canEdit?: boolean;
   modelOptions?: string[];
   activeModel?: string;
+  visibility?: 'public' | 'invite_only' | 'private';
+  inviteCode?: string | null;
 }
 
-export default function AgentInfoSidebar({ name, avatarUrl, tagline, description, variant = 'sidebar', agentTag, canEdit, modelOptions, activeModel }: AgentInfoSidebarProps) {
+export default function AgentInfoSidebar({ name, avatarUrl, tagline, description, variant = 'sidebar', agentTag, canEdit, modelOptions, activeModel, visibility, inviteCode }: AgentInfoSidebarProps) {
   const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your creative thinking partner';
   const effectiveDescription = (description && description.trim().length > 0)
     ? description
     : `Hi there! I'm ${name}, your friendly AI companion. I love helping with creative projects, brainstorming ideas, and turning thoughts into reality.`;
+  const visibilityLabel = React.useMemo(() => {
+    if (!visibility || visibility === 'public') return null;
+    return visibility === 'invite_only' ? 'Invite only' : 'Private';
+  }, [visibility]);
+  const inviteUrl = React.useMemo(() => {
+    if (!inviteCode || visibility !== 'invite_only' || !agentTag) return '';
+    if (typeof window === 'undefined') return '';
+    const agentId = agentTag.replace('@', '');
+    return `${window.location.origin}/agent/${encodeURIComponent(agentId)}?invite=${inviteCode}`;
+  }, [agentTag, inviteCode, visibility]);
+  const [copiedInvite, setCopiedInvite] = React.useState(false);
+  React.useEffect(() => {
+    if (!copiedInvite) return;
+    const t = setTimeout(() => setCopiedInvite(false), 2000);
+    return () => clearTimeout(t);
+  }, [copiedInvite]);
   
   // Extract agent ID from tag (remove @ prefix)
   const agentId = agentTag ? agentTag.replace('@', '') : null;
@@ -183,9 +201,31 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
 
       {/* Tag */}
       {agentTag && (
-        <p className="text-xs text-gray-500 font-mono">
-          {agentTag}
-        </p>
+        <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500 font-mono">
+          <span>{agentTag}</span>
+          {visibilityLabel && (
+            <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 uppercase tracking-wide text-[10px]">
+              {visibilityLabel}
+            </span>
+          )}
+        </div>
+      )}
+
+      {canEdit && inviteUrl && (
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(inviteUrl);
+              setCopiedInvite(true);
+            } catch {
+              setCopiedInvite(false);
+            }
+          }}
+          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+        >
+          {copiedInvite ? 'Invite link copied' : 'Copy invite link'}
+        </button>
       )}
 
       {availableModels.length > 0 && (

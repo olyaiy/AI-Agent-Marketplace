@@ -134,6 +134,13 @@
       "when": 1763683155527,
       "tag": "0018_nice_star_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1763689434832,
+      "tag": "0019_bored_enchantress",
+      "breakpoints": true
     }
   ]
 }

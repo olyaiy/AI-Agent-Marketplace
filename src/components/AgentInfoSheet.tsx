@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { MobileAgentHeader } from '@/components/MobileAgentHeader';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,14 @@ interface AgentInfoSheetProps {
   tagline?: string | null;
   description?: string | null;
   agentTag?: string;
+  visibility?: 'public' | 'invite_only' | 'private';
+  inviteCode?: string | null;
+  canEdit?: boolean;
 }
 
-export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag }: AgentInfoSheetProps) {
+export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag, visibility, inviteCode, canEdit }: AgentInfoSheetProps) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your creative thinking partner';
   const effectiveDescription = (description && description.trim().length > 0)
@@ -27,6 +31,20 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
   
   // Extract agent ID from tag (remove @ prefix)
   const agentId = agentTag ? agentTag.replace('@', '') : null;
+  const visibilityLabel = useMemo(() => {
+    if (!visibility || visibility === 'public') return null;
+    return visibility === 'invite_only' ? 'Invite only' : 'Private';
+  }, [visibility]);
+  const inviteUrl = useMemo(() => {
+    if (!inviteCode || visibility !== 'invite_only' || !agentTag) return '';
+    if (typeof window === 'undefined') return '';
+    return `${window.location.origin}/agent/${encodeURIComponent(agentId ?? '')}?invite=${inviteCode}`;
+  }, [agentId, agentTag, inviteCode, visibility]);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(t);
+  }, [copied]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -67,9 +85,31 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
 
             {/* Tag */}
             {agentTag && (
-              <p className="text-xs text-gray-500 font-mono">
-                {agentTag}
-              </p>
+              <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500 font-mono">
+                <span>{agentTag}</span>
+                {visibilityLabel && (
+                  <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 uppercase tracking-wide text-[10px]">
+                    {visibilityLabel}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {canEdit && inviteUrl && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(inviteUrl);
+                    setCopied(true);
+                  } catch {
+                    setCopied(false);
+                  }
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium text-left"
+              >
+                {copied ? 'Invite link copied' : 'Copy invite link'}
+              </button>
             )}
 
             {/* Description */}

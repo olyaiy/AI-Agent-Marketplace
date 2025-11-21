@@ -12,16 +12,20 @@ interface Props {
   initialSystemPrompt?: string;
   initialTagline?: string;
   initialDescription?: string;
+  initialVisibility?: 'public' | 'invite_only' | 'private';
+  inviteCode?: string;
   onChange?: (model: string | undefined) => void;
   onContextChange?: (update: { model?: string; systemPrompt?: string; tagline?: string; description?: string }) => void;
   onTabChange?: (tab: "behaviour" | "details" | "knowledge") => void;
   onSecondaryModelsChange?: (models: string[]) => void;
 }
 
-export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, initialModel, initialSecondaryModels = [], initialSystemPrompt, initialTagline, initialDescription, onChange, onContextChange, onTabChange, onSecondaryModelsChange }: Props) {
+export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, initialModel, initialSecondaryModels = [], initialSystemPrompt, initialTagline, initialDescription, initialVisibility = 'public', inviteCode, onChange, onContextChange, onTabChange, onSecondaryModelsChange }: Props) {
   const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
   const [secondaryModels, setSecondaryModels] = React.useState<string[]>(initialSecondaryModels || []);
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge">("behaviour");
+  const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>(initialVisibility);
+  const [copied, setCopied] = React.useState(false);
 
   React.useEffect(() => {
     if (onChange) onChange(selectedModel || undefined);
@@ -35,6 +39,20 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
   React.useEffect(() => {
     if (onSecondaryModelsChange) onSecondaryModelsChange(secondaryModels);
   }, [secondaryModels, onSecondaryModelsChange]);
+
+  const inviteUrl = React.useMemo(() => {
+    if (visibility !== 'invite_only') return '';
+    if (!inviteCode) return '';
+    if (typeof window === 'undefined') return '';
+    const agentId = agentTag.replace('@', '');
+    return `${window.location.origin}/agent/${encodeURIComponent(agentId)}?invite=${inviteCode}`;
+  }, [agentTag, inviteCode, visibility]);
+
+  React.useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   return (
     <div className="space-y-4">
@@ -122,6 +140,67 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
                 className="border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all resize-none text-sm"
               />
             </div>
+
+            <div className="flex flex-col gap-3">
+              <label className="text-sm font-medium text-gray-900">Visibility</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {[
+                  { value: 'public', label: 'Public', hint: 'Listed on the homepage and searchable.' },
+                  { value: 'invite_only', label: 'Invite only', hint: 'Hidden from listings; share via link.' },
+                  { value: 'private', label: 'Private', hint: 'Only you can access it.' },
+                ].map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`flex flex-col gap-1 border rounded-md p-3 cursor-pointer transition-colors ${visibility === opt.value ? 'border-blue-500 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="visibility-choice"
+                        value={opt.value}
+                        checked={visibility === opt.value}
+                        onChange={() => setVisibility(opt.value as typeof visibility)}
+                      />
+                      <span className="font-semibold text-sm">{opt.label}</span>
+                    </div>
+                    <p className="text-xs text-gray-600">{opt.hint}</p>
+                  </label>
+                ))}
+              </div>
+              {visibility === 'invite_only' && (
+                <div className="rounded-md border border-dashed p-3 bg-gray-50 space-y-2">
+                  {inviteUrl ? (
+                    <>
+                      <p className="text-xs text-gray-700">Share this link to give people access:</p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          readOnly
+                          value={inviteUrl}
+                          className="flex-1 border rounded px-2 py-1 text-xs bg-white"
+                          onFocus={(e) => e.currentTarget.select()}
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(inviteUrl);
+                              setCopied(true);
+                            } catch {
+                              setCopied(false);
+                            }
+                          }}
+                          className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                          {copied ? 'Copied!' : 'Copy link'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-700">Save changes to generate a shareable invite link.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <KnowledgeManager agentTag={agentTag} />
@@ -129,6 +208,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
       </div>
       <input type="hidden" name="model" value={selectedModel || ""} />
       <input type="hidden" name="secondaryModels" value={JSON.stringify(secondaryModels || [])} />
+      <input type="hidden" name="visibility" value={visibility} />
     </div>
   );
 });

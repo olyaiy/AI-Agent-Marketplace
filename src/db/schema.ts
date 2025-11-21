@@ -10,11 +10,16 @@ export const agent = pgTable('agent', {
   avatar: varchar('avatar', { length: 256 }),
   tagline: text('tagline'),
   description: text('description'),
+  visibility: varchar('visibility', { length: 16 }).notNull().default('public'),
+  inviteCode: varchar('invite_code', { length: 64 }),
   creatorId: text('creator_id')
     .references(() => user.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  visibilityIndex: index('agent_visibility_idx').on(table.visibility),
+  inviteCodeUnique: uniqueIndex('agent_invite_code_unique').on(table.inviteCode),
+}));
 
 export const homeRow = pgTable('home_row', {
   id: text('id').primaryKey(),
