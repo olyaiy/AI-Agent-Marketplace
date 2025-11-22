@@ -67,6 +67,8 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             visibility={found.visibility as 'public' | 'invite_only' | 'private'}
             inviteCode={canEdit ? found.inviteCode || undefined : undefined}
             canEdit={canEdit}
+            modelOptions={modelOptions}
+            activeModel={initialModel}
           />
         </div>
         {/* Scrollable chat area */}

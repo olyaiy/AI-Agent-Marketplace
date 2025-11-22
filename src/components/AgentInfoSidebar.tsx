@@ -14,7 +14,7 @@ import { ProviderAvatar } from '@/components/ProviderAvatar';
 const ModelLabel = React.memo(function ModelLabel({ label, providerSlug }: { label: string; providerSlug: string | null }) {
   return (
     <div className="flex items-center gap-2 truncate">
-      <ProviderAvatar providerSlug={providerSlug} />
+      <ProviderAvatar providerSlug={providerSlug} size={24} />
       <span className="truncate">{label}</span>
     </div>
   );
