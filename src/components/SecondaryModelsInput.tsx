@@ -78,7 +78,12 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
         value={pending}
         onChange={(val) => {
           setPending(val);
-          // If user re-selects a pending value, treat it as add
+          if (!val) return;
+          // If user clicks a model that's already in the list, toggle it off.
+          if (value.includes(val)) {
+            removeModel(val);
+            return;
+          }
           addPending(val);
         }}
         placeholder={placeholder}
@@ -87,6 +92,7 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
         prioritizedIds={value}
         selectedIds={value}
         prioritizedLabel="Selected models"
+        keepOpenOnSelect
       />
       <div className="flex flex-wrap gap-2">
         {value.length === 0 ? (

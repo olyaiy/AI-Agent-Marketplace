@@ -139,6 +139,8 @@ export interface OpenRouterModelSelectProps {
   /** Optional list of ids that should be badged as already selected */
   selectedIds?: string[];
   prioritizedLabel?: string;
+  /** Keep the list open after selecting (useful for multi-add flows) */
+  keepOpenOnSelect?: boolean;
 }
 
 export function OpenRouterModelSelect({
@@ -152,6 +154,7 @@ export function OpenRouterModelSelect({
   prioritizedIds,
   selectedIds,
   prioritizedLabel = "Selected",
+  keepOpenOnSelect = false,
 }: OpenRouterModelSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -276,10 +279,12 @@ export function OpenRouterModelSelect({
   const handleSelect = useCallback(
     (id: string) => {
       onChange(id);
-      setOpen(false);
-      setQuery("");
+      if (!keepOpenOnSelect) {
+        setOpen(false);
+        setQuery("");
+      }
     },
-    [onChange]
+    [onChange, keepOpenOnSelect]
   );
 
   const handleClear = useCallback(() => {
