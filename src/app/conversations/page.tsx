@@ -268,7 +268,7 @@ export default function ConversationsPage() {
                 </CardHeader>
                 {conversation.preview && (
                   <CardContent>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-sm text-muted-foreground line-clamp-2 whitespace-pre-line">
                       {searchQuery && conversation.matchType === 'content' ? (
                         <HighlightedText text={conversation.preview} query={searchQuery} />
                       ) : (
@@ -349,4 +349,3 @@ function formatRelativeTime(date: Date): string {
   if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
   return `${Math.floor(diffDays / 365)}y ago`;
 }
-

@@ -28,11 +28,10 @@ export const Response = memo(
     }, [children]);
 
     return (
-      <div className={cn('size-full', className)}>
+      <div className={cn('size-full whitespace-pre-wrap', className)}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
-            // ... (h1-h6, p, ul, ol, li, code, pre omitted for brevity, they are unchanged)
             h1: ({ className, ...props }) => (
               <h1 className={cn('text-2xl font-bold mt-6 mb-4', className)} {...props} />
             ),
@@ -52,7 +51,10 @@ export const Response = memo(
               <h6 className={cn('text-sm font-medium mt-3 mb-2', className)} {...props} />
             ),
             p: ({ className, ...props }) => (
-              <p className={cn('text-sm leading-relaxed my-0', className)} {...props} />
+              <p
+                className={cn('text-sm leading-relaxed my-0 whitespace-pre-wrap', className)}
+                {...props}
+              />
             ),
             ul: ({ className, ...props }) => (
               <ul className={cn('list-disc pl-6 my-2 space-y-1', className)} {...props} />
@@ -61,7 +63,10 @@ export const Response = memo(
               <ol className={cn('list-decimal pl-6 my-2 space-y-1', className)} {...props} />
             ),
             li: ({ className, ...props }) => (
-              <li className={cn('text-sm leading-relaxed', className)} {...props} />
+              <li
+                className={cn('text-sm leading-relaxed whitespace-pre-wrap', className)}
+                {...props}
+              />
             ),
             code: ({ className, children, ...props }) => {
               const match = /language-(\w+)/.exec(className || '');
