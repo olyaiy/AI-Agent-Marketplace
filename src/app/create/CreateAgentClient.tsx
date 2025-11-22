@@ -59,7 +59,11 @@ export function CreateAgentClient({ avatars }: Props) {
           />
         </div>
         <div className="mb-4">
-          <SecondaryModelsInput value={secondaryModels} onChange={setSecondaryModels} />
+        <SecondaryModelsInput
+          value={secondaryModels}
+          onChange={setSecondaryModels}
+          primaryModelId={selectedModelId || undefined}
+        />
         </div>
         <div className="mb-4">
           <div className="mb-2 text-sm font-medium">Avatar</div>

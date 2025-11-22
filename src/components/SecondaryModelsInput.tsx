@@ -12,9 +12,10 @@ interface Props {
   label?: string;
   placeholder?: string;
   includeHiddenInput?: boolean;
+  primaryModelId?: string;
 }
 
-export function SecondaryModelsInput({ value, onChange, label = "Secondary models", placeholder = "Search models to add...", includeHiddenInput = true }: Props) {
+export function SecondaryModelsInput({ value, onChange, label = "Secondary models", placeholder = "Search models to add...", includeHiddenInput = true, primaryModelId }: Props) {
   const [pending, setPending] = React.useState<string>("");
   const [labels, setLabels] = React.useState<Record<string, string>>({});
   const inflight = React.useRef<Set<string>>(new Set());
@@ -93,6 +94,8 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
         selectedIds={value}
         prioritizedLabel="Selected models"
         keepOpenOnSelect
+        primaryId={primaryModelId}
+        primaryLabel="Primary model"
       />
       <div className="flex flex-wrap gap-2">
         {value.length === 0 ? (

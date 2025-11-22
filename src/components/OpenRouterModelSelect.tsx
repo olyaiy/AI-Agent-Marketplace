@@ -16,15 +16,14 @@ import {
   ModelSelectorGroup,
   ModelSelectorItem,
   ModelSelectorEmpty,
-  ModelSelectorLogo,
   ModelSelectorName,
   ModelSelectorSeparator,
-  type ModelSelectorLogoProps,
 } from "@/components/ai-elements/model-selector";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { deriveProviderSlug, getDisplayName } from "@/lib/model-display";
+import { ProviderAvatar } from "@/components/ProviderAvatar";
 import { Check, ChevronDown, Loader2, Sparkles } from "lucide-react";
 
 type SlimModel = {
@@ -141,6 +140,9 @@ export interface OpenRouterModelSelectProps {
   prioritizedLabel?: string;
   /** Keep the list open after selecting (useful for multi-add flows) */
   keepOpenOnSelect?: boolean;
+  /** Optional primary model id for badge labeling */
+  primaryId?: string;
+  primaryLabel?: string;
 }
 
 export function OpenRouterModelSelect({
@@ -155,6 +157,8 @@ export function OpenRouterModelSelect({
   selectedIds,
   prioritizedLabel = "Selected",
   keepOpenOnSelect = false,
+  primaryId,
+  primaryLabel = "Primary Model",
 }: OpenRouterModelSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -279,6 +283,7 @@ export function OpenRouterModelSelect({
   const handleSelect = useCallback(
     (id: string) => {
       if (keepOpenOnSelect && selectionSet.has(id)) {
+        if (primaryId && id === primaryId) return;
         // Toggle off when already selected in multi-add mode
         onChange(id === value ? "" : id);
         return;
@@ -289,7 +294,7 @@ export function OpenRouterModelSelect({
         setQuery("");
       }
     },
-    [onChange, keepOpenOnSelect, selectionSet, value]
+    [onChange, keepOpenOnSelect, selectionSet, value, primaryId]
   );
 
   const handleClear = useCallback(() => {
@@ -317,19 +322,19 @@ export function OpenRouterModelSelect({
           if (!next) setQuery("");
         }}
       >
-        <ModelSelectorTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            className={cn("w-full justify-between", {
-              "text-muted-foreground": !selectedModel && !loading,
+      <ModelSelectorTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn("w-full justify-between", {
+            "text-muted-foreground": !selectedModel && !loading,
             })}
             disabled={disabled || loading}
           >
             <span className="flex items-center gap-2 truncate">
               {loading && <Loader2 className="size-4 animate-spin" />}
               {!loading && selectedModel?.providerSlug ? (
-                <ProviderLogo providerSlug={selectedModel.providerSlug} />
+                <ProviderAvatar providerSlug={selectedModel.providerSlug} size={24} />
               ) : null}
               {!loading && selectedModel ? (
                 <span className="truncate">{selectedModel.displayName}</span>
@@ -386,6 +391,8 @@ export function OpenRouterModelSelect({
                           onSelect={handleSelect}
                           isSelected={model.id === value}
                           isInSelection={selectionSet.has(model.id)}
+                          isPrimary={primaryId === model.id}
+                          primaryLabel={primaryLabel}
                         />
                       ))}
                     </ModelSelectorGroup>
@@ -399,6 +406,8 @@ export function OpenRouterModelSelect({
                           onSelect={handleSelect}
                           isSelected={model.id === value}
                           isInSelection={selectionSet.has(model.id)}
+                          isPrimary={primaryId === model.id}
+                          primaryLabel={primaryLabel}
                         />
                       ))}
                     </ModelSelectorGroup>
@@ -415,6 +424,8 @@ export function OpenRouterModelSelect({
                           onSelect={handleSelect}
                           isSelected={model.id === value}
                           isInSelection={selectionSet.has(model.id)}
+                          isPrimary={primaryId === model.id}
+                          primaryLabel={primaryLabel}
                         />
                       ))}
                     </ModelSelectorGroup>
@@ -449,11 +460,15 @@ const ModelListItem = React.memo(function ModelListItem({
   model,
   onSelect,
   isSelected,
+  isPrimary,
+  primaryLabel,
   isInSelection,
 }: {
   model: EnhancedModel;
   onSelect: (id: string) => void;
   isSelected: boolean;
+  isPrimary?: boolean;
+  primaryLabel?: string;
   isInSelection?: boolean;
 }) {
   const provider = model.providerSlug;
@@ -463,7 +478,7 @@ const ModelListItem = React.memo(function ModelListItem({
   return (
     <ModelSelectorItem value={model.id} onSelect={() => onSelect(model.id)}>
       {provider ? (
-        <ProviderLogo providerSlug={provider} />
+        <ProviderAvatar providerSlug={provider} size={24} />
       ) : (
         <Sparkles className="size-4 text-yellow-500" />
       )}
@@ -476,18 +491,18 @@ const ModelListItem = React.memo(function ModelListItem({
         </p>
       </div>
       <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-        {isInSelection && (
+        {isPrimary ? (
+          <Badge variant="outline" className="hidden sm:inline-flex gap-1 text-[11px]">
+            <Sparkles className="size-3 text-amber-500" />
+            {primaryLabel}
+          </Badge>
+        ) : isInSelection && (
           <Badge variant="secondary" className="hidden sm:inline-flex gap-1">
             <Check className="size-3" />
             Added
           </Badge>
         )}
-        {model.isFeatured && (
-          <Badge variant="secondary" className="hidden sm:inline-flex gap-1">
-            <Sparkles className="size-3" />
-            Featured
-          </Badge>
-        )}
+       
         {contextLabel && (
           <span className="hidden sm:inline whitespace-nowrap">
             {contextLabel}
@@ -502,13 +517,6 @@ const ModelListItem = React.memo(function ModelListItem({
 (prev, next) =>
   prev.model === next.model &&
   prev.isSelected === next.isSelected &&
-  prev.isInSelection === next.isInSelection);
-
-function ProviderLogo({ providerSlug }: { providerSlug: string }) {
-  return (
-    <ModelSelectorLogo
-      provider={providerSlug as ModelSelectorLogoProps["provider"]}
-      className="size-4 shrink-0"
-    />
-  );
-}
+  prev.isInSelection === next.isInSelection &&
+  prev.isPrimary === next.isPrimary &&
+  prev.primaryLabel === next.primaryLabel);
