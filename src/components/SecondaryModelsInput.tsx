@@ -84,6 +84,9 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
         placeholder={placeholder}
         width="100%"
         label=""
+        prioritizedIds={value}
+        selectedIds={value}
+        prioritizedLabel="Selected models"
       />
       <div className="flex flex-wrap gap-2">
         {value.length === 0 ? (

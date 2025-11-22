@@ -134,6 +134,11 @@ export interface OpenRouterModelSelectProps {
   disabled?: boolean;
   label?: string;
   category?: string;
+  /** Optional list of ids to pin to the top (e.g., already selected secondary models) */
+  prioritizedIds?: string[];
+  /** Optional list of ids that should be badged as already selected */
+  selectedIds?: string[];
+  prioritizedLabel?: string;
 }
 
 export function OpenRouterModelSelect({
@@ -144,6 +149,9 @@ export function OpenRouterModelSelect({
   disabled,
   label = "Models",
   category,
+  prioritizedIds,
+  selectedIds,
+  prioritizedLabel = "Selected",
 }: OpenRouterModelSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -205,6 +213,29 @@ export function OpenRouterModelSelect({
     return featuredModels.filter((m) => m.searchText.includes(q));
   }, [featuredModels, deferredQuery]);
 
+  const prioritizedSet = useMemo(
+    () => new Set((prioritizedIds || []).filter(Boolean)),
+    [prioritizedIds]
+  );
+
+  const selectionSet = useMemo(() => {
+    const combined = [...(selectedIds || []), ...(prioritizedIds || [])].filter(
+      Boolean
+    );
+    return new Set(combined);
+  }, [selectedIds, prioritizedIds]);
+
+  const prioritizedModels = useMemo(() => {
+    if (!prioritizedSet.size) return [];
+    const map = new Map(models.map((m) => [m.id, m]));
+    const ordered = (prioritizedIds || [])
+      .map((id) => map.get(id))
+      .filter((m): m is EnhancedModel => Boolean(m));
+    const q = deferredQuery.trim().toLowerCase();
+    if (!q) return ordered;
+    return ordered.filter((m) => m.searchText.includes(q));
+  }, [models, prioritizedIds, prioritizedSet, deferredQuery]);
+
   const filteredAll = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     if (!q) return models;
@@ -216,13 +247,26 @@ export function OpenRouterModelSelect({
     return filteredAll.filter((m) => !featuredIds.has(m.id));
   }, [filteredAll, filteredFeatured]);
 
-  const featuredToShow = filteredFeatured.slice(0, 12);
-  const remainingToShow = remaining.slice(
+  const featuredFilteredForDisplay = useMemo(() => {
+    if (!prioritizedSet.size) return filteredFeatured;
+    return filteredFeatured.filter((m) => !prioritizedSet.has(m.id));
+  }, [filteredFeatured, prioritizedSet]);
+
+  const remainingAfterPrioritized = useMemo(() => {
+    if (!prioritizedSet.size) return remaining;
+    const set = new Set(prioritizedModels.map((m) => m.id));
+    return remaining.filter((m) => !set.has(m.id));
+  }, [remaining, prioritizedModels, prioritizedSet]);
+
+  const featuredToShow = featuredFilteredForDisplay.slice(0, 12);
+  const remainingToShow = remainingAfterPrioritized.slice(
     0,
     Math.max(MAX_RESULTS - featuredToShow.length, 0)
   );
   const hasResults =
-    featuredToShow.length > 0 || remainingToShow.length > 0;
+    prioritizedModels.length > 0 ||
+    featuredToShow.length > 0 ||
+    remainingToShow.length > 0;
 
   const widthStyle = useMemo(() => {
     if (typeof width === "number") return `${width}px`;
@@ -313,16 +357,29 @@ export function OpenRouterModelSelect({
                   <span>Loading models…</span>
                 </div>
               ) : error ? (
-                <ModelSelectorEmpty>
-                  <div className="flex flex-col items-center gap-2">
-                    <span>{error}</span>
-                    <Button size="sm" variant="outline" onClick={retry}>
-                      Retry
-                    </Button>
-                  </div>
-                </ModelSelectorEmpty>
+                  <ModelSelectorEmpty>
+                    <div className="flex flex-col items-center gap-2">
+                      <span>{error}</span>
+                      <Button size="sm" variant="outline" onClick={retry}>
+                        Retry
+                      </Button>
+                    </div>
+                  </ModelSelectorEmpty>
               ) : (
                 <>
+                  {prioritizedModels.length > 0 && (
+                    <ModelSelectorGroup heading={prioritizedLabel}>
+                      {prioritizedModels.map((model) => (
+                        <ModelListItem
+                          key={model.id}
+                          model={model}
+                          onSelect={handleSelect}
+                          isSelected={model.id === value}
+                          isInSelection={selectionSet.has(model.id)}
+                        />
+                      ))}
+                    </ModelSelectorGroup>
+                  )}
                   {featuredToShow.length > 0 && (
                     <ModelSelectorGroup heading="Featured">
                       {featuredToShow.map((model) => (
@@ -331,6 +388,7 @@ export function OpenRouterModelSelect({
                           model={model}
                           onSelect={handleSelect}
                           isSelected={model.id === value}
+                          isInSelection={selectionSet.has(model.id)}
                         />
                       ))}
                     </ModelSelectorGroup>
@@ -346,6 +404,7 @@ export function OpenRouterModelSelect({
                           model={model}
                           onSelect={handleSelect}
                           isSelected={model.id === value}
+                          isInSelection={selectionSet.has(model.id)}
                         />
                       ))}
                     </ModelSelectorGroup>
@@ -380,10 +439,12 @@ const ModelListItem = React.memo(function ModelListItem({
   model,
   onSelect,
   isSelected,
+  isInSelection,
 }: {
   model: EnhancedModel;
   onSelect: (id: string) => void;
   isSelected: boolean;
+  isInSelection?: boolean;
 }) {
   const provider = model.providerSlug;
   const priceIn = formatPricePerMillion(model.pricing.prompt);
@@ -405,6 +466,12 @@ const ModelListItem = React.memo(function ModelListItem({
         </p>
       </div>
       <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+        {isInSelection && (
+          <Badge variant="secondary" className="hidden sm:inline-flex gap-1">
+            <Check className="size-3" />
+            Added
+          </Badge>
+        )}
         {model.isFeatured && (
           <Badge variant="secondary" className="hidden sm:inline-flex gap-1">
             <Sparkles className="size-3" />
@@ -423,7 +490,9 @@ const ModelListItem = React.memo(function ModelListItem({
   );
 },
 (prev, next) =>
-  prev.model === next.model && prev.isSelected === next.isSelected);
+  prev.model === next.model &&
+  prev.isSelected === next.isSelected &&
+  prev.isInSelection === next.isInSelection);
 
 function ProviderLogo({ providerSlug }: { providerSlug: string }) {
   return (

@@ -57,14 +57,14 @@ export const Response = memo(
               />
             ),
             ul: ({ className, ...props }) => (
-              <ul className={cn('list-disc pl-6 ', className)} {...props} />
+              <ul className={cn('list-disc pl-6 whitespace-normal', className)} {...props} />
             ),
             ol: ({ className, ...props }) => (
-              <ol className={cn('list-decimal pl-6', className)} {...props} />
+              <ol className={cn('list-decimal pl-6 whitespace-normal', className)} {...props} />
             ),
             li: ({ className, ...props }) => (
               <li
-                className={cn('text-sm leading-relaxed whitespace-pre-wrap', className)}
+                className={cn('text-sm leading-relaxed whitespace-normal', className)}
                 {...props}
               />
             ),
