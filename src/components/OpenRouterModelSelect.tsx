@@ -278,13 +278,18 @@ export function OpenRouterModelSelect({
 
   const handleSelect = useCallback(
     (id: string) => {
+      if (keepOpenOnSelect && selectionSet.has(id)) {
+        // Toggle off when already selected in multi-add mode
+        onChange(id === value ? "" : id);
+        return;
+      }
       onChange(id);
       if (!keepOpenOnSelect) {
         setOpen(false);
         setQuery("");
       }
     },
-    [onChange, keepOpenOnSelect]
+    [onChange, keepOpenOnSelect, selectionSet, value]
   );
 
   const handleClear = useCallback(() => {
