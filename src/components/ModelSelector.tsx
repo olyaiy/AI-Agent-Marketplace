@@ -175,7 +175,7 @@ export function ModelSelector({
           <Button
             type="button"
             variant="outline"
-            className="w-full justify-between"
+            className="w-full justify-between cursor-pointer"
             disabled={disabled || loading}
           >
             <span className="flex items-center gap-2 truncate">
@@ -265,7 +265,7 @@ const ModelListItem = React.memo(function ModelListItem({
   const priceIn = formatPricePerMillion(model.pricing.prompt);
 
   return (
-    <ModelSelectorItem value={model.id} onSelect={() => onSelect(model.id)}>
+    <ModelSelectorItem value={model.id} onSelect={() => onSelect(model.id)} className="cursor-pointer">
       {provider && (
         <ModelSelectorLogo provider={provider as ModelSelectorLogoProps["provider"]} />
       )}

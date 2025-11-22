@@ -372,7 +372,7 @@ export function OpenRouterModelSelect({
           <Button
             type="button"
             variant="outline"
-            className={cn("w-full justify-between", {
+            className={cn("w-full justify-between cursor-pointer", {
               "text-muted-foreground": !selectedModel && !loading,
             })}
             disabled={disabled || loading}
@@ -492,6 +492,7 @@ export function OpenRouterModelSelect({
                         <ModelSelectorItem
                           value="__clear__"
                           onSelect={handleClear}
+                          className="cursor-pointer"
                         >
                           Clear selection
                         </ModelSelectorItem>
@@ -528,7 +529,7 @@ const ModelListItem = React.memo(function ModelListItem({
   const contextLabel = formatContextLength(model.context_length);
 
   return (
-    <ModelSelectorItem value={model.id} onSelect={() => onSelect(model.id)}>
+    <ModelSelectorItem value={model.id} onSelect={() => onSelect(model.id)} className="cursor-pointer">
       {provider ? (
         <ProviderAvatar providerSlug={provider} size={24} />
       ) : (

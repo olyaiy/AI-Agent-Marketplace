@@ -146,7 +146,7 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
               <span className="max-w-[260px] truncate">{labels[modelId] || modelId}</span>
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded p-0.5 hover:bg-gray-100"
+                className="inline-flex items-center justify-center rounded p-0.5 hover:bg-gray-100 cursor-pointer"
                 onClick={() => removeModel(modelId)}
                 aria-label={`Remove ${modelId}`}
               >
@@ -158,10 +158,10 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
       </div>
       {pending && (
         <div className="flex items-center gap-2">
-          <Button type="button" size="sm" variant="secondary" onClick={() => addPending(pending)}>
+          <Button type="button" size="sm" variant="secondary" className="cursor-pointer" onClick={() => addPending(pending)}>
             Add model
           </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => setPending("")}>
+          <Button type="button" size="sm" variant="ghost" className="cursor-pointer" onClick={() => setPending("")}>
             Clear
           </Button>
         </div>

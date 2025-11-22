@@ -35,7 +35,7 @@ import { Actions, Action } from '@/components/ai-elements/actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon } from 'lucide-react';
+import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -140,6 +140,9 @@ const Chat = React.memo(function Chat({
   const hasGeneratedTitleRef = useRef<boolean>(false);
   const shouldGenerateTitleRef = useRef<boolean>(!initialConversationId);
   const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
+  const [hiddenMessageIds, setHiddenMessageIds] = useState<Set<string>>(new Set());
+  const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
+  const regenerationSnapshotRef = useRef<{ message: UIMessage; index: number } | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -191,7 +194,7 @@ const Chat = React.memo(function Chat({
     };
   }, [agentTag]);
 
-  const { messages, status, sendMessage, stop, setMessages } = useChat({
+  const { messages, status, sendMessage, regenerate, stop, setMessages } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
     onFinish: async ({ message }) => {
       try {
@@ -323,6 +326,30 @@ const Chat = React.memo(function Chat({
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (status === 'error' && regeneratingMessageId && regenerationSnapshotRef.current) {
+      const snapshot = regenerationSnapshotRef.current;
+      setMessages((prev) => {
+        const alreadyExists = prev.some((m) => m.id === snapshot.message.id);
+        if (alreadyExists) return prev;
+        const next = [...prev];
+        const insertionIndex = Math.min(snapshot.index, next.length);
+        next.splice(insertionIndex, 0, snapshot.message as UIMessage);
+        return next;
+      });
+      setHiddenMessageIds((prev) => {
+        const next = new Set(prev);
+        next.delete(regeneratingMessageId);
+        return next;
+      });
+      regenerationSnapshotRef.current = null;
+      setRegeneratingMessageId(null);
+    } else if (status === 'ready') {
+      regenerationSnapshotRef.current = null;
+      setRegeneratingMessageId(null);
+    }
+  }, [regeneratingMessageId, setMessages, status]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -337,6 +364,9 @@ const Chat = React.memo(function Chat({
     shouldGenerateTitleRef.current = true;
     lastAssistantMessageRef.current = null;
     setDeletedMessageIds(new Set());
+    setHiddenMessageIds(new Set());
+    setRegeneratingMessageId(null);
+    regenerationSnapshotRef.current = null;
     setCopiedMessageId(null);
     if (copyTimeoutRef.current) {
       window.clearTimeout(copyTimeoutRef.current);
@@ -447,7 +477,7 @@ const Chat = React.memo(function Chat({
       const byId = new Map<string, BasicUIMessage>();
       for (const m of fromServer) byId.set(m.id, m);
       for (const m of live) byId.set(m.id, m);
-      const fullHistory = Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id));
+      const fullHistory = Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id) && !hiddenMessageIds.has(msg.id));
       console.log('📝 History summary:', {
         conversationId: effectiveConversationId,
         messageCount: fullHistory.length,
@@ -609,6 +639,61 @@ const Chat = React.memo(function Chat({
     }
   };
 
+  const handleRegenerateMessage = useCallback(async (message: BasicUIMessage) => {
+    if (!isAuthenticated) {
+      setIsDialogOpen(true);
+      return;
+    }
+
+    if (status === 'streaming' || status === 'submitted') {
+      return;
+    }
+
+    const messageIndex = messages.findIndex((m) => m.id === message.id);
+    if (messageIndex === -1) {
+      return;
+    }
+
+    const snapshot: UIMessage =
+      typeof structuredClone === 'function'
+        ? structuredClone(message as UIMessage)
+        : JSON.parse(JSON.stringify(message));
+
+    regenerationSnapshotRef.current = { message: snapshot, index: messageIndex };
+    setRegeneratingMessageId(message.id);
+    setHiddenMessageIds((prev) => {
+      const next = new Set(prev);
+      next.add(message.id);
+      return next;
+    });
+
+    const ctx = getChatContext ? getChatContext() || undefined : undefined;
+    const resolvedModel = ctx?.model ?? currentModel ?? model;
+    const cid = conversationIdRef.current;
+
+    try {
+      await regenerate({
+        messageId: message.id,
+        body: {
+          systemPrompt: ctx?.systemPrompt ?? systemPrompt,
+          model: resolvedModel,
+          conversationId: cid ?? undefined,
+          agentTag,
+          reasoningEnabled: supportsReasoning ? reasoningOn : false,
+          webSearchEnabled: webSearchOn,
+        },
+      });
+    } catch {
+      setHiddenMessageIds((prev) => {
+        const next = new Set(prev);
+        next.delete(message.id);
+        return next;
+      });
+      regenerationSnapshotRef.current = null;
+      setRegeneratingMessageId(null);
+    }
+  }, [agentTag, currentModel, getChatContext, isAuthenticated, messages, model, reasoningOn, regenerate, status, supportsReasoning, systemPrompt, webSearchOn]);
+
   interface BasicUIPart {
     type: string;
     text?: string;
@@ -667,15 +752,20 @@ const Chat = React.memo(function Chat({
       ? ((Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[])
       : [];
     const live = (messages as unknown as BasicUIMessage[]) || [];
-    if (fromServer.length === 0) return live;
+    const liveFiltered = live.filter(msg => !deletedMessageIds.has(msg.id) && !hiddenMessageIds.has(msg.id));
+    if (fromServer.length === 0) return liveFiltered;
     const byId = new Map<string, BasicUIMessage>();
     for (const m of fromServer) byId.set(m.id, m);
     for (const m of live) byId.set(m.id, m);
     // Filter out deleted messages
-    return Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id));
-  }, [initialMessages, messages, deletedMessageIds, conversationId, initialConversationId]);
+    return Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id) && !hiddenMessageIds.has(msg.id));
+  }, [initialMessages, messages, deletedMessageIds, hiddenMessageIds, conversationId, initialConversationId]);
   const hasMessages = allMessages.length > 0;
   const displayedMessages = useMemo(() => allMessages, [allMessages]);
+  const lastAssistantMessageId = useMemo(
+    () => displayedMessages.findLast((m) => m.role === 'assistant')?.id ?? null,
+    [displayedMessages]
+  );
   return (
     <div className={`flex w-full max-w-3xl flex-col h-full ${className || ''}`}>
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -848,6 +938,16 @@ const Chat = React.memo(function Chat({
                         className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${message.role === 'user' ? 'justify-end' : 'justify-start'
                           }`}
                       >
+                        {message.role === 'assistant' && message.id === lastAssistantMessageId && (
+                          <Action
+                            onClick={() => handleRegenerateMessage(message)}
+                            tooltip={regeneratingMessageId === message.id ? 'Regenerating…' : 'Retry response'}
+                            label="Retry response"
+                            disabled={status === 'submitted' || status === 'streaming'}
+                          >
+                            <RefreshCcwIcon className={cn('size-4', regeneratingMessageId === message.id && (status === 'submitted' || status === 'streaming') && 'animate-spin')} />
+                          </Action>
+                        )}
                         <Action
                           onClick={() => handleCopyMessage(message)}
                           tooltip={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
