@@ -15,10 +15,18 @@ interface Props {
   primaryModelId?: string;
 }
 
+const labelCache = new Map<string, string>();
+
 export function SecondaryModelsInput({ value, onChange, label = "Secondary models", placeholder = "Search models to add...", includeHiddenInput = true, primaryModelId }: Props) {
   const [pending, setPending] = React.useState<string>("");
   const [labels, setLabels] = React.useState<Record<string, string>>({});
   const inflight = React.useRef<Set<string>>(new Set());
+  const secondaryIds = primaryModelId ? value.filter((id) => id !== primaryModelId) : value;
+  const hasSecondary = secondaryIds.length > 0;
+  const prioritizedIds = React.useMemo(
+    () => (primaryModelId ? [primaryModelId, ...secondaryIds] : secondaryIds),
+    [primaryModelId, secondaryIds]
+  );
 
   const addPending = React.useCallback(
     (modelId?: string) => {
@@ -45,7 +53,27 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
 
   // Fetch human-friendly names for selected ids so badges mirror primary select display
   React.useEffect(() => {
-    const missing = value.filter((id) => !labels[id] && !inflight.current.has(id));
+    const hydratedFromCache: Record<string, string> = {};
+    const missing: string[] = [];
+    const idsToCheck = [
+      ...(primaryModelId ? [primaryModelId] : []),
+      ...value,
+    ].filter(Boolean);
+
+    idsToCheck.forEach((id) => {
+      if (labels[id] || inflight.current.has(id)) return;
+      const cached = labelCache.get(id);
+      if (cached) {
+        hydratedFromCache[id] = cached;
+        return;
+      }
+      missing.push(id);
+    });
+
+    if (Object.keys(hydratedFromCache).length > 0) {
+      setLabels((prev) => ({ ...prev, ...hydratedFromCache }));
+    }
+
     if (missing.length === 0) return;
 
     missing.slice(0, 6).forEach(async (id) => {
@@ -60,14 +88,16 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
         const items: Array<{ id: string; name: string }> = json?.data ?? [];
         const hit = items.find((m) => m.id === id) || items[0];
         const display = hit?.name || hit?.id || id;
+        labelCache.set(id, display);
         setLabels((prev) => ({ ...prev, [id]: display }));
       } catch {
+        labelCache.set(id, id);
         setLabels((prev) => ({ ...prev, [id]: id }));
       } finally {
         inflight.current.delete(id);
       }
     });
-  }, [value, labels]);
+  }, [value, labels, primaryModelId]);
 
   return (
     <div className="space-y-2">
@@ -90,18 +120,28 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
         placeholder={placeholder}
         width="100%"
         label=""
-        prioritizedIds={value}
-        selectedIds={value}
+        prioritizedIds={prioritizedIds}
+        selectedIds={prioritizedIds}
         prioritizedLabel="Selected models"
         keepOpenOnSelect
         primaryId={primaryModelId}
         primaryLabel="Primary model"
       />
       <div className="flex flex-wrap gap-2">
-        {value.length === 0 ? (
+        {primaryModelId && (
+          <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+            <span className="max-w-[260px] truncate">
+              {labels[primaryModelId] || primaryModelId}
+            </span>
+            <span className="rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
+              Primary
+            </span>
+          </Badge>
+        )}
+        {!primaryModelId && !hasSecondary ? (
           <span className="text-xs text-gray-500">No secondary models added.</span>
         ) : (
-          value.map((modelId) => (
+          secondaryIds.map((modelId) => (
             <Badge key={modelId} variant="outline" className="flex items-center gap-1 text-xs">
               <span className="max-w-[260px] truncate">{labels[modelId] || modelId}</span>
               <button

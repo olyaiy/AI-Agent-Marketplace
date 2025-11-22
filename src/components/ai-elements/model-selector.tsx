@@ -16,7 +16,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, ElementRef, ReactNode } from "react";
+import { forwardRef } from "react";
 
 export type ModelSelectorProps = ComponentProps<typeof Dialog>;
 
@@ -32,17 +33,23 @@ export const ModelSelectorTrigger = (props: ModelSelectorTriggerProps) => (
 
 export type ModelSelectorContentProps = ComponentProps<typeof DialogContent> & {
   title?: ReactNode;
+  /** Disable cmdk filtering when we already filter via React. */
+  disableFiltering?: boolean;
 };
 
 export const ModelSelectorContent = ({
   className,
   children,
   title = "Model Selector",
+  disableFiltering = true,
   ...props
 }: ModelSelectorContentProps) => (
   <DialogContent className={cn("p-0", className)} {...props}>
     <DialogTitle className="sr-only">{title}</DialogTitle>
-    <Command className="**:data-[slot=command-input-wrapper]:h-auto">
+    <Command
+      className="**:data-[slot=command-input-wrapper]:h-auto"
+      shouldFilter={!disableFiltering}
+    >
       {children}
     </Command>
   </DialogContent>
@@ -65,9 +72,12 @@ export const ModelSelectorInput = ({
 
 export type ModelSelectorListProps = ComponentProps<typeof CommandList>;
 
-export const ModelSelectorList = (props: ModelSelectorListProps) => (
-  <CommandList {...props} />
-);
+export const ModelSelectorList = forwardRef<
+  ElementRef<typeof CommandList>,
+  ModelSelectorListProps
+>(function ModelSelectorList(props, ref) {
+  return <CommandList ref={ref} {...props} />;
+});
 
 export type ModelSelectorEmptyProps = ComponentProps<typeof CommandEmpty>;
 

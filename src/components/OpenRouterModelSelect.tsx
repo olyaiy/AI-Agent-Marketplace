@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
   useDeferredValue,
+  useRef,
 } from "react";
 import {
   ModelSelector as SelectorRoot,
@@ -57,6 +58,9 @@ const FEATURED_MODEL_IDS = [
 const FEATURED_MODEL_SET = new Set(FEATURED_MODEL_IDS);
 const CACHE_TTL_MS = 60_000;
 const MAX_RESULTS = 400;
+const INITIAL_VISIBLE_RESULTS = 80;
+const LOAD_STEP = 120;
+const SCROLL_LOAD_THRESHOLD_PX = 240;
 
 type CacheEntry = { fetchedAt: number; data: EnhancedModel[] };
 const cache = new Map<string, CacheEntry>();
@@ -165,6 +169,8 @@ export function OpenRouterModelSelect({
   const [models, setModels] = useState<EnhancedModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_RESULTS);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const deferredQuery = useDeferredValue(query);
   const hasQuery = deferredQuery.trim().length > 0;
 
@@ -270,10 +276,46 @@ export function OpenRouterModelSelect({
     0,
     Math.max(MAX_RESULTS - featuredToShow.length, 0)
   );
+  useEffect(() => {
+    if (!open) return;
+    const listEl = listRef.current;
+    const estimatedVisible =
+      listEl && listEl.clientHeight
+        ? Math.ceil(listEl.clientHeight / 56) * 6
+        : INITIAL_VISIBLE_RESULTS;
+    const nextVisible = Math.max(INITIAL_VISIBLE_RESULTS, estimatedVisible);
+    setVisibleCount((current) => {
+      const capped = Math.min(nextVisible, remainingToShow.length || nextVisible);
+      return current === capped ? current : capped;
+    });
+    if (listEl) listEl.scrollTop = 0;
+  }, [deferredQuery, open, remainingToShow.length]);
+
+  const visibleRemaining = useMemo(() => {
+    if (visibleCount >= remainingToShow.length) return remainingToShow;
+    return remainingToShow.slice(0, visibleCount);
+  }, [remainingToShow, visibleCount]);
+
+  const hasMoreRemaining = remainingToShow.length > visibleRemaining.length;
   const hasResults =
     prioritizedModels.length > 0 ||
     featuredToShow.length > 0 ||
     remainingToShow.length > 0;
+
+  const handleListScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      if (!hasMoreRemaining) return;
+      const target = event.currentTarget;
+      const distanceFromBottom =
+        target.scrollHeight - (target.scrollTop + target.clientHeight);
+      if (distanceFromBottom < SCROLL_LOAD_THRESHOLD_PX) {
+        setVisibleCount((current) =>
+          Math.min(remainingToShow.length, current + LOAD_STEP)
+        );
+      }
+    },
+    [hasMoreRemaining, remainingToShow.length]
+  );
 
   const widthStyle = useMemo(() => {
     if (typeof width === "number") return `${width}px`;
@@ -319,15 +361,19 @@ export function OpenRouterModelSelect({
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
-          if (!next) setQuery("");
+          if (!next) {
+            setQuery("");
+            setVisibleCount(INITIAL_VISIBLE_RESULTS);
+            listRef.current?.scrollTo({ top: 0 });
+          }
         }}
       >
-      <ModelSelectorTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className={cn("w-full justify-between", {
-            "text-muted-foreground": !selectedModel && !loading,
+        <ModelSelectorTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            className={cn("w-full justify-between", {
+              "text-muted-foreground": !selectedModel && !loading,
             })}
             disabled={disabled || loading}
           >
@@ -365,7 +411,7 @@ export function OpenRouterModelSelect({
               value={query}
               onValueChange={setQuery}
             />
-            <ModelSelectorList>
+            <ModelSelectorList ref={listRef} onScroll={handleListScroll}>
               {loading ? (
                 <div className="py-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
@@ -417,7 +463,7 @@ export function OpenRouterModelSelect({
                     <ModelSelectorGroup
                       heading={hasQuery ? "Results" : "All models"}
                     >
-                      {remainingToShow.map((model) => (
+                      {visibleRemaining.map((model) => (
                         <ModelListItem
                           key={model.id}
                           model={model}
@@ -428,6 +474,12 @@ export function OpenRouterModelSelect({
                           primaryLabel={primaryLabel}
                         />
                       ))}
+                      {hasMoreRemaining && (
+                        <div className="px-2 py-2 text-[11px] text-muted-foreground">
+                          Scroll to load more ({visibleRemaining.length} of{" "}
+                          {remainingToShow.length})
+                        </div>
+                      )}
                     </ModelSelectorGroup>
                   ) : !hasResults ? (
                     <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
