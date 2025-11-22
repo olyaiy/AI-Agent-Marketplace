@@ -57,10 +57,10 @@ export const Response = memo(
               />
             ),
             ul: ({ className, ...props }) => (
-              <ul className={cn('list-disc pl-6 my-2 space-y-1', className)} {...props} />
+              <ul className={cn('list-disc pl-6 ', className)} {...props} />
             ),
             ol: ({ className, ...props }) => (
-              <ol className={cn('list-decimal pl-6 my-2 space-y-1', className)} {...props} />
+              <ol className={cn('list-decimal pl-6', className)} {...props} />
             ),
             li: ({ className, ...props }) => (
               <li
@@ -128,7 +128,7 @@ export const Response = memo(
             ),
             hr: ({ className, ...props }) => (
               <hr
-                className={cn('border-border my-4', className)}
+                className={cn('border-border my-1', className)}
                 {...props}
               />
             ),
@@ -158,7 +158,7 @@ export const Response = memo(
             ),
             strong: ({ className, ...props }) => (
               <strong
-                className={cn('font-semibold', className)}
+                className={cn('font-semibold text-[1.1em]', className)}
                 {...props}
               />
             ),
