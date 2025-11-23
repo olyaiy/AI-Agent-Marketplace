@@ -17,7 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useChat } from '@ai-sdk/react';
-import type { FileUIPart, UIMessage } from 'ai';
+import type { FileUIPart, ToolUIPart, UIMessage } from 'ai';
 import {
   Conversation,
   ConversationContent,
@@ -263,7 +263,7 @@ const Chat = React.memo(function Chat({
           <div className="shrink-0">
             <Context
               usage={contextUsage}
-              maxTokens={contextMaxTokens}
+              maxTokens={contextMaxTokens ?? 0}
               modelId={modelIdForContext}
               usedTokens={contextUsage.totalTokens}
             >
@@ -831,6 +831,11 @@ const Chat = React.memo(function Chat({
     title?: string;
     url?: string;
     data?: string;
+    input?: unknown;
+    output?: unknown;
+    errorText?: string;
+    rawInput?: unknown;
+    toolCallId?: string;
     mediaType?: string;
     filename?: string;
     sourceId?: string;
@@ -1005,11 +1010,11 @@ const Chat = React.memo(function Chat({
                                   return (
                                     <Response key={`${message.id}-${i}`} sources={sources}>{part.text}</Response>
                                   );
-                                case 'reasoning':
-                                  if (part.text === '[REDACTED]') return null;
-                                  return (
-                                    <Reasoning
-                                      key={`${message.id}-${i}`}
+                            case 'reasoning':
+                              if (part.text === '[REDACTED]') return null;
+                              return (
+                                <Reasoning
+                                  key={`${message.id}-${i}`}
                                       className="w-full"
                                       isStreaming={
                                         status === 'streaming' &&
@@ -1076,16 +1081,50 @@ const Chat = React.memo(function Chat({
                                         className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border bg-background/80 p-1.5 text-foreground shadow-sm opacity-0 transition-opacity duration-150 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
                                         aria-label="Download image"
                                       >
-                                        <DownloadIcon className="size-4" />
-                                      </a>
-                                    </div>
-                                  );
-                                }
-                                default:
-                                  return null;
-                              }
-                            });
-                          })()}
+                                <DownloadIcon className="size-4" />
+                              </a>
+                            </div>
+                          );
+                        }
+                        default: {
+                          const isToolPart = typeof part.type === 'string' && part.type.startsWith('tool-');
+                          if (isToolPart) {
+                            const toolName = part.type.replace(/^tool-/, '') || 'tool';
+                            const toolState =
+                              part.state ||
+                              (part.output ? 'output-available' : part.errorText ? 'output-error' : 'input-available');
+                            const toolInput =
+                              part.input ?? part.rawInput ?? (part as Record<string, unknown>).args ?? null;
+                            const toolOutput = part.output;
+                            const errorText = part.errorText || part.error;
+                            return (
+                              <Tool
+                                key={`${message.id}-${i}`}
+                                defaultOpen={toolState !== 'output-available'}
+                              >
+                                <ToolHeader type={toolName} state={toolState as ToolUIPart['state']} />
+                                <ToolContent>
+                                  <ToolInput input={toolInput} />
+                                  <ToolOutput
+                                    output={
+                                      toolOutput ? (
+                                        <CodeBlock
+                                          code={JSON.stringify(toolOutput, null, 2)}
+                                          language="json"
+                                        />
+                                      ) : null
+                                    }
+                                    errorText={errorText}
+                                  />
+                                </ToolContent>
+                              </Tool>
+                            );
+                          }
+                          return null;
+                        }
+                      }
+                    });
+                  })()}
 
                           {/* New Sources UI */}
                           {sources.length > 0 && (
