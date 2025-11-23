@@ -251,6 +251,41 @@ const Chat = React.memo(function Chat({
     return 128_000;
   }, []);
 
+  const renderContextControl = useCallback(() => {
+    const hasUsage = Boolean(contextUsage) && Boolean(conversationIdRef.current);
+    if (!hasUsage || !contextUsage) return null;
+    const modelIdForContext = contextModelId ?? currentModel ?? model;
+    const tooltipText = `Prompt: ${contextUsage.inputTokens.toLocaleString()} • Response: ${contextUsage.outputTokens.toLocaleString()}`;
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="shrink-0">
+            <Context
+              usage={contextUsage}
+              maxTokens={contextMaxTokens}
+              modelId={modelIdForContext}
+              usedTokens={contextUsage.totalTokens}
+            >
+              <ContextTrigger className="h-10" />
+              <ContextContent>
+                <ContextContentHeader />
+                <ContextContentBody>
+                  <ContextInputUsage />
+                  <ContextOutputUsage />
+                  <ContextReasoningUsage />
+                  <ContextCacheUsage />
+                </ContextContentBody>
+                <ContextContentFooter />
+              </ContextContent>
+            </Context>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent sideOffset={6}>{tooltipText}</TooltipContent>
+      </Tooltip>
+    );
+  }, [contextMaxTokens, contextModelId, contextUsage, currentModel, model]);
+
   const refreshUsage = useCallback(async (cid: string) => {
     try {
       const res = await fetch(`/api/conversations/${cid}/usage`);
@@ -924,28 +959,6 @@ const Chat = React.memo(function Chat({
       </Dialog>
       {hasMessages ? (
         <>
-          {conversationId && contextUsage && (
-            <div className="mb-3 flex justify-end">
-              <Context
-                usage={contextUsage}
-                maxTokens={contextMaxTokens}
-                modelId={contextModelId ?? currentModel ?? model}
-                usedTokens={contextUsage.totalTokens}
-              >
-                <ContextTrigger />
-                <ContextContent>
-                  <ContextContentHeader />
-                  <ContextContentBody>
-                    <ContextInputUsage />
-                    <ContextOutputUsage />
-                    <ContextReasoningUsage />
-                    <ContextCacheUsage />
-                  </ContextContentBody>
-                  <ContextContentFooter />
-                </ContextContent>
-              </Context>
-            </div>
-          )}
           {/* Scrollable conversation area */}
           <div className="flex-1 overflow-hidden pb-20 md:pb-0">
             <Conversation className="h-full overflow-y-scroll md:overflow-y-visible">
@@ -1187,6 +1200,7 @@ const Chat = React.memo(function Chat({
                         </TooltipTrigger>
                         <TooltipContent sideOffset={6}>Web Search: {webSearchOn ? 'On' : 'Off'}</TooltipContent>
                       </Tooltip>
+                      {renderContextControl()}
                       {supportsReasoning && (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1274,6 +1288,7 @@ const Chat = React.memo(function Chat({
                       </TooltipTrigger>
                       <TooltipContent sideOffset={6}>Web Search: {webSearchOn ? 'On' : 'Off'}</TooltipContent>
                     </Tooltip>
+                    {renderContextControl()}
                     {supportsReasoning && (
                       <Tooltip>
                         <TooltipTrigger asChild>
