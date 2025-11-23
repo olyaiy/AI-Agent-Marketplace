@@ -30,6 +30,20 @@ function safeStringify(obj: unknown, maxLength = 500): string {
   return JSON.stringify(truncated, null, 2);
 }
 
+function normalizeUsage(raw: unknown) {
+  const toInt = (value: unknown) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num >= 0 ? Math.round(num) : 0;
+  };
+  const usage = (raw ?? {}) as Record<string, unknown>;
+  const inputTokens = toInt(usage.inputTokens);
+  const outputTokens = toInt(usage.outputTokens);
+  const totalTokens = toInt(usage.totalTokens || inputTokens + outputTokens);
+  const cachedInputTokens = toInt(usage.cachedInputTokens);
+  const reasoningTokens = toInt(usage.reasoningTokens);
+  return { inputTokens, outputTokens, totalTokens, cachedInputTokens, reasoningTokens };
+}
+
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const qpSystem = url.searchParams.get('systemPrompt') || undefined;
@@ -369,6 +383,33 @@ export async function POST(req: Request) {
         response: responseSummary,
         warnings: result.warnings,
       }));
+      // Persist usage aggregates on the conversation for UI context tracking
+      try {
+        const usage = normalizeUsage(result.usage);
+        const hasUsage = Object.values(usage).some((value) => value > 0);
+        if (hasUsage && ensuredConversationId) {
+          const now = new Date();
+          await db
+            .update(conversation)
+            .set({
+              totalInputTokens: sql`${conversation.totalInputTokens} + ${usage.inputTokens}`,
+              totalOutputTokens: sql`${conversation.totalOutputTokens} + ${usage.outputTokens}`,
+              totalTokens: sql`${conversation.totalTokens} + ${usage.totalTokens}`,
+              cachedInputTokens: sql`${conversation.cachedInputTokens} + ${usage.cachedInputTokens}`,
+              reasoningTokens: sql`${conversation.reasoningTokens} + ${usage.reasoningTokens}`,
+              lastUsage: usage as unknown as typeof conversation.$inferInsert['lastUsage'],
+              updatedAt: now,
+              lastMessageAt: now,
+            })
+            .where(eq(conversation.id, ensuredConversationId));
+          console.log('💾 Chat Route - Updated Conversation Usage:', {
+            conversationId: ensuredConversationId,
+            usage,
+          });
+        }
+      } catch (err) {
+        console.warn('⚠️ Chat Route - Failed to persist usage', err);
+      }
       if (webSearchEnabled) {
         console.log('🔍 Chat Route - Web Search Details:', safeStringify(result));
       }

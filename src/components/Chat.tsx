@@ -32,6 +32,18 @@ import {
   ReasoningTrigger,
 } from '@/components/ai-elements/reasoning';
 import { Actions, Action } from '@/components/ai-elements/actions';
+import {
+  Context,
+  ContextCacheUsage,
+  ContextContent,
+  ContextContentBody,
+  ContextContentFooter,
+  ContextContentHeader,
+  ContextInputUsage,
+  ContextOutputUsage,
+  ContextReasoningUsage,
+  ContextTrigger,
+} from '@/components/ai-elements/context';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -52,6 +64,14 @@ import {
   SourcesContent,
   Source,
 } from '@/components/ai-elements/source';
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from '@/components/ai-elements/tool';
+import { CodeBlock } from '@/components/ai-elements/code-block';
 
 interface ChatProps {
   className?: string;
@@ -67,6 +87,14 @@ interface ChatProps {
   // Optional knowledge text to persist as a system message at conversation creation time
   knowledgeText?: string;
 }
+
+type UsageSnapshot = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedInputTokens: number;
+  reasoningTokens: number;
+};
 
 function extractSources(text: string) {
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
@@ -153,6 +181,9 @@ const Chat = React.memo(function Chat({
   const [webSearchOn, setWebSearchOn] = useLocalStorage<boolean>('chat_web_search_on', false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [contextUsage, setContextUsage] = useState<UsageSnapshot | null>(null);
+  const [contextModelId, setContextModelId] = useState<string | undefined>(model);
+  const [contextMaxTokens, setContextMaxTokens] = useState<number | undefined>(undefined);
   const modelChoices = useMemo(() => {
     const seen = new Set<string>();
     const items: string[] = [];
@@ -194,6 +225,47 @@ const Chat = React.memo(function Chat({
     };
   }, [agentTag]);
 
+  const normalizeUsage = useCallback((usage?: Partial<UsageSnapshot> | null): UsageSnapshot => {
+    const toInt = (value: unknown) => {
+      const num = Number(value);
+      return Number.isFinite(num) && num >= 0 ? Math.round(num) : 0;
+    };
+    const normalized: UsageSnapshot = {
+      inputTokens: toInt(usage?.inputTokens),
+      outputTokens: toInt(usage?.outputTokens),
+      cachedInputTokens: toInt(usage?.cachedInputTokens),
+      reasoningTokens: toInt(usage?.reasoningTokens),
+      totalTokens: 0,
+    };
+    const explicitTotal = toInt(usage?.totalTokens);
+    const sum = normalized.inputTokens + normalized.outputTokens + normalized.reasoningTokens;
+    normalized.totalTokens = explicitTotal > 0 ? explicitTotal : sum;
+    return normalized;
+  }, []);
+
+  const guessMaxTokens = useCallback((modelId?: string) => {
+    const id = (modelId || '').toLowerCase();
+    if (id.includes('claude-3.5') || id.includes('claude-3-sonnet')) return 200_000;
+    if (id.includes('gpt-4.1') || id.includes('gpt-4o')) return 128_000;
+    if (id.includes('gpt-3.5')) return 16_000;
+    return 128_000;
+  }, []);
+
+  const refreshUsage = useCallback(async (cid: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${cid}/usage`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const normalized = normalizeUsage(data?.usage ?? null);
+      setContextUsage(normalized);
+      const incomingModel = (data?.modelId as string | undefined) || contextModelId || currentModel || model;
+      setContextModelId(incomingModel);
+      setContextMaxTokens(guessMaxTokens(incomingModel));
+    } catch {
+      // noop
+    }
+  }, [contextModelId, currentModel, guessMaxTokens, model, normalizeUsage]);
+
   const { messages, status, sendMessage, regenerate, stop, setMessages } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
     onFinish: async ({ message }) => {
@@ -221,6 +293,9 @@ const Chat = React.memo(function Chat({
           shouldGenerateTitleRef.current = false;
           generateConversationTitleAsync(cid);
         }
+
+        // Refresh usage snapshot for the context widget
+        void refreshUsage(cid);
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
           console.error('❌ Failed to save message in onFinish:', error);
@@ -249,6 +324,24 @@ const Chat = React.memo(function Chat({
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
+
+  useEffect(() => {
+    const cid = conversationIdRef.current;
+    if (cid) {
+      void refreshUsage(cid);
+    } else {
+      setContextUsage(null);
+      setContextMaxTokens(undefined);
+    }
+  }, [conversationId, refreshUsage]);
+
+  useEffect(() => {
+    const effectiveModel = contextModelId ?? currentModel ?? model;
+    if (!contextModelId && effectiveModel) {
+      setContextModelId(effectiveModel);
+      setContextMaxTokens((prev) => prev ?? guessMaxTokens(effectiveModel));
+    }
+  }, [contextModelId, currentModel, guessMaxTokens, model]);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
@@ -368,6 +461,9 @@ const Chat = React.memo(function Chat({
     setRegeneratingMessageId(null);
     regenerationSnapshotRef.current = null;
     setCopiedMessageId(null);
+    setContextUsage(null);
+    setContextModelId(model);
+    setContextMaxTokens(undefined);
     if (copyTimeoutRef.current) {
       window.clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = null;
@@ -377,7 +473,7 @@ const Chat = React.memo(function Chat({
     if (process.env.NODE_ENV === 'development') {
       console.log('🆕 Starting a new chat session');
     }
-  }, [setMessages]);
+  }, [model, setMessages]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -708,6 +804,14 @@ const Chat = React.memo(function Chat({
       mediaType?: string;
       url?: string;
     };
+    toolInvocation?: {
+      toolCallId: string;
+      toolName: string;
+      args: unknown;
+      result?: unknown;
+    };
+    state?: 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
+    error?: string;
   }
   interface BasicUISource { title: string; url: string }
   interface BasicUIAnnotation { type: string; value?: BasicUISource[] }
@@ -820,6 +924,28 @@ const Chat = React.memo(function Chat({
       </Dialog>
       {hasMessages ? (
         <>
+          {conversationId && contextUsage && (
+            <div className="mb-3 flex justify-end">
+              <Context
+                usage={contextUsage}
+                maxTokens={contextMaxTokens}
+                modelId={contextModelId ?? currentModel ?? model}
+                usedTokens={contextUsage.totalTokens}
+              >
+                <ContextTrigger />
+                <ContextContent>
+                  <ContextContentHeader />
+                  <ContextContentBody>
+                    <ContextInputUsage />
+                    <ContextOutputUsage />
+                    <ContextReasoningUsage />
+                    <ContextCacheUsage />
+                  </ContextContentBody>
+                  <ContextContentFooter />
+                </ContextContent>
+              </Context>
+            </div>
+          )}
           {/* Scrollable conversation area */}
           <div className="flex-1 overflow-hidden pb-20 md:pb-0">
             <Conversation className="h-full overflow-y-scroll md:overflow-y-visible">
@@ -881,6 +1007,37 @@ const Chat = React.memo(function Chat({
                                       <ReasoningTrigger />
                                       <ReasoningContent>{part.text}</ReasoningContent>
                                     </Reasoning>
+                                  );
+                                case 'tool-invocation':
+                                  const toolInvocation = part.toolInvocation;
+                                  if (!toolInvocation) return null;
+                                  const toolState =
+                                    part.state ||
+                                    (toolInvocation.result ? 'output-available' : 'input-available');
+                                  return (
+                                    <Tool
+                                      key={`${message.id}-${i}`}
+                                      defaultOpen={toolState !== 'output-available'}
+                                    >
+                                      <ToolHeader
+                                        type={toolInvocation.toolName}
+                                        state={toolState}
+                                      />
+                                      <ToolContent>
+                                        <ToolInput input={toolInvocation.args} />
+                                        <ToolOutput
+                                          output={
+                                            toolInvocation.result ? (
+                                              <CodeBlock
+                                                code={JSON.stringify(toolInvocation.result, null, 2)}
+                                                language="json"
+                                              />
+                                            ) : null
+                                          }
+                                          errorText={part.error}
+                                        />
+                                      </ToolContent>
+                                    </Tool>
                                   );
                                 case 'file': {
                                   const imageSrc = getImageSrcFromPart(part);

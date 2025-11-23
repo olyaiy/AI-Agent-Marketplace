@@ -208,6 +208,13 @@ export const conversation = pgTable('conversation', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   lastMessageAt: timestamp('last_message_at'),
   archivedAt: timestamp('archived_at'),
+  // Aggregated usage counters (best-effort)
+  totalInputTokens: integer('total_input_tokens').notNull().default(0),
+  totalOutputTokens: integer('total_output_tokens').notNull().default(0),
+  totalTokens: integer('total_tokens').notNull().default(0),
+  cachedInputTokens: integer('cached_input_tokens').notNull().default(0),
+  reasoningTokens: integer('reasoning_tokens').notNull().default(0),
+  lastUsage: jsonb('last_usage'),
 });
 
 // Messages (persist UIMessage parts as canonical)
@@ -221,6 +228,7 @@ export const message = pgTable('message', {
   annotations: jsonb('annotations'), // Array<UIMessageAnnotation> (e.g., sources)
   textPreview: text('text_preview'),
   hasToolCalls: boolean('has_tool_calls').default(false),
+  tokenUsage: jsonb('token_usage'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
