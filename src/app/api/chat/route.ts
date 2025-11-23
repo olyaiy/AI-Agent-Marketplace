@@ -263,7 +263,7 @@ export async function POST(req: Request) {
     experimental_transform: smoothStream({
       delayInMs: 30,
       chunking: 'word',
-    }),
+    }), 
     tools,
     system: systemPrompt,
     messages: convertToModelMessages(messages),
