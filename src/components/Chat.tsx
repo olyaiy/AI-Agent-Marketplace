@@ -20,7 +20,6 @@ import { useChat } from '@ai-sdk/react';
 import type { FileUIPart, ToolUIPart, UIMessage } from 'ai';
 import {
   Conversation,
-  ConversationContent,
   ConversationScrollButton,
 } from '@/components/ai-elements/conversation';
 import { Message, MessageContent } from '@/components/ai-elements/message';
@@ -71,7 +70,6 @@ import {
   ToolInput,
   ToolOutput,
 } from '@/components/ai-elements/tool';
-import { CodeBlock } from '@/components/ai-elements/code-block';
 
 interface ChatProps {
   className?: string;
@@ -94,6 +92,71 @@ type UsageSnapshot = {
   totalTokens: number;
   cachedInputTokens: number;
   reasoningTokens: number;
+};
+
+interface BasicUIPart {
+  type: string;
+  text?: string;
+  title?: string;
+  url?: string;
+  data?: string;
+  input?: unknown;
+  output?: unknown;
+  errorText?: string;
+  rawInput?: unknown;
+  toolCallId?: string;
+  mediaType?: string;
+  filename?: string;
+  sourceId?: string;
+  file?: {
+    base64?: string;
+    mediaType?: string;
+    url?: string;
+  };
+  toolInvocation?: {
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+    result?: unknown;
+  };
+  state?: 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
+  error?: string;
+}
+interface BasicUISource { title: string; url: string }
+interface BasicUIAnnotation { type: string; value?: BasicUISource[] }
+interface BasicUIMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  parts: BasicUIPart[];
+  annotations?: BasicUIAnnotation[];
+}
+
+const getImageSrcFromPart = (part: BasicUIPart): string | null => {
+  if (part.type !== 'file') return null;
+
+  const mediaType = (part.mediaType || part.file?.mediaType || '').trim();
+  const rawContent =
+    (typeof part.url === 'string' && part.url.trim()) ||
+    (typeof part.data === 'string' && part.data.trim()) ||
+    (typeof part.file?.url === 'string' && part.file.url.trim()) ||
+    (typeof part.file?.base64 === 'string' && part.file.base64.trim()) ||
+    '';
+
+  if (!rawContent) return null;
+
+  const isImageLike =
+    mediaType.startsWith('image/') ||
+    /^data:image\//i.test(rawContent) ||
+    /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(rawContent);
+
+  if (!isImageLike) return null;
+
+  if (/^(data:|[a-z][a-z0-9+.-]*:|\/)/i.test(rawContent)) {
+    return rawContent;
+  }
+
+  const safeMediaType = mediaType || 'image/png';
+  return `data:${safeMediaType};base64,${rawContent}`;
 };
 
 function extractSources(text: string) {
@@ -148,6 +211,291 @@ async function convertFilesToUIParts(files: File[]): Promise<FileUIPart[]> {
   }
   return parts;
 }
+
+function useThrottledValue<T>(value: T, fps: number): T {
+  const [throttledValue, setThrottledValue] = useState<T>(value);
+  const lastUpdateRef = useRef<number>(0);
+  useEffect(() => {
+    const now = performance.now();
+    const minInterval = 1000 / Math.max(1, fps);
+    const elapsed = now - lastUpdateRef.current;
+
+    if (elapsed >= minInterval) {
+      lastUpdateRef.current = now;
+      setThrottledValue(value);
+      return;
+    }
+
+    const handle = window.setTimeout(() => {
+      lastUpdateRef.current = performance.now();
+      setThrottledValue(value);
+    }, minInterval - elapsed);
+
+    return () => window.clearTimeout(handle);
+  }, [fps, value]);
+
+  return throttledValue;
+}
+
+type MessageItemProps = {
+  message: BasicUIMessage;
+  status: string;
+  isLastAssistant: boolean;
+  isRegenerating: boolean;
+  isCopied: boolean;
+  canDelete: boolean;
+  onRegenerate: (message: BasicUIMessage) => void;
+  onCopy: (message: BasicUIMessage) => void;
+  onDelete?: (messageId: string) => void;
+  onPreviewImage: (payload: { src: string; alt: string }) => void;
+};
+
+const MessageItem = React.memo(
+  function MessageItem({
+    message,
+    status,
+    isLastAssistant,
+    isRegenerating,
+    isCopied,
+    canDelete,
+    onRegenerate,
+    onCopy,
+    onDelete,
+    onPreviewImage,
+  }: MessageItemProps) {
+    const isStreamingActive = status === 'streaming' && isLastAssistant;
+    const sources = useMemo(() => {
+      const allText = message.parts.map((p) => p.text || '').join(' ');
+      const extractedSources = message.role === 'assistant' ? extractSources(allText) : [];
+
+      const partSources = message.parts
+        .filter((part) => part.type === 'source-url' || part.type === 'source')
+        .map((part) => ({
+          title: part.title || '',
+          url: part.url || '',
+        }))
+        .filter((s) => s.url);
+
+      const annotationSources =
+        message.annotations?.find((annotation) => annotation.type === 'sources')?.value ?? [];
+
+      const sourcesMap = new Map<string, { title: string; url: string }>();
+      extractedSources.forEach((s) => sourcesMap.set(s.url, s));
+      partSources.forEach((s) => sourcesMap.set(s.url, s));
+      annotationSources.forEach((source) => {
+        if (!source) return;
+        sourcesMap.set(source.url, { title: source.title, url: source.url });
+      });
+
+      return Array.from(sourcesMap.values());
+    }, [message.annotations, message.parts, message.role]);
+
+    return (
+      <div className="group/message">
+        <Message from={message.role}>
+          <MessageContent>
+            {(() => {
+              const renderedImages = new Set<string>();
+              return message.parts.map((part: BasicUIPart, i: number) => {
+                switch (part.type) {
+                  case 'text':
+                    if (!part.text) return null;
+                    if (isStreamingActive) {
+                      return (
+                        <pre
+                          key={`${message.id}-${i}`}
+                          className="whitespace-pre-wrap break-words text-sm leading-relaxed"
+                        >
+                          {part.text}
+                        </pre>
+                      );
+                    }
+                    return (
+                      <Response key={`${message.id}-${i}`} sources={sources}>
+                        {part.text}
+                      </Response>
+                    );
+                  case 'reasoning':
+                    if (part.text === '[REDACTED]') return null;
+                    return (
+                      <Reasoning
+                        key={`${message.id}-${i}`}
+                        className="w-full"
+                        isStreaming={
+                          isStreamingActive && i === message.parts.length - 1
+                        }
+                      >
+                        <ReasoningTrigger />
+                        <ReasoningContent>{part.text}</ReasoningContent>
+                      </Reasoning>
+                    );
+                  case 'tool-invocation': {
+                    const toolInvocation = part.toolInvocation;
+                    if (!toolInvocation) return null;
+                    const toolState =
+                      part.state || (toolInvocation.result ? 'output-available' : 'input-available');
+                    const isToolStreaming =
+                      toolState === 'input-streaming' || toolState === 'input-available';
+                    const resultJson = toolInvocation.result
+                      ? JSON.stringify(toolInvocation.result, null, 2)
+                      : null;
+                    return (
+                      <Tool key={`${message.id}-${i}`} defaultOpen={toolState !== 'output-available'}>
+                        <ToolHeader type={toolInvocation.toolName} state={toolState} />
+                        <ToolContent>
+                          <ToolInput
+                            input={toolInvocation.args}
+                            renderMode={isToolStreaming ? 'plain' : 'code'}
+                          />
+                          <ToolOutput
+                            outputText={resultJson ?? undefined}
+                            errorText={part.error}
+                          />
+                        </ToolContent>
+                      </Tool>
+                    );
+                  }
+                  case 'file': {
+                    const imageSrc = getImageSrcFromPart(part);
+                    if (!imageSrc || renderedImages.has(imageSrc)) return null;
+                    renderedImages.add(imageSrc);
+                    return (
+                      <div
+                        key={`${message.id}-${i}`}
+                        className="group relative overflow-hidden rounded-lg border bg-background"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onPreviewImage({
+                              src: imageSrc,
+                              alt: part.title || part.filename || 'Generated image',
+                            })
+                          }
+                          className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
+                        >
+                          <img
+                            src={imageSrc}
+                            alt={part.title || part.filename || 'Generated image'}
+                            className="h-auto w-full max-h-[512px] object-contain transition-transform duration-150 group-hover:scale-[1.01]"
+                            loading="lazy"
+                          />
+                        </button>
+                        <a
+                          href={imageSrc}
+                          download
+                          className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border bg-background/80 p-1.5 text-foreground shadow-sm opacity-0 transition-opacity duration-150 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
+                          aria-label="Download image"
+                        >
+                          <DownloadIcon className="size-4" />
+                        </a>
+                      </div>
+                    );
+                  }
+                  default: {
+                    const isToolPart = typeof part.type === 'string' && part.type.startsWith('tool-');
+                    if (isToolPart) {
+                      const toolName = part.type.replace(/^tool-/, '') || 'tool';
+                      const toolState =
+                        part.state ||
+                        (part.output
+                          ? 'output-available'
+                          : part.errorText
+                            ? 'output-error'
+                            : 'input-available');
+                      const isToolStreaming =
+                        toolState === 'input-streaming' || toolState === 'input-available';
+                      const toolInput =
+                        part.input ?? part.rawInput ?? (part as Record<string, unknown>).args ?? null;
+                      const toolOutput = part.output;
+                      const errorText = part.errorText || part.error;
+                      const outputJson =
+                        toolOutput && typeof toolOutput !== 'string'
+                          ? JSON.stringify(toolOutput, null, 2)
+                          : toolOutput;
+                      return (
+                        <Tool
+                          key={`${message.id}-${i}`}
+                          defaultOpen={toolState !== 'output-available'}
+                        >
+                          <ToolHeader type={toolName} state={toolState as ToolUIPart['state']} />
+                          <ToolContent>
+                            <ToolInput
+                              input={toolInput}
+                              renderMode={isToolStreaming ? 'plain' : 'code'}
+                            />
+                            <ToolOutput
+                              outputText={
+                                typeof outputJson === 'string' ? outputJson : undefined
+                              }
+                              errorText={errorText}
+                            />
+                          </ToolContent>
+                        </Tool>
+                      );
+                    }
+                    return null;
+                  }
+                }
+              });
+            })()}
+
+            {sources.length > 0 && (
+              <Sources className="mt-2 border-t pt-2">
+                <SourcesTrigger sources={sources} />
+                <SourcesContent>
+                  {sources.map((source, idx) => (
+                    <Source key={idx} href={source.url} title={source.title} />
+                  ))}
+                </SourcesContent>
+              </Sources>
+            )}
+          </MessageContent>
+        </Message>
+        <Actions
+          className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${
+            message.role === 'user' ? 'justify-end' : 'justify-start'
+          }`}
+        >
+          {message.role === 'assistant' && isLastAssistant && (
+            <Action
+              onClick={() => onRegenerate(message)}
+              tooltip={isRegenerating ? 'Regenerating…' : 'Retry response'}
+              label="Retry response"
+              disabled={status === 'submitted' || status === 'streaming'}
+            >
+              <RefreshCcwIcon
+                className={cn(
+                  'size-4',
+                  isRegenerating && (status === 'submitted' || status === 'streaming') && 'animate-spin'
+                )}
+              />
+            </Action>
+          )}
+          <Action
+            onClick={() => onCopy(message)}
+            tooltip={isCopied ? 'Copied' : 'Copy message'}
+            label={isCopied ? 'Copied' : 'Copy message'}
+          >
+            {isCopied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+          </Action>
+          {canDelete && (
+            <Action onClick={() => onDelete?.(message.id)} label="Delete message">
+              <Trash2Icon className="size-4" />
+            </Action>
+          )}
+        </Actions>
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.message === next.message &&
+    prev.status === next.status &&
+    prev.isLastAssistant === next.isLastAssistant &&
+    prev.isRegenerating === next.isRegenerating &&
+    prev.isCopied === next.isCopied &&
+    prev.canDelete === next.canDelete
+);
 
 const Chat = React.memo(function Chat({
   className,
@@ -825,90 +1173,59 @@ const Chat = React.memo(function Chat({
     }
   }, [agentTag, currentModel, getChatContext, isAuthenticated, messages, model, reasoningOn, regenerate, status, supportsReasoning, systemPrompt, webSearchOn]);
 
-  interface BasicUIPart {
-    type: string;
-    text?: string;
-    title?: string;
-    url?: string;
-    data?: string;
-    input?: unknown;
-    output?: unknown;
-    errorText?: string;
-    rawInput?: unknown;
-    toolCallId?: string;
-    mediaType?: string;
-    filename?: string;
-    sourceId?: string;
-    file?: {
-      base64?: string;
-      mediaType?: string;
-      url?: string;
-    };
-    toolInvocation?: {
-      toolCallId: string;
-      toolName: string;
-      args: unknown;
-      result?: unknown;
-    };
-    state?: 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
-    error?: string;
-  }
-  interface BasicUISource { title: string; url: string }
-  interface BasicUIAnnotation { type: string; value?: BasicUISource[] }
-  interface BasicUIMessage {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    parts: BasicUIPart[];
-    annotations?: BasicUIAnnotation[];
-  }
-  const getImageSrcFromPart = (part: BasicUIPart): string | null => {
-    if (part.type !== 'file') return null;
-
-    const mediaType = (part.mediaType || part.file?.mediaType || '').trim();
-    const rawContent =
-      (typeof part.url === 'string' && part.url.trim()) ||
-      (typeof part.data === 'string' && part.data.trim()) ||
-      (typeof part.file?.url === 'string' && part.file.url.trim()) ||
-      (typeof part.file?.base64 === 'string' && part.file.base64.trim()) ||
-      '';
-
-    if (!rawContent) return null;
-
-    const isImageLike =
-      mediaType.startsWith('image/') ||
-      /^data:image\//i.test(rawContent) ||
-      /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(rawContent);
-
-    if (!isImageLike) return null;
-
-    if (/^(data:|[a-z][a-z0-9+.-]*:|\/)/i.test(rawContent)) {
-      return rawContent;
-    }
-
-    const safeMediaType = mediaType || 'image/png';
-    return `data:${safeMediaType};base64,${rawContent}`;
-  };
-  const allMessages = useMemo<BasicUIMessage[]>(() => {
+  const initialMessagesMemo = useMemo<BasicUIMessage[]>(() => {
+    return (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
+  }, [initialMessages]);
+  const baseMessages = useMemo(() => {
     const normalizedInitialConversationId = initialConversationId ?? null;
     const normalizedConversationId = conversationId ?? null;
     const shouldUseServerMessages = normalizedConversationId === normalizedInitialConversationId;
-    const fromServer = shouldUseServerMessages
-      ? ((Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[])
-      : [];
-    const live = (messages as unknown as BasicUIMessage[]) || [];
-    const liveFiltered = live.filter(msg => !deletedMessageIds.has(msg.id) && !hiddenMessageIds.has(msg.id));
-    if (fromServer.length === 0) return liveFiltered;
-    const byId = new Map<string, BasicUIMessage>();
-    for (const m of fromServer) byId.set(m.id, m);
-    for (const m of live) byId.set(m.id, m);
-    // Filter out deleted messages
-    return Array.from(byId.values()).filter(msg => !deletedMessageIds.has(msg.id) && !hiddenMessageIds.has(msg.id));
-  }, [initialMessages, messages, deletedMessageIds, hiddenMessageIds, conversationId, initialConversationId]);
-  const hasMessages = allMessages.length > 0;
-  const displayedMessages = useMemo(() => allMessages, [allMessages]);
+    return shouldUseServerMessages ? initialMessagesMemo : [];
+  }, [conversationId, initialConversationId, initialMessagesMemo]);
+  const liveMessages = useMemo(
+    () => ((messages as unknown as BasicUIMessage[]) || []).filter(Boolean),
+    [messages]
+  );
+  const mergedMessages = useMemo<BasicUIMessage[]>(() => {
+    const result: BasicUIMessage[] = [];
+    const seen = new Set<string>();
+    const pushList = (list: BasicUIMessage[]) => {
+      for (const msg of list) {
+        if (seen.has(msg.id)) {
+          const existingIndex = result.findIndex((m) => m.id === msg.id);
+          if (existingIndex !== -1) {
+            result[existingIndex] = msg;
+          }
+          continue;
+        }
+        seen.add(msg.id);
+        result.push(msg);
+      }
+    };
+    pushList(baseMessages);
+    pushList(liveMessages);
+    return result.filter(
+      (msg) => !deletedMessageIds.has(msg.id) && !hiddenMessageIds.has(msg.id)
+    );
+  }, [baseMessages, liveMessages, deletedMessageIds, hiddenMessageIds]);
+  const throttledMessages = useThrottledValue(mergedMessages, 20);
+  const hasMessages = throttledMessages.length > 0;
+  const displayedMessages = useMemo(() => throttledMessages, [throttledMessages]);
   const lastAssistantMessageId = useMemo(
     () => displayedMessages.findLast((m) => m.role === 'assistant')?.id ?? null,
     [displayedMessages]
+  );
+  const pendingAssistantMessage = useMemo<BasicUIMessage>(
+    () => ({
+      id: '__pending_assistant__',
+      role: 'assistant',
+      parts: [{ type: 'text', text: '' }],
+    }),
+    []
+  );
+  const conversationItems = useMemo(
+    () => (status === 'submitted' ? [...displayedMessages, pendingAssistantMessage] : displayedMessages),
+    [displayedMessages, pendingAssistantMessage, status]
   );
   return (
     <div className={`flex w-full max-w-3xl flex-col h-full ${className || ''}`}>
@@ -966,228 +1283,40 @@ const Chat = React.memo(function Chat({
         <>
           {/* Scrollable conversation area */}
           <div className="flex-1 overflow-hidden pb-20 md:pb-0">
-            <Conversation className="h-full overflow-y-scroll md:overflow-y-visible">
-              <ConversationContent className="">
-                {displayedMessages.map((message: BasicUIMessage) => {
-                  // Calculate sources for this message
-                  // Calculate sources for this message
-                  const allText = message.parts.map(p => p.text || '').join(' ');
-                  const extractedSources = message.role === 'assistant' ? extractSources(allText) : [];
-
-                  // Extract sources from message parts (e.g. from OpenRouter/Anthropic)
-                  const partSources = message.parts
-                    .filter((part) => part.type === 'source-url' || part.type === 'source')
-                    .map((part) => ({
-                      title: part.title || '',
-                      url: part.url || '',
-                    }))
-                    .filter(s => s.url);
-
-                  // Combine extracted sources with annotation sources
-                  const annotationSources = message.annotations?.find((annotation) => annotation.type === 'sources')?.value ?? [];
-
-                  // Deduplicate sources by URL
-                  const sourcesMap = new Map<string, { title: string; url: string }>();
-                  extractedSources.forEach(s => sourcesMap.set(s.url, s));
-                  partSources.forEach(s => sourcesMap.set(s.url, s));
-                  annotationSources.forEach((source) => {
-                    if (!source) return;
-                    // Prioritize annotation sources as they contain the full page title
-                    sourcesMap.set(source.url, { title: source.title, url: source.url });
-                  });
-
-                  const sources = Array.from(sourcesMap.values());
-
-                  return (
-                    <div key={message.id} className="group/message">
-                      <Message from={message.role}>
-                        <MessageContent>
-                          {(() => {
-                            const renderedImages = new Set<string>();
-                            return message.parts.map((part: BasicUIPart, i: number) => {
-                              switch (part.type) {
-                                case 'text':
-                                  return (
-                                    <Response key={`${message.id}-${i}`} sources={sources}>{part.text}</Response>
-                                  );
-                            case 'reasoning':
-                              if (part.text === '[REDACTED]') return null;
-                              return (
-                                <Reasoning
-                                  key={`${message.id}-${i}`}
-                                      className="w-full"
-                                      isStreaming={
-                                        status === 'streaming' &&
-                                        i === message.parts.length - 1 &&
-                                        message.id === displayedMessages.at(-1)?.id
-                                      }
-                                    >
-                                      <ReasoningTrigger />
-                                      <ReasoningContent>{part.text}</ReasoningContent>
-                                    </Reasoning>
-                                  );
-                                case 'tool-invocation':
-                                  const toolInvocation = part.toolInvocation;
-                                  if (!toolInvocation) return null;
-                                  const toolState =
-                                    part.state ||
-                                    (toolInvocation.result ? 'output-available' : 'input-available');
-                                  return (
-                                    <Tool
-                                      key={`${message.id}-${i}`}
-                                      defaultOpen={toolState !== 'output-available'}
-                                    >
-                                      <ToolHeader
-                                        type={toolInvocation.toolName}
-                                        state={toolState}
-                                      />
-                                      <ToolContent>
-                                        <ToolInput input={toolInvocation.args} />
-                                        <ToolOutput
-                                          output={
-                                            toolInvocation.result ? (
-                                              <CodeBlock
-                                                code={JSON.stringify(toolInvocation.result, null, 2)}
-                                                language="json"
-                                              />
-                                            ) : null
-                                          }
-                                          errorText={part.error}
-                                        />
-                                      </ToolContent>
-                                    </Tool>
-                                  );
-                                case 'file': {
-                                  const imageSrc = getImageSrcFromPart(part);
-                                  if (!imageSrc || renderedImages.has(imageSrc)) return null;
-                                  renderedImages.add(imageSrc);
-                                  return (
-                                    <div key={`${message.id}-${i}`} className="group relative overflow-hidden rounded-lg border bg-background">
-                                      <button
-                                        type="button"
-                                        onClick={() => setPreviewImage({ src: imageSrc, alt: part.title || part.filename || 'Generated image' })}
-                                        className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
-                                      >
-                                        <img
-                                          src={imageSrc}
-                                          alt={part.title || part.filename || 'Generated image'}
-                                          className="h-auto w-full max-h-[512px] object-contain transition-transform duration-150 group-hover:scale-[1.01]"
-                                          loading="lazy"
-                                        />
-                                      </button>
-                                      <a
-                                        href={imageSrc}
-                                        download
-                                        className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border bg-background/80 p-1.5 text-foreground shadow-sm opacity-0 transition-opacity duration-150 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
-                                        aria-label="Download image"
-                                      >
-                                <DownloadIcon className="size-4" />
-                              </a>
-                            </div>
-                          );
-                        }
-                        default: {
-                          const isToolPart = typeof part.type === 'string' && part.type.startsWith('tool-');
-                          if (isToolPart) {
-                            const toolName = part.type.replace(/^tool-/, '') || 'tool';
-                            const toolState =
-                              part.state ||
-                              (part.output ? 'output-available' : part.errorText ? 'output-error' : 'input-available');
-                            const toolInput =
-                              part.input ?? part.rawInput ?? (part as Record<string, unknown>).args ?? null;
-                            const toolOutput = part.output;
-                            const errorText = part.errorText || part.error;
-                            return (
-                              <Tool
-                                key={`${message.id}-${i}`}
-                                defaultOpen={toolState !== 'output-available'}
-                              >
-                                <ToolHeader type={toolName} state={toolState as ToolUIPart['state']} />
-                                <ToolContent>
-                                  <ToolInput input={toolInput} />
-                                  <ToolOutput
-                                    output={
-                                      toolOutput ? (
-                                        <CodeBlock
-                                          code={JSON.stringify(toolOutput, null, 2)}
-                                          language="json"
-                                        />
-                                      ) : null
-                                    }
-                                    errorText={errorText}
-                                  />
-                                </ToolContent>
-                              </Tool>
-                            );
-                          }
-                          return null;
-                        }
-                      }
-                    });
-                  })()}
-
-                          {/* New Sources UI */}
-                          {sources.length > 0 && (
-                            <Sources className="mt-2 border-t pt-2">
-                              <SourcesTrigger sources={sources} />
-                              <SourcesContent>
-                                {sources.map((source, idx) => (
-                                  <Source
-                                    key={idx}
-                                    href={source.url}
-                                    title={source.title}
-                                  />
-                                ))}
-                              </SourcesContent>
-                            </Sources>
-                          )}
-                        </MessageContent>
-                      </Message>
-                      <Actions
-                        className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${message.role === 'user' ? 'justify-end' : 'justify-start'
-                          }`}
-                      >
-                        {message.role === 'assistant' && message.id === lastAssistantMessageId && (
-                          <Action
-                            onClick={() => handleRegenerateMessage(message)}
-                            tooltip={regeneratingMessageId === message.id ? 'Regenerating…' : 'Retry response'}
-                            label="Retry response"
-                            disabled={status === 'submitted' || status === 'streaming'}
-                          >
-                            <RefreshCcwIcon className={cn('size-4', regeneratingMessageId === message.id && (status === 'submitted' || status === 'streaming') && 'animate-spin')} />
-                          </Action>
-                        )}
-                        <Action
-                          onClick={() => handleCopyMessage(message)}
-                          tooltip={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
-                          label={copiedMessageId === message.id ? 'Copied' : 'Copy message'}
-                        >
-                          {copiedMessageId === message.id ? (
-                            <CheckIcon className="size-4" />
-                          ) : (
-                            <CopyIcon className="size-4" />
-                          )}
-                        </Action>
-                        {isAuthenticated && (
-                          <Action
-                            onClick={() => handleDeleteMessage(message.id)}
-                            label="Delete message"
-                          >
-                            <Trash2Icon className="size-4" />
-                          </Action>
-                        )}
-                      </Actions>
-                    </div>
-                  );
-                })}
-                {status === 'submitted' && (
-                  <Message from="assistant">
-                    <MessageContent>
-                      <MessageLoading />
-                    </MessageContent>
-                  </Message>
-                )}
-              </ConversationContent>
+            <Conversation
+              className="h-full"
+              items={conversationItems}
+              overscan={{ top: 200, bottom: 400 }}
+              virtuosoProps={{
+                computeItemKey: (_index, item) => item.id,
+              }}
+              renderItem={(message) =>
+                message.id === '__pending_assistant__' ? (
+                  <div className="px-2 md:px-4">
+                    <Message from="assistant">
+                      <MessageContent>
+                        <MessageLoading />
+                      </MessageContent>
+                    </Message>
+                  </div>
+                ) : (
+                  <div className="px-2 md:px-4">
+                    <MessageItem
+                      message={message}
+                      status={status}
+                      isLastAssistant={message.id === lastAssistantMessageId}
+                      isRegenerating={regeneratingMessageId === message.id}
+                      isCopied={copiedMessageId === message.id}
+                      canDelete={isAuthenticated}
+                      onRegenerate={handleRegenerateMessage}
+                      onCopy={handleCopyMessage}
+                      onDelete={isAuthenticated ? handleDeleteMessage : undefined}
+                      onPreviewImage={(payload) => setPreviewImage(payload)}
+                    />
+                  </div>
+                )
+              }
+            >
               <ConversationScrollButton />
             </Conversation>
           </div>

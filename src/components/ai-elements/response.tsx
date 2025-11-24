@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { type ComponentProps, memo, useMemo } from 'react';
+import { type ComponentProps, memo, useDeferredValue, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -26,6 +26,7 @@ export const Response = memo(
       if (typeof children !== 'string') return children;
       return children.replace(/\$/g, '\\$');
     }, [children]);
+    const deferredContent = useDeferredValue(escapedChildren);
 
     return (
       <div className={cn('size-full whitespace-pre-wrap', className)}>
@@ -171,7 +172,7 @@ export const Response = memo(
           }}
           {...props}
         >
-          {escapedChildren as string}
+          {deferredContent as string}
         </ReactMarkdown>
       </div>
     );

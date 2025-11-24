@@ -16,22 +16,39 @@ import {
   WrenchIcon,
   XCircleIcon,
 } from 'lucide-react';
+import { memo, useMemo } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { CodeBlock } from './code-block';
 
 export type ToolProps = ComponentProps<typeof Collapsible>;
 
-export const Tool = ({ className, ...props }: ToolProps) => (
-  <Collapsible
-    className={cn('not-prose mb-4 w-full rounded-md border', className)}
-    {...props}
-  />
-);
+export const Tool = memo(function Tool({ className, ...props }: ToolProps) {
+  return (
+    <Collapsible
+      className={cn('not-prose mb-4 w-full rounded-md border', className)}
+      {...props}
+    />
+  );
+});
 
 export type ToolHeaderProps = {
   type: string;
   state: ToolUIPart['state'];
   className?: string;
+};
+
+const stringifySafe = (value: unknown) => {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};
+
+const compactString = (value: string, maxLength = 4000) => {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}\n… truncated ${value.length - maxLength} characters`;
 };
 
 const getStatusBadge = (status: ToolUIPart['state']) => {
@@ -57,27 +74,29 @@ const getStatusBadge = (status: ToolUIPart['state']) => {
   );
 };
 
-export const ToolHeader = ({
+export const ToolHeader = memo(function ToolHeader({
   className,
   type,
   state,
   ...props
-}: ToolHeaderProps) => (
-  <CollapsibleTrigger
-    className={cn(
-      'flex w-full items-center justify-between gap-4 p-3',
-      className
-    )}
-    {...props}
-  >
-    <div className="flex items-center gap-2">
-      <WrenchIcon className="size-4 text-muted-foreground" />
-      <span className="font-medium text-sm">{type}</span>
-      {getStatusBadge(state)}
-    </div>
-    <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-  </CollapsibleTrigger>
-);
+}: ToolHeaderProps) {
+  return (
+    <CollapsibleTrigger
+      className={cn(
+        'flex w-full items-center justify-between gap-4 p-3',
+        className
+      )}
+      {...props}
+    >
+      <div className="flex items-center gap-2">
+        <WrenchIcon className="size-4 text-muted-foreground" />
+        <span className="font-medium text-sm">{type}</span>
+        {getStatusBadge(state)}
+      </div>
+      <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+    </CollapsibleTrigger>
+  );
+});
 
 export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
 
@@ -93,31 +112,80 @@ export const ToolContent = ({ className, ...props }: ToolContentProps) => (
 
 export type ToolInputProps = ComponentProps<'div'> & {
   input: ToolUIPart['input'];
+  renderMode?: 'plain' | 'code';
 };
 
-export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
-  <div className={cn('space-y-2 overflow-hidden p-4', className)} {...props}>
-    <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-      Parameters
-    </h4>
-    <div className="rounded-md bg-muted/50">
-      <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+export const ToolInput = memo(function ToolInput({
+  className,
+  input,
+  renderMode = 'code',
+  ...props
+}: ToolInputProps) {
+  const inputString = useMemo(() => stringifySafe(input), [input]);
+  const previewString = useMemo(
+    () => compactString(inputString, 4000),
+    [inputString]
+  );
+
+  if (renderMode === 'plain') {
+    return (
+      <div className={cn('space-y-2 overflow-hidden p-4', className)} {...props}>
+        <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+          Parameters
+        </h4>
+        <pre className="rounded-md bg-muted/50 p-3 text-xs leading-relaxed overflow-auto">
+          {previewString}
+        </pre>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('space-y-2 overflow-hidden p-4', className)} {...props}>
+      <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+        Parameters
+      </h4>
+      <div className="rounded-md bg-muted/50">
+        <CodeBlock code={inputString} language="json" />
+      </div>
     </div>
-  </div>
-);
+  );
+});
 
 export type ToolOutputProps = ComponentProps<'div'> & {
-  output: ReactNode;
+  output?: ReactNode;
+  outputText?: string;
   errorText: ToolUIPart['errorText'];
+  renderMode?: 'plain' | 'code';
 };
 
-export const ToolOutput = ({
+export const ToolOutput = memo(function ToolOutput({
   className,
   output,
+  outputText,
   errorText,
+  renderMode = 'code',
   ...props
-}: ToolOutputProps) => {
-  if (!(output || errorText)) {
+}: ToolOutputProps) {
+  const textContent = useMemo(
+    () => (outputText ? compactString(outputText, 8000) : ''),
+    [outputText]
+  );
+
+  const renderedContent = useMemo(() => {
+    if (output) return output;
+    if (!textContent) return null;
+    if (renderMode === 'plain') {
+      return (
+        <pre className="whitespace-pre-wrap break-words p-3 text-xs leading-relaxed">
+          {textContent}
+        </pre>
+      );
+    }
+    return <CodeBlock code={textContent} language="json" />;
+  }, [output, renderMode, textContent]);
+
+  if (!(renderedContent || errorText)) {
     return null;
   }
 
@@ -135,8 +203,8 @@ export const ToolOutput = ({
         )}
       >
         {errorText && <div>{errorText}</div>}
-        {output && <div>{output}</div>}
+        {renderedContent && <div>{renderedContent}</div>}
       </div>
     </div>
   );
-};
+});

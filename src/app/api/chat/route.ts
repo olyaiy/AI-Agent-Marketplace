@@ -268,8 +268,25 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: convertToModelMessages(messages),
     stopWhen: tools ? stepCountIs(10) : undefined,
+    onStepFinish: ({ toolCalls, toolResults }) => {
+      if (toolCalls && toolCalls.length > 0) {
+        toolCalls.forEach((toolCall) => {
+          console.log('Tool call:', {
+            toolCallId: 'toolCallId' in toolCall ? toolCall.toolCallId : undefined,
+            toolName: toolCall.toolName,
+          });
+        });
+      }
+      if (toolResults && toolResults.length > 0) {
+        toolResults.forEach((toolResult) => {
+          console.log('Tool result:', {
+            toolCallId: toolResult.toolCallId,
+            toolName: toolResult.toolName,
+          });
+        });
+      }
+    },
     onFinish: async (result) => {
-      console.log('Finish reason:', result.finishReason);
       // Persist usage aggregates on the conversation for UI context tracking
       try {
         const usage = normalizeUsage(result.usage);

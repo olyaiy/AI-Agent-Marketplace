@@ -129,7 +129,7 @@ export default async function ConversationPage({ params, searchParams }: { param
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden md:flex h-full  gap-4  max-h-[calc(100vh-100px)]">
+      <div className="hidden md:flex h-dvh  gap-4  max-h-[calc(100vh-100px)]">
         <div className=" flex-1 max-w-[75%]">
           <Chat
             className="mx-auto"
