@@ -35,7 +35,7 @@ type ConversationProps<T> = {
   className?: string;
   overscan?: { top?: number; bottom?: number };
   virtuosoProps?: Omit<
-    VirtuosoProps<T>,
+    VirtuosoProps<T, unknown>,
     'data' | 'itemContent' | 'atBottomStateChange' | 'followOutput'
   >;
   children?: ReactNode;

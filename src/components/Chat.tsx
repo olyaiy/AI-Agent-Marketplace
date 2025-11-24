@@ -106,6 +106,7 @@ interface BasicUIPart {
   data?: string;
   input?: unknown;
   output?: unknown;
+  args?: unknown;
   errorText?: string;
   rawInput?: unknown;
   toolCallId?: string;
@@ -543,6 +544,8 @@ const MessageItem = React.memo(
                           }
                           className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
                         >
+                          {/* Generated images can be arbitrary URLs or data URIs, so we keep a plain img tag. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={imageSrc}
                             alt={part.title || part.filename || 'Generated image'}
@@ -575,7 +578,7 @@ const MessageItem = React.memo(
                       const isToolStreaming =
                         toolState === 'input-streaming' || toolState === 'input-available';
                       const toolInput =
-                        part.input ?? part.rawInput ?? (part as Record<string, unknown>).args ?? null;
+                        part.input ?? part.rawInput ?? part.args ?? null;
                       const toolOutput = part.output;
                       const errorText = part.errorText || part.error;
                       const outputJson =
@@ -1598,6 +1601,8 @@ const Chat = React.memo(function Chat({
           </DialogHeader>
           {previewImage && (
             <div className="relative">
+              {/* Generated images can be arbitrary URLs or data URIs, so we keep a plain img tag. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewImage.src}
                 alt={previewImage.alt}

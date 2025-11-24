@@ -118,27 +118,26 @@ export async function tavilySearch(query: string, maxResults = 5) {
   });
 
   const results: TavilySearchResult[] = Array.isArray(data.results)
-    ? data.results
-        .slice(0, limit)
-        .map((raw) => {
-          const url = typeof raw.url === 'string' ? raw.url.trim() : '';
-          if (!url) return null;
-          const title =
-            typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : url;
-          const content = truncateContent(raw.content ?? raw.raw_content);
-          const score = typeof raw.score === 'number' ? raw.score : undefined;
-          const publishedDate =
-            typeof raw.published_date === 'string' && raw.published_date.trim()
-              ? raw.published_date.trim()
-              : undefined;
-          const favicon =
-            typeof raw.favicon === 'string' && raw.favicon.trim()
-              ? raw.favicon.trim()
-              : undefined;
+    ? data.results.slice(0, limit).reduce<TavilySearchResult[]>((acc, raw) => {
+        const url = typeof raw.url === 'string' ? raw.url.trim() : '';
+        if (!url) return acc;
 
-          return { title, url, content, score, publishedDate, favicon };
-        })
-        .filter((item): item is TavilySearchResult => Boolean(item))
+        const title =
+          typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : url;
+        const content = truncateContent(raw.content ?? raw.raw_content);
+        const score = typeof raw.score === 'number' ? raw.score : undefined;
+        const publishedDate =
+          typeof raw.published_date === 'string' && raw.published_date.trim()
+            ? raw.published_date.trim()
+            : undefined;
+        const favicon =
+          typeof raw.favicon === 'string' && raw.favicon.trim()
+            ? raw.favicon.trim()
+            : undefined;
+
+        acc.push({ title, url, content, score, publishedDate, favicon });
+        return acc;
+      }, [])
     : [];
 
   return {
@@ -166,36 +165,34 @@ export async function tavilyExtract(urls: string[]) {
   });
 
   const results: TavilyExtractResult[] = Array.isArray(data.results)
-    ? data.results
-        .map((raw) => {
-          const url = typeof raw.url === 'string' ? raw.url.trim() : '';
-          if (!url) return null;
+    ? data.results.reduce<TavilyExtractResult[]>((acc, raw) => {
+        const url = typeof raw.url === 'string' ? raw.url.trim() : '';
+        if (!url) return acc;
 
-          const title = typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : undefined;
-          const content = truncateContent(raw.content ?? raw.raw_content, MAX_CONTENT_LENGTH * 2);
-          const images = Array.isArray(raw.images)
-            ? raw.images.filter((img) => typeof img === 'string' && img.trim()).slice(0, 10)
+        const title = typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : undefined;
+        const content = truncateContent(raw.content ?? raw.raw_content, MAX_CONTENT_LENGTH * 2);
+        const images = Array.isArray(raw.images)
+          ? raw.images.filter((img) => typeof img === 'string' && img.trim()).slice(0, 10)
+          : undefined;
+        const favicon =
+          typeof raw.favicon === 'string' && raw.favicon.trim()
+            ? raw.favicon.trim()
             : undefined;
-          const favicon =
-            typeof raw.favicon === 'string' && raw.favicon.trim()
-              ? raw.favicon.trim()
-              : undefined;
 
-          return { url, title, content, images, favicon };
-        })
-        .filter((item): item is TavilyExtractResult => Boolean(item))
+        acc.push({ url, title, content, images, favicon });
+        return acc;
+      }, [])
     : [];
 
   const failedResults =
     Array.isArray(data.failed_results) && data.failed_results.length > 0
-      ? data.failed_results
-          .map((item) => {
-            const url = typeof item.url === 'string' ? item.url.trim() : undefined;
-            const error = typeof item.error === 'string' ? item.error : undefined;
-            if (!url && !error) return null;
-            return { url, error };
-          })
-          .filter((item): item is { url?: string; error?: string } => Boolean(item))
+      ? data.failed_results.reduce<{ url?: string; error?: string }[]>((acc, item) => {
+          const url = typeof item.url === 'string' ? item.url.trim() : undefined;
+          const error = typeof item.error === 'string' ? item.error : undefined;
+          if (!url && !error) return acc;
+          acc.push({ url, error });
+          return acc;
+        }, [])
       : [];
 
   return { results, failedResults };
@@ -204,7 +201,10 @@ export async function tavilyExtract(urls: string[]) {
 export const tavilySearchTool = tool({
   description:
     'Search the live web with Tavily for up-to-date information. Use this when the question needs current sources. Cite sources with Markdown links in your response.',
-  inputSchema: jsonSchema({
+  inputSchema: jsonSchema<{
+    query: string;
+    maxResults?: number;
+  }>({
     type: 'object',
     additionalProperties: false,
     required: ['query'],
@@ -231,7 +231,9 @@ export const tavilySearchTool = tool({
 export const tavilyReadPageTool = tool({
   description:
     'Extract the readable content from one or more URLs using Tavily. Helpful for pulling quotes or verifying claims. Cite sources with Markdown links in your response.',
-  inputSchema: jsonSchema({
+  inputSchema: jsonSchema<{
+    urls: string[];
+  }>({
     type: 'object',
     additionalProperties: false,
     required: ['urls'],
