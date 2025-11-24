@@ -1031,7 +1031,7 @@ const Chat = React.memo(function Chat({
           console.log('🛑 Saving message:', { id: lastMessage.id, partsCount: lastMessage.parts?.length });
         }
 
-        await fetch('/api/messages', {
+        await fetch('/api/messages', { 
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ conversationId: cid, message: lastMessage }),
