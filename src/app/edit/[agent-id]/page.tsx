@@ -49,6 +49,7 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
   const headerList = await headers();
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   if (!session?.user) redirect('/');
+  const isAuthenticated = Boolean(session.user);
   const a = await getAgentByTag(tag);
   if (!a) notFound();
   const isAdmin = session.user.role === 'admin';
@@ -86,6 +87,7 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       initialDescription={a.description || undefined}
       initialVisibility={initialVisibility}
       inviteCode={a.inviteCode || undefined}
+      isAuthenticated={isAuthenticated}
       avatars={avatars}
       onSave={saveAction}
       onDelete={deleteAction}

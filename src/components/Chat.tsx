@@ -46,7 +46,8 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon } from 'lucide-react';
+import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -56,7 +57,9 @@ import {
 } from '@/lib/conversations-cache';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent } from '@/lib/agent-events';
+import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent, dispatchAgentModelChange } from '@/lib/agent-events';
+import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
+import { ProviderAvatar } from '@/components/ProviderAvatar';
 import {
   Sources,
   SourcesTrigger,
@@ -84,6 +87,7 @@ interface ChatProps {
   initialMessages?: unknown[];
   // Optional knowledge text to persist as a system message at conversation creation time
   knowledgeText?: string;
+  showModelSelectorInPrompt?: boolean;
 }
 
 type UsageSnapshot = {
@@ -244,10 +248,14 @@ type MessageItemProps = {
   isRegenerating: boolean;
   isCopied: boolean;
   canDelete: boolean;
+  isEditing: boolean;
   onRegenerate: (message: BasicUIMessage) => void;
   onCopy: (message: BasicUIMessage) => void;
   onDelete?: (messageId: string) => void;
   onPreviewImage: (payload: { src: string; alt: string }) => void;
+  onStartEdit?: (messageId: string) => void;
+  onCancelEdit?: () => void;
+  onConfirmEdit?: (messageId: string, newText: string) => void;
 };
 
 const MessageItem = React.memo(
@@ -258,11 +266,52 @@ const MessageItem = React.memo(
     isRegenerating,
     isCopied,
     canDelete,
+    isEditing,
     onRegenerate,
     onCopy,
     onDelete,
     onPreviewImage,
+    onStartEdit,
+    onCancelEdit,
+    onConfirmEdit,
   }: MessageItemProps) {
+    const [editText, setEditText] = useState(() => {
+      // Initialize with the message's text content
+      const parts = Array.isArray(message.parts) ? message.parts : [];
+      return parts.map((p) => p.text || '').join('\n\n');
+    });
+    const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Focus textarea when entering edit mode
+    useEffect(() => {
+      if (isEditing && editTextareaRef.current) {
+        editTextareaRef.current.focus();
+        // Move cursor to end
+        const len = editTextareaRef.current.value.length;
+        editTextareaRef.current.setSelectionRange(len, len);
+      }
+    }, [isEditing]);
+
+    // Reset edit text when message changes or editing starts
+    useEffect(() => {
+      if (isEditing) {
+        const parts = Array.isArray(message.parts) ? message.parts : [];
+        setEditText(parts.map((p) => p.text || '').join('\n\n'));
+      }
+    }, [isEditing, message.parts]);
+
+    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (editText.trim() && onConfirmEdit) {
+          onConfirmEdit(message.id, editText.trim());
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancelEdit?.();
+      }
+    };
+
     const isStreamingActive = status === 'streaming' && isLastAssistant;
     const sources = useMemo(() => {
       const allText = message.parts.map((p) => p.text || '').join(' ');
@@ -289,6 +338,50 @@ const MessageItem = React.memo(
 
       return Array.from(sourcesMap.values());
     }, [message.annotations, message.parts, message.role]);
+
+    // Render edit mode for user messages
+    if (isEditing && message.role === 'user') {
+      return (
+        <div className="group/message">
+          <Message from={message.role}>
+            <MessageContent className="p-0 bg-transparent">
+              <div className="flex flex-col gap-2 w-full min-w-[280px] max-w-md">
+                <textarea
+                  ref={editTextareaRef}
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
+                  className="w-full min-h-[80px] p-3 text-sm rounded-lg border bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Edit your message..."
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onCancelEdit}
+                    className="text-muted-foreground"
+                  >
+                    <XIcon className="size-4 mr-1" />
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => editText.trim() && onConfirmEdit?.(message.id, editText.trim())}
+                    disabled={!editText.trim()}
+                  >
+                    <SendIcon className="size-4 mr-1" />
+                    Edit & Re-send
+                  </Button>
+                </div>
+              </div>
+            </MessageContent>
+          </Message>
+        </div>
+      );
+    }
 
     return (
       <div className="group/message">
@@ -472,6 +565,16 @@ const MessageItem = React.memo(
               />
             </Action>
           )}
+          {message.role === 'user' && canDelete && (
+            <Action
+              onClick={() => onStartEdit?.(message.id)}
+              tooltip="Edit message"
+              label="Edit message"
+              disabled={status === 'submitted' || status === 'streaming'}
+            >
+              <PencilIcon className="size-4" />
+            </Action>
+          )}
           <Action
             onClick={() => onCopy(message)}
             tooltip={isCopied ? 'Copied' : 'Copy message'}
@@ -494,7 +597,8 @@ const MessageItem = React.memo(
     prev.isLastAssistant === next.isLastAssistant &&
     prev.isRegenerating === next.isRegenerating &&
     prev.isCopied === next.isCopied &&
-    prev.canDelete === next.canDelete
+    prev.canDelete === next.canDelete &&
+    prev.isEditing === next.isEditing
 );
 
 const Chat = React.memo(function Chat({
@@ -520,6 +624,7 @@ const Chat = React.memo(function Chat({
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
   const regenerationSnapshotRef = useRef<{ message: UIMessage; index: number } | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastAssistantMessageRef = useRef<UIMessage | null>(null);
@@ -844,6 +949,7 @@ const Chat = React.memo(function Chat({
     setRegeneratingMessageId(null);
     regenerationSnapshotRef.current = null;
     setCopiedMessageId(null);
+    setEditingMessageId(null);
     setContextUsage(null);
     setContextModelId(model);
     setContextMaxTokens(undefined);
@@ -1118,6 +1224,134 @@ const Chat = React.memo(function Chat({
     }
   };
 
+  const handleStartEdit = useCallback((messageId: string) => {
+    if (status === 'streaming' || status === 'submitted') return;
+    setEditingMessageId(messageId);
+  }, [status]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessageId(null);
+  }, []);
+
+  const handleConfirmEdit = useCallback(async (messageId: string, newText: string) => {
+    if (!isAuthenticated) {
+      setIsDialogOpen(true);
+      return;
+    }
+
+    if (status === 'streaming' || status === 'submitted') {
+      return;
+    }
+
+    const cid = conversationIdRef.current;
+    if (!cid) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Cannot edit message: no conversation ID');
+      }
+      return;
+    }
+
+    // Cancel edit mode immediately for better UX
+    setEditingMessageId(null);
+
+    // Get all current messages to find which ones to delete
+    const serverMessages = (Array.isArray(initialMessages) ? initialMessages : []) as BasicUIMessage[];
+    const allCurrentMessages = [...serverMessages, ...(messages as BasicUIMessage[] || [])];
+    const uniqueMessages = Array.from(new Map(allCurrentMessages.map(m => [m.id, m])).values());
+    
+    // Find the index of the message being edited
+    const editedMessageIndex = uniqueMessages.findIndex(m => m.id === messageId);
+    
+    // Collect IDs of messages to hide: the edited message AND all messages after it
+    // We hide the edited message because sendMessage will create a new user message
+    const messageIdsToHide = new Set<string>();
+    if (editedMessageIndex !== -1) {
+      // Include the edited message itself (sendMessage will create a new one)
+      messageIdsToHide.add(messageId);
+      // Include all messages after the edited one
+      for (let i = editedMessageIndex + 1; i < uniqueMessages.length; i++) {
+        messageIdsToHide.add(uniqueMessages[i].id);
+      }
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✏️ Optimistic edit:', {
+        editedMessageId: messageId,
+        messagesToHide: Array.from(messageIdsToHide),
+      });
+    }
+
+    // OPTIMISTIC UPDATE: Immediately hide the edited message and all messages after it
+    setDeletedMessageIds((prev) => {
+      const next = new Set(prev);
+      messageIdsToHide.forEach(id => next.add(id));
+      return next;
+    });
+
+    try {
+      // Call API to update message and delete subsequent messages
+      const res = await fetch('/api/messages', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messageId, newText }),
+      });
+
+      if (!res.ok) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to edit message:', await res.text());
+        }
+        // Rollback optimistic update on error
+        setDeletedMessageIds((prev) => {
+          const next = new Set(prev);
+          messageIdsToHide.forEach(id => next.delete(id));
+          return next;
+        });
+        return;
+      }
+
+      // Re-send the edited message to the model
+      const ctx = getChatContext ? getChatContext() || undefined : undefined;
+      const resolvedModel = ctx?.model ?? currentModel ?? model;
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 Re-sending edited message:', {
+          messageId,
+          newText: newText.slice(0, 50) + (newText.length > 50 ? '...' : ''),
+          model: resolvedModel,
+        });
+      }
+
+      // Send the edited message as a new turn
+      sendMessage(
+        { text: newText },
+        {
+          body: {
+            systemPrompt: ctx?.systemPrompt ?? systemPrompt,
+            model: resolvedModel,
+            conversationId: cid,
+            agentTag,
+            reasoningEnabled: supportsReasoning ? reasoningOn : false,
+            webSearchEnabled: webSearchOn,
+          },
+        }
+      );
+
+      // Revalidate conversations
+      try { revalidateConversations(); } catch { /* ignore */ }
+
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to edit message:', error);
+      }
+      // Rollback optimistic update on error
+      setDeletedMessageIds((prev) => {
+        const next = new Set(prev);
+        messageIdsToHide.forEach(id => next.delete(id));
+        return next;
+      });
+    }
+  }, [agentTag, currentModel, getChatContext, initialMessages, isAuthenticated, messages, model, reasoningOn, sendMessage, status, supportsReasoning, systemPrompt, webSearchOn]);
+
   const handleRegenerateMessage = useCallback(async (message: BasicUIMessage) => {
     if (!isAuthenticated) {
       setIsDialogOpen(true);
@@ -1308,10 +1542,14 @@ const Chat = React.memo(function Chat({
                       isRegenerating={regeneratingMessageId === message.id}
                       isCopied={copiedMessageId === message.id}
                       canDelete={isAuthenticated}
+                      isEditing={editingMessageId === message.id}
                       onRegenerate={handleRegenerateMessage}
                       onCopy={handleCopyMessage}
                       onDelete={isAuthenticated ? handleDeleteMessage : undefined}
                       onPreviewImage={(payload) => setPreviewImage(payload)}
+                      onStartEdit={isAuthenticated ? handleStartEdit : undefined}
+                      onCancelEdit={handleCancelEdit}
+                      onConfirmEdit={handleConfirmEdit}
                     />
                   </div>
                 )

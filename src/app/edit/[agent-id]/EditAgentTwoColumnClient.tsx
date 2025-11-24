@@ -22,6 +22,7 @@ interface Props {
   initialDescription?: string;
   initialVisibility?: 'public' | 'invite_only' | 'private';
   inviteCode?: string;
+  isAuthenticated: boolean;
   avatars: string[];
   onSave: ServerAction;
   onDelete: ServerAction;
@@ -180,6 +181,7 @@ function TwoColumn(props: Props) {
               modelOptions={modelOptions}
               agentTag={props.tag}
               getChatContext={getChatContext}
+              isAuthenticated={props.isAuthenticated}
             />
           </div>
         </div>
