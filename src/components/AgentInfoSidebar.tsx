@@ -51,11 +51,17 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
     return `${window.location.origin}/agent/${encodeURIComponent(agentId)}?invite=${inviteCode}`;
   }, [agentTag, inviteCode, visibility]);
   const [copiedInvite, setCopiedInvite] = React.useState(false);
+  const [isMac, setIsMac] = React.useState(false);
   React.useEffect(() => {
     if (!copiedInvite) return;
     const t = setTimeout(() => setCopiedInvite(false), 2000);
     return () => clearTimeout(t);
   }, [copiedInvite]);
+  React.useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      setIsMac(/Mac|iPod|iPhone|iPad/.test(navigator.platform));
+    }
+  }, []);
   
   // Extract agent ID from tag (remove @ prefix)
   const agentId = agentTag ? agentTag.replace('@', '') : null;
@@ -161,7 +167,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
             asChild
             variant="outline"
             size="sm"
-            aria-label="New chat"
+            aria-label={`New chat (${isMac ? '⌘' : 'Ctrl+'}K)`}
           >
             <Link
               href={`/agent/${agentId}`}
@@ -176,6 +182,9 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
             >
               <Plus className="w-4 h-4 mr-1" />
               New Chat
+              <kbd className="ml-1.5 pointer-events-none hidden h-5 select-none items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium sm:inline-flex">
+                <span className="text-xs">{isMac ? '⌘' : 'Ctrl+'}</span>K
+              </kbd>
             </Link>
           </Button>
         )}

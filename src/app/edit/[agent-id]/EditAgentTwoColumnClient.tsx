@@ -182,6 +182,7 @@ function TwoColumn(props: Props) {
               agentTag={props.tag}
               getChatContext={getChatContext}
               isAuthenticated={props.isAuthenticated}
+              showModelSelectorInPrompt
             />
           </div>
         </div>

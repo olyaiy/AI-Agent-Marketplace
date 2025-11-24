@@ -135,6 +135,82 @@ interface BasicUIMessage {
   annotations?: BasicUIAnnotation[];
 }
 
+const ModelLabel = React.memo(function ModelLabel({ label, providerSlug }: { label: string; providerSlug: string | null }) {
+  return (
+    <div className="flex items-center gap-2 truncate">
+      <ProviderAvatar providerSlug={providerSlug} size={20} />
+      <span className="truncate text-sm">{label}</span>
+    </div>
+  );
+});
+ModelLabel.displayName = 'ModelLabel';
+
+const InlineModelSelector = React.memo(function InlineModelSelector({
+  models,
+  value,
+  onChange,
+}: {
+  models: string[];
+  value?: string;
+  onChange: (modelId: string) => void;
+}) {
+  const availableModels = useMemo(
+    () => Array.from(new Set(models.filter((m) => typeof m === 'string' && m.trim().length > 0))),
+    [models]
+  );
+  const selectedValue = useMemo(() => {
+    if (value && availableModels.includes(value)) return value;
+    return availableModels[0] ?? '';
+  }, [availableModels, value]);
+  const modelsWithMeta = useMemo(
+    () =>
+      availableModels.map((id) => ({
+        id,
+        label: getDisplayName(undefined, id),
+        providerSlug: deriveProviderSlug(undefined, id),
+      })),
+    [availableModels]
+  );
+  const selectedMeta = useMemo(
+    () => modelsWithMeta.find((m) => m.id === selectedValue),
+    [modelsWithMeta, selectedValue]
+  );
+
+  if (!selectedValue) return null;
+
+  if (availableModels.length <= 1) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border bg-muted/60 px-3 py-1.5">
+        <ModelLabel
+          label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
+          providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(undefined, selectedValue)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <Select value={selectedValue} onValueChange={onChange}>
+      <SelectTrigger className="h-9 min-w-[180px] max-w-[240px] text-sm">
+        <SelectValue asChild>
+          <ModelLabel
+            label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
+            providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(undefined, selectedValue)}
+          />
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {modelsWithMeta.map((m) => (
+          <SelectItem key={m.id} value={m.id}>
+            <ModelLabel label={m.label} providerSlug={m.providerSlug} />
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+});
+InlineModelSelector.displayName = 'InlineModelSelector';
+
 const getImageSrcFromPart = (part: BasicUIPart): string | null => {
   if (part.type !== 'file') return null;
 
@@ -611,6 +687,7 @@ const Chat = React.memo(function Chat({
   agentTag,
   initialConversationId,
   initialMessages,
+  showModelSelectorInPrompt = false,
 }: ChatProps) {
   const [text, setText] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -703,6 +780,13 @@ const Chat = React.memo(function Chat({
     if (id.includes('gpt-3.5')) return 16_000;
     return 128_000;
   }, []);
+
+  const handleInlineModelChange = useCallback((modelId: string) => {
+    setCurrentModel(modelId);
+    setContextModelId(modelId);
+    setContextMaxTokens(guessMaxTokens(modelId));
+    dispatchAgentModelChange(agentTag, modelId);
+  }, [agentTag, guessMaxTokens]);
 
   const renderContextControl = useCallback(() => {
     const hasUsage = Boolean(contextUsage) && Boolean(conversationIdRef.current);
@@ -978,6 +1062,23 @@ const Chat = React.memo(function Chat({
       window.removeEventListener(AGENT_NEW_CHAT_EVENT, handleNewChatEvent as EventListener);
     };
   }, [agentTag, startNewChat]);
+
+  // Listen for Cmd+K (Mac) or Ctrl+K (Windows/Linux) to start a new chat
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      const modifierKey = isMac ? e.metaKey : e.ctrlKey;
+      
+      if (modifierKey && e.key === 'k') {
+        e.preventDefault();
+        startNewChat();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [startNewChat]);
 
   const handleSubmit = async (message: PromptInputMessage) => {
     const trimmed = message.text.trim();
@@ -1582,7 +1683,7 @@ const Chat = React.memo(function Chat({
                     className="min-h-[40px] py-2 text-sm md:text-base row-start-1 col-start-1 col-end-4"
                   />
                   <div className="row-start-2 col-start-1">
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1">
                       <PromptInputActionMenu>
                         <PromptInputActionMenuTrigger />
                         <PromptInputActionMenuContent>
@@ -1634,6 +1735,15 @@ const Chat = React.memo(function Chat({
                       )}
                     </div>
                   </div>
+                  {showModelSelectorInPrompt && modelChoices.length > 0 && (
+                    <div className="row-start-2 col-start-2 flex justify-center md:justify-end">
+                      <InlineModelSelector
+                        models={modelChoices}
+                        value={currentModel}
+                        onChange={handleInlineModelChange}
+                      />
+                    </div>
+                  )}
                   <div className="row-start-2 col-start-3">
                     <PromptInputSubmit
                       disabled={status !== 'streaming' && !text.trim()}
@@ -1722,6 +1832,15 @@ const Chat = React.memo(function Chat({
                     )}
                   </div>
                 </div>
+                {showModelSelectorInPrompt && modelChoices.length > 0 && (
+                  <div className="row-start-2 col-start-2 flex justify-center md:justify-end">
+                    <InlineModelSelector
+                      models={modelChoices}
+                      value={currentModel}
+                      onChange={handleInlineModelChange}
+                    />
+                  </div>
+                )}
                 <div className="row-start-2 col-start-3">
                   <PromptInputSubmit
                     disabled={status !== 'streaming' && !text.trim()}
