@@ -191,7 +191,7 @@ const InlineModelSelector = React.memo(function InlineModelSelector({
 
   return (
     <Select value={selectedValue} onValueChange={onChange}>
-      <SelectTrigger className="h-9 min-w-[180px] max-w-[240px] text-sm">
+      <SelectTrigger className="h-9 w-full min-w-[140px] max-w-[240px] text-sm">
         <SelectValue asChild>
           <ModelLabel
             label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
@@ -714,6 +714,13 @@ const Chat = React.memo(function Chat({
   const [contextUsage, setContextUsage] = useState<UsageSnapshot | null>(null);
   const [contextModelId, setContextModelId] = useState<string | undefined>(model);
   const [contextMaxTokens, setContextMaxTokens] = useState<number | undefined>(undefined);
+  const guessMaxTokens = useCallback((modelId?: string) => {
+    const id = (modelId || '').toLowerCase();
+    if (id.includes('claude-3.5') || id.includes('claude-3-sonnet')) return 200_000;
+    if (id.includes('gpt-4.1') || id.includes('gpt-4o')) return 128_000;
+    if (id.includes('gpt-3.5')) return 16_000;
+    return 128_000;
+  }, []);
   const modelChoices = useMemo(() => {
     const seen = new Set<string>();
     const items: string[] = [];
@@ -748,12 +755,14 @@ const Chat = React.memo(function Chat({
       if (targetTag && agentTag && targetTag !== agentTag) return;
       if (targetTag && !agentTag) return;
       setCurrentModel(detail.modelId);
+      setContextModelId(detail.modelId);
+      setContextMaxTokens(guessMaxTokens(detail.modelId));
     };
     window.addEventListener(AGENT_MODEL_CHANGE_EVENT, handler as EventListener);
     return () => {
       window.removeEventListener(AGENT_MODEL_CHANGE_EVENT, handler as EventListener);
     };
-  }, [agentTag]);
+  }, [agentTag, guessMaxTokens]);
 
   const normalizeUsage = useCallback((usage?: Partial<UsageSnapshot> | null): UsageSnapshot => {
     const toInt = (value: unknown) => {
@@ -771,14 +780,6 @@ const Chat = React.memo(function Chat({
     const sum = normalized.inputTokens + normalized.outputTokens + normalized.reasoningTokens;
     normalized.totalTokens = explicitTotal > 0 ? explicitTotal : sum;
     return normalized;
-  }, []);
-
-  const guessMaxTokens = useCallback((modelId?: string) => {
-    const id = (modelId || '').toLowerCase();
-    if (id.includes('claude-3.5') || id.includes('claude-3-sonnet')) return 200_000;
-    if (id.includes('gpt-4.1') || id.includes('gpt-4o')) return 128_000;
-    if (id.includes('gpt-3.5')) return 16_000;
-    return 128_000;
   }, []);
 
   const handleInlineModelChange = useCallback((modelId: string) => {
