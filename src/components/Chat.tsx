@@ -563,6 +563,56 @@ function useThrottledValue<T>(value: T, fps: number): T {
   return throttledValue;
 }
 
+type StableMarkdownSplit = { stable: string; live: string };
+
+/**
+ * Split text into a "stable" prefix (safe to render as markdown) and a "live" suffix.
+ * We treat boundaries as blank lines or closed code fences. Content after the last
+ * boundary stays raw to avoid re-parsing on every token.
+ */
+function splitStableMarkdown(text: string): StableMarkdownSplit {
+  if (!text) return { stable: '', live: '' };
+
+  let inFence = false;
+  let lastBoundary = 0;
+  let cursor = 0;
+
+  const lines = text.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const endsWithNewline = i < lines.length - 1;
+    const lineLen = line.length + (endsWithNewline ? 1 : 0);
+    const trimmedStart = line.trimStart();
+    const isFence = trimmedStart.startsWith('```') || trimmedStart.startsWith('~~~');
+
+    if (isFence) {
+      inFence = !inFence;
+      if (!inFence) {
+        // Closing fence: mark everything through this line as stable.
+        lastBoundary = cursor + lineLen;
+      }
+    } else if (!inFence) {
+      const isBlankLine = line.trim().length === 0 && endsWithNewline;
+      if (isBlankLine) {
+        // Paragraph boundary: safe to render markdown up to here.
+        lastBoundary = cursor + lineLen;
+      }
+    }
+
+    cursor += lineLen;
+  }
+
+  // If no boundary was found, keep everything live to avoid thrashing markdown renders.
+  if (lastBoundary <= 0) return { stable: '', live: text };
+  if (lastBoundary >= text.length) return { stable: text, live: '' };
+
+  return {
+    stable: text.slice(0, lastBoundary),
+    live: text.slice(lastBoundary),
+  };
+}
+
 type MessageItemProps = {
   message: BasicUIMessage;
   status: string;
@@ -716,13 +766,20 @@ const MessageItem = React.memo(
                   case 'text':
                     if (!part.text) return null;
                     if (isStreamingActive) {
+                      const { stable, live } = splitStableMarkdown(part.text);
                       return (
-                        <pre
-                          key={`${message.id}-${i}`}
-                          className="whitespace-pre-wrap break-words text-sm leading-relaxed"
-                        >
-                          {part.text}
-                        </pre>
+                        <div key={`${message.id}-${i}`} className="flex flex-col gap-2 text-sm leading-relaxed">
+                          {stable ? (
+                            <Response sources={sources}>
+                              {stable}
+                            </Response>
+                          ) : null}
+                          {live ? (
+                            <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                              {live}
+                            </pre>
+                          ) : null}
+                        </div>
                       );
                     }
                     return (
