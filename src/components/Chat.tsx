@@ -212,6 +212,139 @@ const InlineModelSelector = React.memo(function InlineModelSelector({
 });
 InlineModelSelector.displayName = 'InlineModelSelector';
 
+type PromptInputFormProps = {
+  text: string;
+  status: string;
+  onSubmit: (message: PromptInputMessage) => void | Promise<void>;
+  onStop: () => void;
+  onChangeText: (value: string) => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  webSearchOn: boolean;
+  onToggleWebSearch: () => void;
+  renderContextControl: () => React.ReactNode;
+  supportsReasoning: boolean;
+  reasoningOn: boolean;
+  onToggleReasoning: () => void;
+  showModelSelectorInPrompt: boolean;
+  modelChoices: string[];
+  currentModel?: string;
+  onModelChange: (modelId: string) => void;
+  className?: string;
+};
+
+const PromptInputForm = React.memo(function PromptInputForm({
+  text,
+  status,
+  onSubmit,
+  onStop,
+  onChangeText,
+  textareaRef,
+  webSearchOn,
+  onToggleWebSearch,
+  renderContextControl,
+  supportsReasoning,
+  reasoningOn,
+  onToggleReasoning,
+  showModelSelectorInPrompt,
+  modelChoices,
+  currentModel,
+  onModelChange,
+  className,
+}: PromptInputFormProps) {
+  const isSubmitDisabled = status !== 'streaming' && !text.trim();
+
+  return (
+    <PromptInput
+      onSubmit={onSubmit}
+      className={className}
+      multiple
+      maxFiles={10}
+      maxFileSize={10 * 1024 * 1024} // 10MB
+    >
+      <PromptInputBody>
+        <PromptInputAttachments>
+          {(attachment) => <PromptInputAttachment key={attachment.id} data={attachment} />}
+        </PromptInputAttachments>
+        <div className="grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] w-full">
+          <PromptInputTextarea
+            ref={textareaRef}
+            autoFocus
+            onChange={(e) => onChangeText(e.target.value)}
+            value={text}
+            placeholder="Type your message..."
+            className="min-h-[40px] py-2 text-sm md:text-base row-start-1 col-start-1 col-end-4"
+          />
+          <div className="row-start-2 col-start-1">
+            <div className="flex items-center gap-1">
+              <PromptInputActionMenu>
+                <PromptInputActionMenuTrigger />
+                <PromptInputActionMenuContent>
+                  <PromptInputActionAddAttachments />
+                </PromptInputActionMenuContent>
+              </PromptInputActionMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
+                      webSearchOn && 'text-blue-600'
+                    )}
+                    onClick={onToggleWebSearch}
+                    aria-pressed={webSearchOn}
+                    aria-label={webSearchOn ? 'Turn web search off' : 'Turn web search on'}
+                  >
+                    <GlobeIcon className="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent sideOffset={6}>Web Search: {webSearchOn ? 'On' : 'Off'}</TooltipContent>
+              </Tooltip>
+              {renderContextControl()}
+              {supportsReasoning && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
+                        reasoningOn && 'text-purple-600'
+                      )}
+                      onClick={onToggleReasoning}
+                      aria-pressed={reasoningOn}
+                      aria-label={reasoningOn ? 'Turn reasoning off' : 'Turn reasoning on'}
+                    >
+                      <BrainIcon className="size-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent sideOffset={6}>{reasoningOn ? 'Reasoning: On' : 'Reasoning: Off'}</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </div>
+          {showModelSelectorInPrompt && modelChoices.length > 0 && (
+            <div className="row-start-2 col-start-2 flex justify-center md:justify-end">
+              <InlineModelSelector
+                models={modelChoices}
+                value={currentModel}
+                onChange={onModelChange}
+              />
+            </div>
+          )}
+          <div className="row-start-2 col-start-3">
+            <PromptInputSubmit
+              disabled={isSubmitDisabled}
+              status={status}
+              onStop={onStop}
+              className="shrink-0"
+            />
+          </div>
+        </div>
+      </PromptInputBody>
+    </PromptInput>
+  );
+});
+PromptInputForm.displayName = 'PromptInputForm';
+
 const getImageSrcFromPart = (part: BasicUIPart): string | null => {
   if (part.type !== 'file') return null;
 
@@ -383,23 +516,26 @@ function fileToDataUrl(file: File): Promise<string> {
 }
 
 async function convertFilesToUIParts(files: File[]): Promise<FileUIPart[]> {
-  const parts: FileUIPart[] = [];
-  for (const file of files) {
-    try {
-      const url = await fileToDataUrl(file);
-      parts.push({
-        type: 'file',
-        mediaType: file.type || 'application/octet-stream',
-        filename: file.name,
-        url,
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to convert file to UI part', { fileName: file.name, error });
+  const parts = await Promise.all(
+    files.map(async (file) => {
+      try {
+        const url = await fileToDataUrl(file);
+        return {
+          type: 'file',
+          mediaType: file.type || 'application/octet-stream',
+          filename: file.name,
+          url,
+        } satisfies FileUIPart;
+      } catch (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to convert file to UI part', { fileName: file.name, error });
+        }
+        return null;
       }
-    }
-  }
-  return parts;
+    })
+  );
+
+  return parts.filter(Boolean) as FileUIPart[];
 }
 
 function useThrottledValue<T>(value: T, fps: number): T {
@@ -744,7 +880,7 @@ const MessageItem = React.memo(
                 <SourcesTrigger sources={sources} />
                 <SourcesContent>
                   {sources.map((source, idx) => (
-                    <Source key={idx} href={source.url} title={source.title} />
+                    <Source key={source.url || source.title || idx} href={source.url} title={source.title} />
                   ))}
                 </SourcesContent>
               </Sources>
@@ -844,6 +980,7 @@ const Chat = React.memo(function Chat({
   const [contextUsage, setContextUsage] = useState<UsageSnapshot | null>(null);
   const [contextModelId, setContextModelId] = useState<string | undefined>(model);
   const [contextMaxTokens, setContextMaxTokens] = useState<number | undefined>(undefined);
+  const reasoningSupportCacheRef = useRef<Map<string, boolean>>(new Map());
   const guessMaxTokens = useCallback((modelId?: string) => {
     const id = (modelId || '').toLowerCase();
     if (id.includes('claude-3.5') || id.includes('claude-3-sonnet')) return 200_000;
@@ -1066,12 +1203,21 @@ const Chat = React.memo(function Chat({
   useEffect(() => {
     let cancelled = false;
     async function detect() {
-      try {
-        const effectiveModel = (currentModel ?? model)?.trim();
-        if (!effectiveModel) {
-          if (!cancelled) { setSupportsReasoning(false); }
-          return;
+      const effectiveModel = (currentModel ?? model)?.trim();
+      if (!effectiveModel) {
+        if (!cancelled) { setSupportsReasoning(false); }
+        return;
+      }
+
+      const cached = reasoningSupportCacheRef.current.get(effectiveModel);
+      if (cached !== undefined) {
+        if (!cancelled) {
+          setSupportsReasoning(cached);
         }
+        return;
+      }
+
+      try {
         const url = new URL('/api/openrouter/models', window.location.origin);
         url.searchParams.set('q', effectiveModel);
         url.searchParams.set('ttlMs', '60000');
@@ -1095,6 +1241,7 @@ const Chat = React.memo(function Chat({
           supports = items.some((m) => Array.isArray(m.supported_parameters) && m.supported_parameters.includes('reasoning'));
         }
         if (!cancelled) {
+          reasoningSupportCacheRef.current.set(effectiveModel, supports);
           setSupportsReasoning(supports);
           // if (!supports) setReasoningOn(false); // Don't disable user preference
           if (process.env.NODE_ENV === 'development') {
@@ -1106,6 +1253,7 @@ const Chat = React.memo(function Chat({
           console.warn('⚠️ Reasoning support check failed, assuming unsupported:', err);
         }
         if (!cancelled) {
+          reasoningSupportCacheRef.current.set(effectiveModel, false);
           setSupportsReasoning(false);
         }
       }
@@ -1200,16 +1348,27 @@ const Chat = React.memo(function Chat({
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
       const modifierKey = isMac ? e.metaKey : e.ctrlKey;
-      
-      if (modifierKey && e.key === 'k') {
-        e.preventDefault();
-        startNewChat();
-      }
+
+      if (!modifierKey || e.key !== 'k') return;
+
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName;
+      const isEditable =
+        (target?.isContentEditable ?? false) ||
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        Boolean(target?.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'));
+
+      if (isEditable || isDialogOpen) return;
+
+      e.preventDefault();
+      startNewChat();
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [startNewChat]);
+  }, [isDialogOpen, startNewChat]);
 
   const handleSubmit = async (message: PromptInputMessage) => {
     const trimmed = message.text.trim();
@@ -1342,7 +1501,7 @@ const Chat = React.memo(function Chat({
     setText('');
   };
 
-  const handleStop = async () => {
+  const handleStop = useCallback(async () => {
     if (process.env.NODE_ENV === 'development') {
       console.log('🛑 Stop button clicked');
     }
@@ -1391,7 +1550,23 @@ const Chat = React.memo(function Chat({
         console.log('⚠️ Cannot save: missing message or conversation ID');
       }
     }
-  };
+  }, [stop]);
+
+  const handleToggleWebSearch = useCallback(() => {
+    setWebSearchOn((prev) => !prev);
+  }, [setWebSearchOn]);
+
+  const handleToggleReasoning = useCallback(() => {
+    const next = !reasoningOn;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧠 Toggle reasoning:', { next, supportsReasoning });
+    }
+    setReasoningOn(next);
+  }, [reasoningOn, supportsReasoning, setReasoningOn]);
+
+  const handlePreviewImage = useCallback((payload: { src: string; alt: string }) => {
+    setPreviewImage(payload);
+  }, [setPreviewImage]);
 
   const handleSignIn = () => {
     // Save draft before redirecting
@@ -1405,7 +1580,7 @@ const Chat = React.memo(function Chat({
     });
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
     // Optimistically remove from UI
     setDeletedMessageIds((prev) => new Set(prev).add(messageId));
 
@@ -1432,14 +1607,14 @@ const Chat = React.memo(function Chat({
         return next;
       });
     }
-  };
+  }, []);
 
-  function getMessageOriginalText(message: BasicUIMessage): string {
+  const getMessageOriginalText = useCallback((message: BasicUIMessage): string => {
     const parts = Array.isArray(message.parts) ? message.parts : [];
     return parts.map((p) => p.text || '').join('\n\n');
-  }
+  }, []);
 
-  const handleCopyMessage = async (message: BasicUIMessage) => {
+  const handleCopyMessage = useCallback(async (message: BasicUIMessage) => {
     try {
       const textToCopy = getMessageOriginalText(message);
       await navigator.clipboard.writeText(textToCopy);
@@ -1454,7 +1629,7 @@ const Chat = React.memo(function Chat({
     } catch {
       // ignore
     }
-  };
+  }, [getMessageOriginalText]);
 
   const handleStartEdit = useCallback((messageId: string) => {
     if (status === 'streaming' || status === 'submitted') return;
@@ -1676,10 +1851,9 @@ const Chat = React.memo(function Chat({
   }, [baseMessages, liveMessages, deletedMessageIds, hiddenMessageIds]);
   const throttledMessages = useThrottledValue(mergedMessages, 20);
   const hasMessages = throttledMessages.length > 0;
-  const displayedMessages = useMemo(() => throttledMessages, [throttledMessages]);
   const lastAssistantMessageId = useMemo(
-    () => displayedMessages.findLast((m) => m.role === 'assistant')?.id ?? null,
-    [displayedMessages]
+    () => throttledMessages.findLast((m) => m.role === 'assistant')?.id ?? null,
+    [throttledMessages]
   );
   const pendingAssistantMessage = useMemo<BasicUIMessage>(
     () => ({
@@ -1690,8 +1864,55 @@ const Chat = React.memo(function Chat({
     []
   );
   const conversationItems = useMemo(
-    () => (status === 'submitted' ? [...displayedMessages, pendingAssistantMessage] : displayedMessages),
-    [displayedMessages, pendingAssistantMessage, status]
+    () => (status === 'submitted' ? [...throttledMessages, pendingAssistantMessage] : throttledMessages),
+    [pendingAssistantMessage, status, throttledMessages]
+  );
+  const computeConversationKey = useCallback((_index: number, item: BasicUIMessage) => item.id, []);
+  const renderConversationItem = useCallback(
+    (message: BasicUIMessage) =>
+      message.id === '__pending_assistant__' ? (
+        <div className="px-2 md:px-4">
+          <Message from="assistant">
+            <MessageContent>
+              <MessageLoading />
+            </MessageContent>
+          </Message>
+        </div>
+      ) : (
+        <div className="px-2 md:px-4">
+          <MessageItem
+            message={message}
+            status={status}
+            isLastAssistant={message.id === lastAssistantMessageId}
+            isRegenerating={regeneratingMessageId === message.id}
+            isCopied={copiedMessageId === message.id}
+            canDelete={isAuthenticated}
+            isEditing={editingMessageId === message.id}
+            onRegenerate={handleRegenerateMessage}
+            onCopy={handleCopyMessage}
+            onDelete={isAuthenticated ? handleDeleteMessage : undefined}
+            onPreviewImage={handlePreviewImage}
+            onStartEdit={isAuthenticated ? handleStartEdit : undefined}
+            onCancelEdit={handleCancelEdit}
+            onConfirmEdit={handleConfirmEdit}
+          />
+        </div>
+      ),
+    [
+      copiedMessageId,
+      editingMessageId,
+      handleCancelEdit,
+      handleConfirmEdit,
+      handleCopyMessage,
+      handleDeleteMessage,
+      handlePreviewImage,
+      handleRegenerateMessage,
+      handleStartEdit,
+      isAuthenticated,
+      lastAssistantMessageId,
+      regeneratingMessageId,
+      status,
+    ]
   );
   return (
     <div className={`flex w-full max-w-3xl flex-col h-full ${className || ''}`}>
@@ -1756,38 +1977,9 @@ const Chat = React.memo(function Chat({
               items={conversationItems}
               overscan={{ top: 200, bottom: 400 }}
               virtuosoProps={{
-                computeItemKey: (_index, item) => item.id,
+                computeItemKey: computeConversationKey,
               }}
-              renderItem={(message) =>
-                message.id === '__pending_assistant__' ? (
-                  <div className="px-2 md:px-4">
-                    <Message from="assistant">
-                      <MessageContent>
-                        <MessageLoading />
-                      </MessageContent>
-                    </Message>
-                  </div>
-                ) : (
-                  <div className="px-2 md:px-4">
-                    <MessageItem
-                      message={message}
-                      status={status}
-                      isLastAssistant={message.id === lastAssistantMessageId}
-                      isRegenerating={regeneratingMessageId === message.id}
-                      isCopied={copiedMessageId === message.id}
-                      canDelete={isAuthenticated}
-                      isEditing={editingMessageId === message.id}
-                      onRegenerate={handleRegenerateMessage}
-                      onCopy={handleCopyMessage}
-                      onDelete={isAuthenticated ? handleDeleteMessage : undefined}
-                      onPreviewImage={(payload) => setPreviewImage(payload)}
-                      onStartEdit={isAuthenticated ? handleStartEdit : undefined}
-                      onCancelEdit={handleCancelEdit}
-                      onConfirmEdit={handleConfirmEdit}
-                    />
-                  </div>
-                )
-              }
+              renderItem={renderConversationItem}
             >
               <ConversationScrollButton />
             </Conversation>
@@ -1795,196 +1987,48 @@ const Chat = React.memo(function Chat({
 
           {/* Fixed input bar at bottom - fixed on mobile, relative on desktop */}
           <div className="fixed md:relative bottom-0 left-0 right-0 md:flex-shrink-0 border-t md:border-t-0 bg-background py-2 md:pb-4 md:pt-0 z-10">
-            <PromptInput
+            <PromptInputForm
               onSubmit={handleSubmit}
+              onChangeText={setText}
+              text={text}
+              status={status}
+              onStop={handleStop}
+              textareaRef={textareaRef}
+              webSearchOn={webSearchOn}
+              onToggleWebSearch={handleToggleWebSearch}
+              renderContextControl={renderContextControl}
+              supportsReasoning={supportsReasoning}
+              reasoningOn={reasoningOn}
+              onToggleReasoning={handleToggleReasoning}
+              showModelSelectorInPrompt={showModelSelectorInPrompt}
+              modelChoices={modelChoices}
+              currentModel={currentModel}
+              onModelChange={handleInlineModelChange}
               className="w-full max-w-3xl mx-auto"
-              multiple
-              maxFiles={10}
-              maxFileSize={10 * 1024 * 1024} // 10MB
-            >
-              <PromptInputBody>
-                <PromptInputAttachments>
-                  {(attachment) => <PromptInputAttachment key={attachment.id} data={attachment} />}
-                </PromptInputAttachments>
-                <div className="grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] w-full">
-                  <PromptInputTextarea
-                    ref={textareaRef}
-                    autoFocus
-                    onChange={(e) => setText(e.target.value)}
-                    value={text}
-                    placeholder="Type your message..."
-                    className="min-h-[40px] py-2 text-sm md:text-base row-start-1 col-start-1 col-end-4"
-                  />
-                  <div className="row-start-2 col-start-1">
-                  <div className="flex items-center gap-1">
-                      <PromptInputActionMenu>
-                        <PromptInputActionMenuTrigger />
-                        <PromptInputActionMenuContent>
-                          <PromptInputActionAddAttachments />
-                        </PromptInputActionMenuContent>
-                      </PromptInputActionMenu>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className={cn(
-                              'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
-                              webSearchOn && 'text-blue-600'
-                            )}
-                            onClick={() => setWebSearchOn(!webSearchOn)}
-                            aria-pressed={webSearchOn}
-                            aria-label={webSearchOn ? 'Turn web search off' : 'Turn web search on'}
-                          >
-                            <GlobeIcon className="size-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent sideOffset={6}>Web Search: {webSearchOn ? 'On' : 'Off'}</TooltipContent>
-                      </Tooltip>
-                      {renderContextControl()}
-                      {supportsReasoning && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className={cn(
-                                'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
-                                reasoningOn && 'text-purple-600'
-                              )}
-                              onClick={() => {
-                                const next = !reasoningOn;
-                                if (process.env.NODE_ENV === 'development') {
-                                  console.log('🧠 Toggle reasoning:', { next, supportsReasoning });
-                                }
-                                setReasoningOn(next);
-                              }}
-                              aria-pressed={reasoningOn}
-                              aria-label={reasoningOn ? 'Turn reasoning off' : 'Turn reasoning on'}
-                            >
-                              <BrainIcon className="size-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent sideOffset={6}>{reasoningOn ? 'Reasoning: On' : 'Reasoning: Off'}</TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </div>
-                  {showModelSelectorInPrompt && modelChoices.length > 0 && (
-                    <div className="row-start-2 col-start-2 flex justify-center md:justify-end">
-                      <InlineModelSelector
-                        models={modelChoices}
-                        value={currentModel}
-                        onChange={handleInlineModelChange}
-                      />
-                    </div>
-                  )}
-                  <div className="row-start-2 col-start-3">
-                    <PromptInputSubmit
-                      disabled={status !== 'streaming' && !text.trim()}
-                      status={status}
-                      onStop={handleStop}
-                      className="shrink-0"
-                    />
-                  </div>
-                </div>
-              </PromptInputBody>
-            </PromptInput>
+            />
           </div>
         </>
       ) : (
         <div className="flex flex-col items-center justify-center h-full md:px-0">
-          <PromptInput
+          <PromptInputForm
             onSubmit={handleSubmit}
+            onChangeText={setText}
+            text={text}
+            status={status}
+            onStop={handleStop}
+            textareaRef={textareaRef}
+            webSearchOn={webSearchOn}
+            onToggleWebSearch={handleToggleWebSearch}
+            renderContextControl={renderContextControl}
+            supportsReasoning={supportsReasoning}
+            reasoningOn={reasoningOn}
+            onToggleReasoning={handleToggleReasoning}
+            showModelSelectorInPrompt={showModelSelectorInPrompt}
+            modelChoices={modelChoices}
+            currentModel={currentModel}
+            onModelChange={handleInlineModelChange}
             className="w-full max-w-2xl"
-            multiple
-            maxFiles={10}
-            maxFileSize={10 * 1024 * 1024} // 10MB
-          >
-            <PromptInputBody>
-              <PromptInputAttachments>
-                {(attachment) => <PromptInputAttachment key={attachment.id} data={attachment} />}
-              </PromptInputAttachments>
-              <div className="grid items-end gap-2 p-2 grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] w-full">
-                <PromptInputTextarea
-                  ref={textareaRef}
-                  autoFocus
-                  onChange={(e) => setText(e.target.value)}
-                  value={text}
-                  placeholder="Type your message..."
-                  className="min-h-[40px] py-2 text-sm md:text-base row-start-1 col-start-1 col-end-4"
-                />
-                <div className="row-start-2 col-start-1">
-                  <div className="flex items-center gap-1">
-                    <PromptInputActionMenu>
-                      <PromptInputActionMenuTrigger />
-                      <PromptInputActionMenuContent>
-                        <PromptInputActionAddAttachments />
-                      </PromptInputActionMenuContent>
-                    </PromptInputActionMenu>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className={cn(
-                            'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
-                            webSearchOn && 'text-blue-600'
-                          )}
-                          onClick={() => setWebSearchOn(!webSearchOn)}
-                          aria-pressed={webSearchOn}
-                          aria-label={webSearchOn ? 'Turn web search off' : 'Turn web search on'}
-                        >
-                          <GlobeIcon className="size-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent sideOffset={6}>Web Search: {webSearchOn ? 'On' : 'Off'}</TooltipContent>
-                    </Tooltip>
-                    {renderContextControl()}
-                    {supportsReasoning && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className={cn(
-                              'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
-                              reasoningOn && 'text-purple-600'
-                            )}
-                            onClick={() => {
-                              const next = !reasoningOn;
-                              if (process.env.NODE_ENV === 'development') {
-                                console.log('🧠 Toggle reasoning:', { next, supportsReasoning });
-                              }
-                              setReasoningOn(next);
-                            }}
-                            aria-pressed={reasoningOn}
-                            aria-label={reasoningOn ? 'Turn reasoning off' : 'Turn reasoning on'}
-                          >
-                            <BrainIcon className="size-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent sideOffset={6}>{reasoningOn ? 'Reasoning: On' : 'Reasoning: Off'}</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                </div>
-                {showModelSelectorInPrompt && modelChoices.length > 0 && (
-                  <div className="row-start-2 col-start-2 flex justify-center md:justify-end">
-                    <InlineModelSelector
-                      models={modelChoices}
-                      value={currentModel}
-                      onChange={handleInlineModelChange}
-                    />
-                  </div>
-                )}
-                <div className="row-start-2 col-start-3">
-                  <PromptInputSubmit
-                    disabled={status !== 'streaming' && !text.trim()}
-                    status={status}
-                    onStop={handleStop}
-                    className="shrink-0"
-                  />
-                </div>
-              </div>
-            </PromptInputBody>
-          </PromptInput>
+          />
         </div>
       )}
     </div>

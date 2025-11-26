@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
@@ -30,8 +29,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { HomeRowAgent, HomeRowWithAgents } from '@/types/homeRows';
 import {
-  ArrowDown,
-  ArrowUp,
   GripVertical,
   Loader2,
   MoreHorizontal,
@@ -49,9 +46,10 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  defaultDropAnimationSideEffects,
   DragEndEvent,
+  DraggableAttributes,
 } from '@dnd-kit/core';
+import { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 import {
   arrayMove,
   SortableContext,
@@ -251,7 +249,7 @@ export function HomepageRowsAdmin() {
         <div className="flex items-center gap-3">
           {!featuredRowExists && (
             <Badge variant="destructive" className="hidden sm:inline-flex">
-              Missing 'featured' row
+              Missing &apos;featured&apos; row
             </Badge>
           )}
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -390,7 +388,7 @@ function SortableRowItem({
     <div ref={setNodeRef} style={style} className="relative">
       <RowCard
         row={row}
-        dragHandleProps={{ ...attributes, ...listeners }}
+        dragHandleProps={{ attributes, listeners }}
         onDelete={onDelete}
         onSaveDetails={onSaveDetails}
         onSaveAgents={onSaveAgents}
@@ -408,7 +406,7 @@ function RowCard({
   isOverlay,
 }: {
   row: HomeRowWithAgents;
-  dragHandleProps?: any;
+  dragHandleProps?: { attributes: DraggableAttributes; listeners: SyntheticListenerMap | undefined };
   onDelete?: () => void;
   onSaveDetails?: (payload: Partial<CreateRowFormState> & { isPublished?: boolean }) => void;
   onSaveAgents?: (agents: HomeRowAgent[]) => void;
@@ -455,7 +453,8 @@ function RowCard({
     <Card className={cn('transition-all', isOverlay ? 'shadow-lg rotate-2' : 'hover:border-primary/50')}>
       <div className="p-4 flex items-center gap-4">
         <div
-          {...dragHandleProps}
+          {...dragHandleProps?.attributes}
+          {...dragHandleProps?.listeners}
           className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground"
         >
           <GripVertical className="h-5 w-5" />

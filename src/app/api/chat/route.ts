@@ -9,7 +9,6 @@ import { randomUUID } from 'node:crypto';
 import { tavilyReadPageTool, tavilySearchTool } from '@/lib/tavily';
 
 type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
-type DbExecutor = Parameters<typeof db.transaction>[0] extends (tx: infer T) => unknown ? T : typeof db;
 
 const MAX_TITLE_LENGTH = 60;
 const MAX_PREVIEW_LENGTH = 280;
@@ -86,7 +85,7 @@ function extractTitleFromMessages(messages: UIMessage[]): string | null {
   return textContent || null;
 }
 
-async function persistSystemPrompt(tx: DbExecutor, conversationId: string, systemPrompt?: string | null) {
+async function persistSystemPrompt(tx: typeof db, conversationId: string, systemPrompt?: string | null) {
   const trimmed = systemPrompt?.trim();
   if (!trimmed) return;
   const systemMessageId = randomUUID();
@@ -109,43 +108,47 @@ async function createConversationRecord(options: {
   systemPrompt?: string | null;
 }) {
   const { conversationId, userId, agentTag, modelId, title, systemPrompt } = options;
-  await db.transaction(async (tx) => {
-    await tx.insert(conversation).values({
+  await db
+    .insert(conversation)
+    .values({
       id: conversationId,
       userId,
       agentTag,
       modelId,
       title,
-    });
-    await persistSystemPrompt(tx, conversationId, systemPrompt);
-  });
+    })
+    .returning({ id: conversation.id });
+  try {
+    await persistSystemPrompt(db, conversationId, systemPrompt);
+  } catch (error) {
+    debugLog('Failed to persist system prompt', error);
+  }
 }
 
 async function persistUserMessage(conversationId: string, lastUser: UIMessage) {
   const parts = Array.isArray(lastUser.parts) ? lastUser.parts : [];
   const textPreview = extractTextFromParts(parts as Array<{ type?: string; text?: string }>).slice(0, MAX_PREVIEW_LENGTH);
-  await db.transaction(async (tx) => {
-    const inserted = await tx
-      .insert(message)
-      .values({
-        id: lastUser.id,
-        conversationId,
-        role: 'user',
-        uiParts: lastUser.parts as unknown as typeof message.$inferInsert['uiParts'],
-        textPreview,
-        hasToolCalls: false,
-      })
-      .onConflictDoNothing()
-      .returning({ id: message.id });
 
-    if (inserted.length > 0) {
-      const now = new Date();
-      await tx
-        .update(conversation)
-        .set({ updatedAt: now, lastMessageAt: now })
-        .where(sql`${conversation.id} = ${conversationId}`);
-    }
-  });
+  const inserted = await db
+    .insert(message)
+    .values({
+      id: lastUser.id,
+      conversationId,
+      role: 'user',
+      uiParts: lastUser.parts as unknown as typeof message.$inferInsert['uiParts'],
+      textPreview,
+      hasToolCalls: false,
+    })
+    .onConflictDoNothing()
+    .returning({ id: message.id });
+
+  if (inserted.length > 0) {
+    const now = new Date();
+    await db
+      .update(conversation)
+      .set({ updatedAt: now, lastMessageAt: now })
+      .where(sql`${conversation.id} = ${conversationId}`);
+  }
 }
 
 function normalizeUsage(raw: unknown) {
