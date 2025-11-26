@@ -15,7 +15,10 @@ import {
   ClockIcon,
   WrenchIcon,
   XCircleIcon,
+  GlobeIcon,
+  FileTextIcon,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { memo, useMemo } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { CodeBlock } from './code-block';
@@ -25,7 +28,7 @@ export type ToolProps = ComponentProps<typeof Collapsible>;
 export const Tool = memo(function Tool({ className, ...props }: ToolProps) {
   return (
     <Collapsible
-      className={cn('not-prose mb-4 w-full rounded-md border', className)}
+      className={cn('group not-prose mb-4 w-full rounded-md border', className)}
       {...props}
     />
   );
@@ -37,6 +40,8 @@ export type ToolHeaderProps = {
   className?: string;
   displayName?: string;
   hideStatus?: boolean;
+  icon?: ReactNode;
+  preview?: string;
 };
 
 const stringifySafe = (value: unknown) => {
@@ -82,6 +87,8 @@ export const ToolHeader = memo(function ToolHeader({
   state,
   displayName,
   hideStatus,
+  icon,
+  preview,
   ...props
 }: ToolHeaderProps) {
   return (
@@ -92,12 +99,19 @@ export const ToolHeader = memo(function ToolHeader({
       )}
       {...props}
     >
-      <div className="flex items-center gap-2">
-        <WrenchIcon className="size-4 text-muted-foreground" />
-        <span className="font-medium text-sm">{displayName ?? type}</span>
-        {!hideStatus && getStatusBadge(state)}
+      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          {icon ?? <WrenchIcon className="size-4 text-muted-foreground shrink-0" />}
+          <span className="font-medium text-sm shrink-0">{displayName ?? type}</span>
+          {!hideStatus && getStatusBadge(state)}
+        </div>
+        {preview && (
+          <span className="text-xs text-muted-foreground truncate pl-6" title={preview}>
+            {preview}
+          </span>
+        )}
       </div>
-      <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+      <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 shrink-0" />
     </CollapsibleTrigger>
   );
 });

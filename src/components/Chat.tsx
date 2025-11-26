@@ -46,7 +46,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon } from 'lucide-react';
+import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon, FileTextIcon, SearchIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -258,11 +258,56 @@ function extractSources(text: string) {
 
 function getToolDisplayInfo(
   toolName: string,
-  state: 'input-streaming' | 'input-available' | 'output-available' | 'output-error'
-): { displayName: string; hideStatus: boolean } {
+  state: 'input-streaming' | 'input-available' | 'output-available' | 'output-error',
+  input?: unknown,
+  output?: unknown
+): { displayName: string; hideStatus: boolean; icon: React.ReactNode | null; preview: string | null } {
   const isRunning = state === 'input-streaming' || state === 'input-available';
   const isComplete = state === 'output-available';
   const lowerName = toolName.toLowerCase();
+
+  // Helper to extract a string value from an object by key paths
+  const extractFromObject = (obj: unknown, keys: string[]): string | null => {
+    if (!obj || typeof obj !== 'object') return null;
+    const objRecord = obj as Record<string, unknown>;
+    for (const key of keys) {
+      const value = objRecord[key];
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+    return null;
+  };
+
+  // Helper to truncate text for preview
+  const truncate = (text: string, maxLen = 60): string => {
+    return text.length > maxLen ? `${text.slice(0, maxLen)}…` : text;
+  };
+
+  // Helper to extract preview from input
+  const extractPreview = (keys: string[]): string | null => {
+    const result = extractFromObject(input, keys);
+    return result ? truncate(result) : null;
+  };
+
+  // Helper to extract title from output (handles results array structure)
+  const extractTitleFromOutput = (): string | null => {
+    if (!output || typeof output !== 'object') return null;
+    const outputObj = output as Record<string, unknown>;
+    
+    // Check for results array (common pattern: { results: [{ title, url, ... }] })
+    if (Array.isArray(outputObj.results) && outputObj.results.length > 0) {
+      const firstResult = outputObj.results[0] as Record<string, unknown>;
+      const title = extractFromObject(firstResult, ['title', 'name', 'heading']);
+      if (title) return truncate(title, 80);
+    }
+    
+    // Check for direct title field
+    const directTitle = extractFromObject(outputObj, ['title', 'name', 'heading', 'pageTitle']);
+    if (directTitle) return truncate(directTitle, 80);
+    
+    return null;
+  };
 
   // Web search tool
   if (
@@ -274,9 +319,12 @@ function getToolDisplayInfo(
     lowerName.includes('tavily') ||
     lowerName === 'search'
   ) {
+    const preview = extractPreview(['query', 'search_query', 'searchQuery', 'q', 'text', 'input']);
     return {
       displayName: isRunning ? 'Searching The Web' : isComplete ? 'Searched The Web' : toolName,
       hideStatus: true,
+      icon: <SearchIcon className={`size-4 shrink-0 ${isRunning ? 'text-blue-500 animate-pulse' : 'text-blue-500'}`} />,
+      preview,
     };
   }
 
@@ -293,14 +341,25 @@ function getToolDisplayInfo(
     lowerName.includes('readurl') ||
     lowerName.includes('scrape')
   ) {
+    // When complete, show the page title from output; otherwise show the URL from input
+    let preview: string | null = null;
+    if (isComplete) {
+      preview = extractTitleFromOutput();
+    }
+    if (!preview) {
+      preview = extractPreview(['url', 'page_url', 'pageUrl', 'link', 'href']);
+    }
+    
     return {
       displayName: isRunning ? 'Reading Page' : isComplete ? 'Read Page' : toolName,
       hideStatus: true,
+      icon: <FileTextIcon className={`size-4 shrink-0 ${isRunning ? 'text-green-500 animate-pulse' : 'text-green-500'}`} />,
+      preview,
     };
   }
 
   // Default - use original name and show status
-  return { displayName: toolName, hideStatus: false };
+  return { displayName: toolName, hideStatus: false, icon: null, preview: null };
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -556,7 +615,7 @@ const MessageItem = React.memo(
                     const resultJson = toolInvocation.result
                       ? JSON.stringify(toolInvocation.result, null, 2)
                       : null;
-                    const toolDisplayInfo = getToolDisplayInfo(toolInvocation.toolName, toolState);
+                    const toolDisplayInfo = getToolDisplayInfo(toolInvocation.toolName, toolState, toolInvocation.args, toolInvocation.result);
                     return (
                       <Tool key={`${message.id}-${i}`} defaultOpen={false}>
                         <ToolHeader
@@ -564,6 +623,8 @@ const MessageItem = React.memo(
                           state={toolState}
                           displayName={toolDisplayInfo.displayName}
                           hideStatus={toolDisplayInfo.hideStatus}
+                          icon={toolDisplayInfo.icon}
+                          preview={toolDisplayInfo.preview ?? undefined}
                         />
                         <ToolContent>
                           <ToolInput
@@ -638,7 +699,7 @@ const MessageItem = React.memo(
                         toolOutput && typeof toolOutput !== 'string'
                           ? JSON.stringify(toolOutput, null, 2)
                           : toolOutput;
-                      const toolDisplayInfo = getToolDisplayInfo(toolName, toolState as ToolUIPart['state']);
+                      const toolDisplayInfo = getToolDisplayInfo(toolName, toolState as ToolUIPart['state'], toolInput, toolOutput);
                       return (
                         <Tool
                           key={`${message.id}-${i}`}
@@ -649,6 +710,8 @@ const MessageItem = React.memo(
                             state={toolState as ToolUIPart['state']}
                             displayName={toolDisplayInfo.displayName}
                             hideStatus={toolDisplayInfo.hideStatus}
+                            icon={toolDisplayInfo.icon}
+                            preview={toolDisplayInfo.preview ?? undefined}
                           />
                           <ToolContent>
                             <ToolInput
