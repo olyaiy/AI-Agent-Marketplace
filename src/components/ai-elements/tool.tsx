@@ -35,6 +35,8 @@ export type ToolHeaderProps = {
   type: string;
   state: ToolUIPart['state'];
   className?: string;
+  displayName?: string;
+  hideStatus?: boolean;
 };
 
 const stringifySafe = (value: unknown) => {
@@ -78,6 +80,8 @@ export const ToolHeader = memo(function ToolHeader({
   className,
   type,
   state,
+  displayName,
+  hideStatus,
   ...props
 }: ToolHeaderProps) {
   return (
@@ -90,8 +94,8 @@ export const ToolHeader = memo(function ToolHeader({
     >
       <div className="flex items-center gap-2">
         <WrenchIcon className="size-4 text-muted-foreground" />
-        <span className="font-medium text-sm">{type}</span>
-        {getStatusBadge(state)}
+        <span className="font-medium text-sm">{displayName ?? type}</span>
+        {!hideStatus && getStatusBadge(state)}
       </div>
       <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
     </CollapsibleTrigger>

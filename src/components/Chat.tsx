@@ -256,6 +256,53 @@ function extractSources(text: string) {
   return sources;
 }
 
+function getToolDisplayInfo(
+  toolName: string,
+  state: 'input-streaming' | 'input-available' | 'output-available' | 'output-error'
+): { displayName: string; hideStatus: boolean } {
+  const isRunning = state === 'input-streaming' || state === 'input-available';
+  const isComplete = state === 'output-available';
+  const lowerName = toolName.toLowerCase();
+
+  // Web search tool
+  if (
+    lowerName.includes('web-search') ||
+    lowerName.includes('web_search') ||
+    lowerName.includes('websearch') ||
+    lowerName.includes('search-web') ||
+    lowerName.includes('search_web') ||
+    lowerName.includes('tavily') ||
+    lowerName === 'search'
+  ) {
+    return {
+      displayName: isRunning ? 'Searching The Web' : isComplete ? 'Searched The Web' : toolName,
+      hideStatus: true,
+    };
+  }
+
+  // Read page tool
+  if (
+    lowerName.includes('read-page') ||
+    lowerName.includes('read_page') ||
+    lowerName.includes('readpage') ||
+    lowerName.includes('fetch-url') ||
+    lowerName.includes('fetch_url') ||
+    lowerName.includes('fetchurl') ||
+    lowerName.includes('read-url') ||
+    lowerName.includes('read_url') ||
+    lowerName.includes('readurl') ||
+    lowerName.includes('scrape')
+  ) {
+    return {
+      displayName: isRunning ? 'Reading Page' : isComplete ? 'Read Page' : toolName,
+      hideStatus: true,
+    };
+  }
+
+  // Default - use original name and show status
+  return { displayName: toolName, hideStatus: false };
+}
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -509,9 +556,15 @@ const MessageItem = React.memo(
                     const resultJson = toolInvocation.result
                       ? JSON.stringify(toolInvocation.result, null, 2)
                       : null;
+                    const toolDisplayInfo = getToolDisplayInfo(toolInvocation.toolName, toolState);
                     return (
-                      <Tool key={`${message.id}-${i}`} defaultOpen={toolState !== 'output-available'}>
-                        <ToolHeader type={toolInvocation.toolName} state={toolState} />
+                      <Tool key={`${message.id}-${i}`} defaultOpen={false}>
+                        <ToolHeader
+                          type={toolInvocation.toolName}
+                          state={toolState}
+                          displayName={toolDisplayInfo.displayName}
+                          hideStatus={toolDisplayInfo.hideStatus}
+                        />
                         <ToolContent>
                           <ToolInput
                             input={toolInvocation.args}
@@ -585,12 +638,18 @@ const MessageItem = React.memo(
                         toolOutput && typeof toolOutput !== 'string'
                           ? JSON.stringify(toolOutput, null, 2)
                           : toolOutput;
+                      const toolDisplayInfo = getToolDisplayInfo(toolName, toolState as ToolUIPart['state']);
                       return (
                         <Tool
                           key={`${message.id}-${i}`}
-                          defaultOpen={toolState !== 'output-available'}
+                          defaultOpen={false}
                         >
-                          <ToolHeader type={toolName} state={toolState as ToolUIPart['state']} />
+                          <ToolHeader
+                            type={toolName}
+                            state={toolState as ToolUIPart['state']}
+                            displayName={toolDisplayInfo.displayName}
+                            hideStatus={toolDisplayInfo.hideStatus}
+                          />
                           <ToolContent>
                             <ToolInput
                               input={toolInput}
