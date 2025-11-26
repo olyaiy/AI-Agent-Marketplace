@@ -57,10 +57,12 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  rectSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
+import { AgentCard } from '@/components/AgentCard';
 
 interface CreateRowFormState {
   title: string;
@@ -570,7 +572,11 @@ function AgentsManager({ row, onSave }: { row: HomeRowWithAgents; onSave: (agent
   const [isSearching, setIsSearching] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -630,8 +636,8 @@ function AgentsManager({ row, onSave }: { row: HomeRowWithAgents; onSave: (agent
   };
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
+    <div className="space-y-6">
+      <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search agents to add..."
@@ -640,7 +646,7 @@ function AgentsManager({ row, onSave }: { row: HomeRowWithAgents; onSave: (agent
           className="pl-9"
         />
         {search && (
-          <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-60 overflow-auto">
+          <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-60 overflow-auto">
             {isSearching ? (
               <div className="p-4 text-center text-xs text-muted-foreground">Searching...</div>
             ) : results.length === 0 ? (
@@ -661,25 +667,26 @@ function AgentsManager({ row, onSave }: { row: HomeRowWithAgents; onSave: (agent
         )}
       </div>
 
-      <div className="space-y-2">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={agents.map((a) => a.tag)} strategy={verticalListSortingStrategy}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={agents.map((a) => a.tag)} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {agents.map((agent) => (
-              <SortableAgentItem key={agent.tag} agent={agent} onRemove={() => handleRemove(agent.tag)} />
+              <SortableAgentCard key={agent.tag} agent={agent} onRemove={() => handleRemove(agent.tag)} />
             ))}
-          </SortableContext>
-        </DndContext>
-        {agents.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-            No agents in this row yet.
           </div>
-        )}
-      </div>
+        </SortableContext>
+      </DndContext>
+
+      {agents.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dashed rounded-lg bg-muted/10">
+          No agents in this row yet. Search above to add some.
+        </div>
+      )}
     </div>
   );
 }
 
-function SortableAgentItem({ agent, onRemove }: { agent: HomeRowAgent; onRemove: () => void }) {
+function SortableAgentCard({ agent, onRemove }: { agent: HomeRowAgent; onRemove: () => void }) {
   const {
     attributes,
     listeners,
@@ -693,34 +700,40 @@ function SortableAgentItem({ agent, onRemove }: { agent: HomeRowAgent; onRemove:
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 0,
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-3 p-3 bg-card border rounded-md group"
-    >
-      <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground hover:text-foreground">
-        <GripVertical className="h-4 w-4" />
+    <div ref={setNodeRef} style={style} className="relative group">
+      <div className="absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing p-1.5 bg-background/80 backdrop-blur-sm rounded-md shadow-sm opacity-0 group-hover:opacity-100 transition-opacity" {...attributes} {...listeners}>
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{agent.name}</p>
-        <p className="text-xs text-muted-foreground truncate">{agent.tagline || agent.tag}</p>
+
+      <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="destructive"
+          size="icon"
+          className="h-7 w-7 shadow-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
       </div>
-      {agent.visibility && agent.visibility !== 'public' && (
-        <Badge variant="outline" className="text-[10px]">
-          {agent.visibility}
-        </Badge>
-      )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={onRemove}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+
+      <div className="pointer-events-none">
+        <AgentCard
+          tag={agent.tag}
+          name={agent.name}
+          avatar={agent.avatar}
+          systemPrompt={agent.systemPrompt}
+          tagline={agent.tagline}
+          model={agent.model}
+          visibility={agent.visibility}
+        />
+      </div>
     </div>
   );
 }

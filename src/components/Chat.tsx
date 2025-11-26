@@ -261,7 +261,7 @@ function getToolDisplayInfo(
   state: 'input-streaming' | 'input-available' | 'output-available' | 'output-error',
   input?: unknown,
   output?: unknown
-): { displayName: string; hideStatus: boolean; icon: React.ReactNode | null; preview: string | null } {
+): { displayName: string; hideStatus: boolean; icon: React.ReactNode | null; preview: string | null; fullPreview: string | null } {
   const isRunning = state === 'input-streaming' || state === 'input-available';
   const isComplete = state === 'output-available';
   const lowerName = toolName.toLowerCase();
@@ -284,29 +284,30 @@ function getToolDisplayInfo(
     return text.length > maxLen ? `${text.slice(0, maxLen)}…` : text;
   };
 
-  // Helper to extract preview from input
-  const extractPreview = (keys: string[]): string | null => {
+  // Helper to extract preview from input (returns both truncated and full)
+  const extractPreviewPair = (keys: string[]): { preview: string | null; fullPreview: string | null } => {
     const result = extractFromObject(input, keys);
-    return result ? truncate(result) : null;
+    if (!result) return { preview: null, fullPreview: null };
+    return { preview: truncate(result), fullPreview: result };
   };
 
   // Helper to extract title from output (handles results array structure)
-  const extractTitleFromOutput = (): string | null => {
-    if (!output || typeof output !== 'object') return null;
+  const extractTitleFromOutput = (): { preview: string | null; fullPreview: string | null } => {
+    if (!output || typeof output !== 'object') return { preview: null, fullPreview: null };
     const outputObj = output as Record<string, unknown>;
     
     // Check for results array (common pattern: { results: [{ title, url, ... }] })
     if (Array.isArray(outputObj.results) && outputObj.results.length > 0) {
       const firstResult = outputObj.results[0] as Record<string, unknown>;
       const title = extractFromObject(firstResult, ['title', 'name', 'heading']);
-      if (title) return truncate(title, 80);
+      if (title) return { preview: truncate(title, 80), fullPreview: title };
     }
     
     // Check for direct title field
     const directTitle = extractFromObject(outputObj, ['title', 'name', 'heading', 'pageTitle']);
-    if (directTitle) return truncate(directTitle, 80);
+    if (directTitle) return { preview: truncate(directTitle, 80), fullPreview: directTitle };
     
-    return null;
+    return { preview: null, fullPreview: null };
   };
 
   // Web search tool
@@ -319,12 +320,13 @@ function getToolDisplayInfo(
     lowerName.includes('tavily') ||
     lowerName === 'search'
   ) {
-    const preview = extractPreview(['query', 'search_query', 'searchQuery', 'q', 'text', 'input']);
+    const { preview, fullPreview } = extractPreviewPair(['query', 'search_query', 'searchQuery', 'q', 'text', 'input']);
     return {
       displayName: isRunning ? 'Searching The Web' : isComplete ? 'Searched The Web' : toolName,
       hideStatus: true,
       icon: <SearchIcon className={`size-4 shrink-0 ${isRunning ? 'text-blue-500 animate-pulse' : 'text-blue-500'}`} />,
       preview,
+      fullPreview,
     };
   }
 
@@ -342,24 +344,25 @@ function getToolDisplayInfo(
     lowerName.includes('scrape')
   ) {
     // When complete, show the page title from output; otherwise show the URL from input
-    let preview: string | null = null;
+    let previewPair = { preview: null as string | null, fullPreview: null as string | null };
     if (isComplete) {
-      preview = extractTitleFromOutput();
+      previewPair = extractTitleFromOutput();
     }
-    if (!preview) {
-      preview = extractPreview(['url', 'page_url', 'pageUrl', 'link', 'href']);
+    if (!previewPair.preview) {
+      previewPair = extractPreviewPair(['url', 'page_url', 'pageUrl', 'link', 'href']);
     }
     
     return {
       displayName: isRunning ? 'Reading Page' : isComplete ? 'Read Page' : toolName,
       hideStatus: true,
       icon: <FileTextIcon className={`size-4 shrink-0 ${isRunning ? 'text-green-500 animate-pulse' : 'text-green-500'}`} />,
-      preview,
+      preview: previewPair.preview,
+      fullPreview: previewPair.fullPreview,
     };
   }
 
   // Default - use original name and show status
-  return { displayName: toolName, hideStatus: false, icon: null, preview: null };
+  return { displayName: toolName, hideStatus: false, icon: null, preview: null, fullPreview: null };
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -625,6 +628,7 @@ const MessageItem = React.memo(
                           hideStatus={toolDisplayInfo.hideStatus}
                           icon={toolDisplayInfo.icon}
                           preview={toolDisplayInfo.preview ?? undefined}
+                          fullPreview={toolDisplayInfo.fullPreview ?? undefined}
                         />
                         <ToolContent>
                           <ToolInput
@@ -712,6 +716,7 @@ const MessageItem = React.memo(
                             hideStatus={toolDisplayInfo.hideStatus}
                             icon={toolDisplayInfo.icon}
                             preview={toolDisplayInfo.preview ?? undefined}
+                            fullPreview={toolDisplayInfo.fullPreview ?? undefined}
                           />
                           <ToolContent>
                             <ToolInput

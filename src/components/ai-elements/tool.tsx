@@ -15,10 +15,7 @@ import {
   ClockIcon,
   WrenchIcon,
   XCircleIcon,
-  GlobeIcon,
-  FileTextIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { memo, useMemo } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { CodeBlock } from './code-block';
@@ -42,6 +39,7 @@ export type ToolHeaderProps = {
   hideStatus?: boolean;
   icon?: ReactNode;
   preview?: string;
+  fullPreview?: string;
 };
 
 const stringifySafe = (value: unknown) => {
@@ -89,8 +87,10 @@ export const ToolHeader = memo(function ToolHeader({
   hideStatus,
   icon,
   preview,
+  fullPreview,
   ...props
 }: ToolHeaderProps) {
+  const hasPreview = preview || fullPreview;
   return (
     <CollapsibleTrigger
       className={cn(
@@ -105,10 +105,22 @@ export const ToolHeader = memo(function ToolHeader({
           <span className="font-medium text-sm shrink-0">{displayName ?? type}</span>
           {!hideStatus && getStatusBadge(state)}
         </div>
-        {preview && (
-          <span className="text-xs text-muted-foreground truncate pl-6" title={preview}>
-            {preview}
-          </span>
+        {hasPreview && (
+          <>
+            {/* Truncated preview shown when collapsed */}
+            <span 
+              className="text-xs text-muted-foreground truncate pl-6 group-data-[state=open]:hidden" 
+              title={fullPreview || preview}
+            >
+              {preview || fullPreview}
+            </span>
+            {/* Full preview shown when expanded */}
+            <span 
+              className="text-xs text-muted-foreground pl-6 hidden group-data-[state=open]:block break-words"
+            >
+              {fullPreview || preview}
+            </span>
+          </>
         )}
       </div>
       <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 shrink-0" />
