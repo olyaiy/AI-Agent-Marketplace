@@ -212,6 +212,35 @@ const InlineModelSelector = React.memo(function InlineModelSelector({
 });
 InlineModelSelector.displayName = 'InlineModelSelector';
 
+const isSearchToolName = (toolName: string): boolean => {
+  const lowerName = toolName.toLowerCase();
+  return (
+    lowerName.includes('web-search') ||
+    lowerName.includes('web_search') ||
+    lowerName.includes('websearch') ||
+    lowerName.includes('search-web') ||
+    lowerName.includes('search_web') ||
+    lowerName.includes('tavily') ||
+    lowerName === 'search'
+  );
+};
+
+const isReadToolName = (toolName: string): boolean => {
+  const lowerName = toolName.toLowerCase();
+  return (
+    lowerName.includes('read-page') ||
+    lowerName.includes('read_page') ||
+    lowerName.includes('readpage') ||
+    lowerName.includes('fetch-url') ||
+    lowerName.includes('fetch_url') ||
+    lowerName.includes('fetchurl') ||
+    lowerName.includes('read-url') ||
+    lowerName.includes('read_url') ||
+    lowerName.includes('readurl') ||
+    lowerName.includes('scrape')
+  );
+};
+
 type PromptInputFormProps = {
   text: string;
   status: string;
@@ -373,6 +402,77 @@ const getImageSrcFromPart = (part: BasicUIPart): string | null => {
   return `data:${safeMediaType};base64,${rawContent}`;
 };
 
+const pickFirstString = (value: unknown, keys: string[]): string | null => {
+  if (!value || typeof value !== 'object') return null;
+  const asRecord = value as Record<string, unknown>;
+  for (const key of keys) {
+    const candidate = asRecord[key];
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return null;
+};
+
+const extractSourcesFromToolOutput = (output: unknown): BasicUISource[] => {
+  if (!output || typeof output !== 'object') return [];
+  const sources: BasicUISource[] = [];
+  const seen = new Set<string>();
+  const asRecord = output as Record<string, unknown>;
+
+  if (Array.isArray(asRecord.results)) {
+    for (const [idx, item] of (asRecord.results as unknown[]).entries()) {
+      if (!item || typeof item !== 'object') continue;
+      const url = pickFirstString(item, ['url', 'link', 'href', 'pageUrl', 'page_url']);
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      const title =
+        pickFirstString(item, ['title', 'name', 'heading']) ?? `Result ${idx + 1}`;
+      sources.push({ title, url });
+    }
+  }
+
+  const singleUrl = pickFirstString(asRecord, ['url', 'page_url', 'pageUrl', 'link', 'href']);
+  if (singleUrl && !seen.has(singleUrl)) {
+    seen.add(singleUrl);
+    const title =
+      pickFirstString(asRecord, ['title', 'name', 'heading', 'pageTitle']) ?? 'Source';
+    sources.push({ title, url: singleUrl });
+  }
+
+  return sources;
+};
+
+const extractSourcesFromToolPart = (part: BasicUIPart): BasicUISource[] => {
+  const toolName =
+    part.toolInvocation?.toolName ||
+    (typeof part.type === 'string' && part.type.startsWith('tool-') ? part.type.replace(/^tool-/, '') : null);
+  if (!toolName) return [];
+
+  const toolInput = part.toolInvocation?.args ?? part.input ?? part.rawInput ?? part.args ?? null;
+  const toolOutput = part.toolInvocation?.result ?? part.output ?? null;
+  const sources: BasicUISource[] = [];
+  const seen = new Set<string>();
+
+  const addIfNew = (source: BasicUISource | null) => {
+    if (!source?.url || seen.has(source.url)) return;
+    seen.add(source.url);
+    sources.push(source);
+  };
+
+  if (isReadToolName(toolName)) {
+    const urlFromInput = pickFirstString(toolInput, ['url', 'page_url', 'pageUrl', 'link', 'href']);
+    addIfNew(urlFromInput ? { title: 'Read page', url: urlFromInput } : null);
+    extractSourcesFromToolOutput(toolOutput).forEach(addIfNew);
+  }
+
+  if (isSearchToolName(toolName)) {
+    extractSourcesFromToolOutput(toolOutput).forEach(addIfNew);
+  }
+
+  return sources;
+};
+
 function extractSources(text: string) {
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
   const sources: Array<{ title: string; url: string }> = [];
@@ -397,7 +497,6 @@ function getToolDisplayInfo(
 ): { displayName: string; hideStatus: boolean; icon: React.ReactNode | null; preview: string | null; fullPreview: string | null } {
   const isRunning = state === 'input-streaming' || state === 'input-available';
   const isComplete = state === 'output-available';
-  const lowerName = toolName.toLowerCase();
 
   // Helper to extract a string value from an object by key paths
   const extractFromObject = (obj: unknown, keys: string[]): string | null => {
@@ -444,15 +543,7 @@ function getToolDisplayInfo(
   };
 
   // Web search tool
-  if (
-    lowerName.includes('web-search') ||
-    lowerName.includes('web_search') ||
-    lowerName.includes('websearch') ||
-    lowerName.includes('search-web') ||
-    lowerName.includes('search_web') ||
-    lowerName.includes('tavily') ||
-    lowerName === 'search'
-  ) {
+  if (isSearchToolName(toolName)) {
     const { preview, fullPreview } = extractPreviewPair(['query', 'search_query', 'searchQuery', 'q', 'text', 'input']);
     return {
       displayName: isRunning ? 'Searching The Web' : isComplete ? 'Searched The Web' : toolName,
@@ -464,18 +555,7 @@ function getToolDisplayInfo(
   }
 
   // Read page tool
-  if (
-    lowerName.includes('read-page') ||
-    lowerName.includes('read_page') ||
-    lowerName.includes('readpage') ||
-    lowerName.includes('fetch-url') ||
-    lowerName.includes('fetch_url') ||
-    lowerName.includes('fetchurl') ||
-    lowerName.includes('read-url') ||
-    lowerName.includes('read_url') ||
-    lowerName.includes('readurl') ||
-    lowerName.includes('scrape')
-  ) {
+  if (isReadToolName(toolName)) {
     // When complete, show the page title from output; otherwise show the URL from input
     let previewPair = { preview: null as string | null, fullPreview: null as string | null };
     if (isComplete) {
@@ -567,15 +647,24 @@ type StableMarkdownSplit = { stable: string; live: string };
 
 /**
  * Split text into a "stable" prefix (safe to render as markdown) and a "live" suffix.
- * We treat boundaries as blank lines or closed code fences. Content after the last
- * boundary stays raw to avoid re-parsing on every token.
+ * Boundaries are more aggressive: blank lines, closed fences, and sentence punctuation
+ * every ~80 chars. This surfaces formatting sooner while keeping markdown rerenders bounded.
  */
 function splitStableMarkdown(text: string): StableMarkdownSplit {
   if (!text) return { stable: '', live: '' };
 
+  const MIN_CHARS_BETWEEN_BOUNDARIES = 80;
+  const MAX_LIVE_CHARS = 320;
+
   let inFence = false;
   let lastBoundary = 0;
   let cursor = 0;
+
+  const maybeMarkBoundary = (pos: number) => {
+    if (pos - lastBoundary >= MIN_CHARS_BETWEEN_BOUNDARIES) {
+      lastBoundary = pos;
+    }
+  };
 
   const lines = text.split('\n');
 
@@ -590,13 +679,25 @@ function splitStableMarkdown(text: string): StableMarkdownSplit {
       inFence = !inFence;
       if (!inFence) {
         // Closing fence: mark everything through this line as stable.
-        lastBoundary = cursor + lineLen;
+        maybeMarkBoundary(cursor + lineLen);
       }
     } else if (!inFence) {
       const isBlankLine = line.trim().length === 0 && endsWithNewline;
       if (isBlankLine) {
-        // Paragraph boundary: safe to render markdown up to here.
-        lastBoundary = cursor + lineLen;
+        maybeMarkBoundary(cursor + lineLen);
+      }
+
+      // Prefer sentence punctuation as soft boundaries to drip markdown sooner.
+      const punctuationRegex = /[.!?]/g;
+      let match: RegExpExecArray | null;
+      while ((match = punctuationRegex.exec(line)) !== null) {
+        const boundaryPos = cursor + match.index + 1;
+        maybeMarkBoundary(boundaryPos);
+      }
+
+      // If the live tail is getting long, force a boundary at line end.
+      if (cursor + lineLen - lastBoundary >= MAX_LIVE_CHARS) {
+        maybeMarkBoundary(cursor + lineLen);
       }
     }
 
@@ -697,12 +798,15 @@ const MessageItem = React.memo(
         }))
         .filter((s) => s.url);
 
+      const toolSources = message.parts.flatMap((part) => extractSourcesFromToolPart(part));
+
       const annotationSources =
         message.annotations?.find((annotation) => annotation.type === 'sources')?.value ?? [];
 
       const sourcesMap = new Map<string, { title: string; url: string }>();
       extractedSources.forEach((s) => sourcesMap.set(s.url, s));
       partSources.forEach((s) => sourcesMap.set(s.url, s));
+      toolSources.forEach((s) => sourcesMap.set(s.url, s));
       annotationSources.forEach((source) => {
         if (!source) return;
         sourcesMap.set(source.url, { title: source.title, url: source.url });
