@@ -64,6 +64,8 @@ function LeftForm({
   avatars,
   onSave,
   onDelete,
+  onRequestPublic,
+  onWithdrawPublic,
   sendContextRef,
   onTabChange,
   activeTab,
