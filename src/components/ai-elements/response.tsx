@@ -19,6 +19,49 @@ type ResponseProps = Omit<ComponentProps<typeof ReactMarkdown>, 'children' | 'cl
   sources?: { title: string; url: string }[];
 };
 
+// Normalize list items that were split across lines like:
+// "1.\nItem one" -> "1. Item one"
+// We only touch content outside code fences to avoid mangling examples.
+const normalizeLooseOrderedLists = (input: string): string => {
+  const fenceRegex = /```[\s\S]*?```/g;
+
+  const normalizeSegment = (segment: string): string => {
+    const lines = segment.split('\n');
+    const output: string[] = [];
+
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i];
+      const next = lines[i + 1];
+
+      const isNumberMarkerOnly = /^\s*\d+\.\s*$/.test(line);
+      const nextIsNewItem = next ? /^\s*\d+\.\s+/.test(next) : false;
+
+      if (isNumberMarkerOnly && next && !nextIsNewItem) {
+        output.push(`${line.trimEnd()} ${next.trimStart()}`);
+        i += 1; // Skip the line we just consumed
+        continue;
+      }
+
+      output.push(line);
+    }
+
+    return output.join('\n');
+  };
+
+  let cursor = 0;
+  let normalized = '';
+  let match: RegExpExecArray | null;
+
+  while ((match = fenceRegex.exec(input)) !== null) {
+    normalized += normalizeSegment(input.slice(cursor, match.index));
+    normalized += match[0]; // Keep the fenced block as-is
+    cursor = fenceRegex.lastIndex;
+  }
+
+  normalized += normalizeSegment(input.slice(cursor));
+  return normalized;
+};
+
 export const Response = memo(
   ({ className, children, sources = [], ...props }: ResponseProps) => {
     // Escape dollar signs to prevent LaTeX math rendering
@@ -27,6 +70,10 @@ export const Response = memo(
       return children.replace(/\$/g, '\\$');
     }, [children]);
     const deferredContent = useDeferredValue(escapedChildren);
+    const normalizedContent = useMemo(() => {
+      if (typeof deferredContent !== 'string') return deferredContent;
+      return normalizeLooseOrderedLists(deferredContent);
+    }, [deferredContent]);
 
     return (
       <div className={cn('size-full whitespace-pre-wrap', className)}>
@@ -53,19 +100,22 @@ export const Response = memo(
             ),
             p: ({ className, ...props }) => (
               <p
-                className={cn('text-sm leading-relaxed my-0 whitespace-pre-wrap', className)}
+                className={cn('text-[15px] md:text-base leading-relaxed my-0 whitespace-pre-wrap', className)}
                 {...props}
               />
             ),
             ul: ({ className, ...props }) => (
-              <ul className={cn('list-disc pl-6 whitespace-normal', className)} {...props} />
+              <ul className={cn('list-disc list-inside pl-5 whitespace-normal', className)} {...props} />
             ),
             ol: ({ className, ...props }) => (
-              <ol className={cn('list-decimal pl-6 whitespace-normal', className)} {...props} />
+              <ol className={cn('list-decimal list-inside pl-5 whitespace-normal', className)} {...props} />
             ),
             li: ({ className, ...props }) => (
               <li
-                className={cn('text-sm leading-relaxed whitespace-normal', className)}
+                className={cn(
+                  'text-[15px] md:text-base leading-relaxed whitespace-pre-wrap break-words [&>p]:inline [&>p]:my-0 [&>p]:whitespace-pre-wrap',
+                  className
+                )}
                 {...props}
               />
             ),
@@ -142,7 +192,7 @@ export const Response = memo(
             th: ({ className, ...props }) => (
               <th
                 className={cn(
-                  'border border-border px-3 py-2 bg-muted font-semibold text-left text-sm',
+                  'border border-border px-3 py-2 bg-muted font-semibold text-left text-[15px] md:text-base',
                   className
                 )}
                 {...props}
@@ -151,7 +201,7 @@ export const Response = memo(
             td: ({ className, ...props }) => (
               <td
                 className={cn(
-                  'border border-border px-3 py-2 text-sm',
+                  'border border-border px-3 py-2 text-[15px] md:text-base',
                   className
                 )}
                 {...props}
@@ -172,7 +222,7 @@ export const Response = memo(
           }}
           {...props}
         >
-          {deferredContent as string}
+          {normalizedContent as string}
         </ReactMarkdown>
       </div>
     );

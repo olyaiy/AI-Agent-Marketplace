@@ -38,7 +38,7 @@ import {
   ContextContentBody,
   ContextContentFooter,
   ContextContentHeader,
-  ContextInputUsage, 
+  ContextInputUsage,
   ContextOutputUsage,
   ContextReasoningUsage,
   ContextTrigger,
@@ -57,7 +57,7 @@ import {
 } from '@/lib/conversations-cache';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent, dispatchAgentModelChange } from '@/lib/agent-events';
+import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent } from '@/lib/agent-events';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
 import { ProviderAvatar } from '@/components/ProviderAvatar';
 import {
@@ -527,18 +527,18 @@ function getToolDisplayInfo(
   const extractTitleFromOutput = (): { preview: string | null; fullPreview: string | null } => {
     if (!output || typeof output !== 'object') return { preview: null, fullPreview: null };
     const outputObj = output as Record<string, unknown>;
-    
+
     // Check for results array (common pattern: { results: [{ title, url, ... }] })
     if (Array.isArray(outputObj.results) && outputObj.results.length > 0) {
       const firstResult = outputObj.results[0] as Record<string, unknown>;
       const title = extractFromObject(firstResult, ['title', 'name', 'heading']);
       if (title) return { preview: truncate(title, 80), fullPreview: title };
     }
-    
+
     // Check for direct title field
     const directTitle = extractFromObject(outputObj, ['title', 'name', 'heading', 'pageTitle']);
     if (directTitle) return { preview: truncate(directTitle, 80), fullPreview: directTitle };
-    
+
     return { preview: null, fullPreview: null };
   };
 
@@ -564,7 +564,7 @@ function getToolDisplayInfo(
     if (!previewPair.preview) {
       previewPair = extractPreviewPair(['url', 'page_url', 'pageUrl', 'link', 'href']);
     }
-    
+
     return {
       displayName: isRunning ? 'Reading Page' : isComplete ? 'Read Page' : toolName,
       hideStatus: true,
@@ -872,14 +872,14 @@ const MessageItem = React.memo(
                     if (isStreamingActive) {
                       const { stable, live } = splitStableMarkdown(part.text);
                       return (
-                        <div key={`${message.id}-${i}`} className="flex flex-col gap-2 text-sm leading-relaxed">
+                        <div key={`${message.id}-${i}`} className="flex flex-col gap-2 text-[15px] md:text-base leading-relaxed">
                           {stable ? (
                             <Response sources={sources}>
                               {stable}
                             </Response>
                           ) : null}
                           {live ? (
-                            <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                            <pre className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
                               {live}
                             </pre>
                           ) : null}
@@ -989,9 +989,8 @@ const MessageItem = React.memo(
                           ? 'output-available'
                           : part.errorText
                             ? 'output-error'
-                            : 'input-available');
-                      const isToolStreaming =
-                        toolState === 'input-streaming' || toolState === 'input-available';
+                            : 'input-available'); const isToolStreaming =
+                              toolState === 'input-streaming' || toolState === 'input-available';
                       const toolInput =
                         part.input ?? part.rawInput ?? part.args ?? null;
                       const toolOutput = part.output;
@@ -1049,9 +1048,8 @@ const MessageItem = React.memo(
           </MessageContent>
         </Message>
         <Actions
-          className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${
-            message.role === 'user' ? 'justify-end' : 'justify-start'
-          }`}
+          className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${message.role === 'user' ? 'justify-end' : 'justify-start'
+            }`}
         >
           {message.role === 'assistant' && isLastAssistant && (
             <Action
@@ -1526,7 +1524,7 @@ const Chat = React.memo(function Chat({
       e.preventDefault();
       startNewChat();
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isDialogOpen, startNewChat]);
@@ -1689,7 +1687,7 @@ const Chat = React.memo(function Chat({
           console.log('🛑 Saving message:', { id: lastMessage.id, partsCount: lastMessage.parts?.length });
         }
 
-        await fetch('/api/messages', { 
+        await fetch('/api/messages', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ conversationId: cid, message: lastMessage }),
@@ -1826,10 +1824,10 @@ const Chat = React.memo(function Chat({
     const serverMessages = (Array.isArray(initialMessages) ? initialMessages : []) as BasicUIMessage[];
     const allCurrentMessages = [...serverMessages, ...(messages as BasicUIMessage[] || [])];
     const uniqueMessages = Array.from(new Map(allCurrentMessages.map(m => [m.id, m])).values());
-    
+
     // Find the index of the message being edited
     const editedMessageIndex = uniqueMessages.findIndex(m => m.id === messageId);
-    
+
     // Collect IDs of messages to hide: the edited message AND all messages after it
     // We hide the edited message because sendMessage will create a new user message
     const messageIdsToHide = new Set<string>();
@@ -2154,7 +2152,7 @@ const Chat = React.memo(function Chat({
               text={text}
               status={status}
               onStop={handleStop}
-              textareaRef={textareaRef}
+              textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement>}
               webSearchOn={webSearchOn}
               onToggleWebSearch={handleToggleWebSearch}
               renderContextControl={renderContextControl}
@@ -2177,7 +2175,7 @@ const Chat = React.memo(function Chat({
             text={text}
             status={status}
             onStop={handleStop}
-            textareaRef={textareaRef}
+            textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement>}
             webSearchOn={webSearchOn}
             onToggleWebSearch={handleToggleWebSearch}
             renderContextControl={renderContextControl}

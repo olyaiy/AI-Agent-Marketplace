@@ -10,14 +10,23 @@ export const agent = pgTable('agent', {
   avatar: varchar('avatar', { length: 256 }),
   tagline: text('tagline'),
   description: text('description'),
-  visibility: varchar('visibility', { length: 16 }).notNull().default('public'),
+  visibility: varchar('visibility', { length: 16 }).notNull().default('private'),
   inviteCode: varchar('invite_code', { length: 64 }),
+  publishStatus: varchar('publish_status', { length: 32 }).notNull().default('draft'), // draft | pending_review | approved | rejected
+  publishRequestedAt: timestamp('publish_requested_at'),
+  publishRequestedBy: text('publish_requested_by')
+    .references(() => user.id, { onDelete: 'set null' }),
+  publishReviewedAt: timestamp('publish_reviewed_at'),
+  publishReviewedBy: text('publish_reviewed_by')
+    .references(() => user.id, { onDelete: 'set null' }),
+  publishReviewNotes: text('publish_review_notes'),
   creatorId: text('creator_id')
     .references(() => user.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   visibilityIndex: index('agent_visibility_idx').on(table.visibility),
+  publishStatusIndex: index('agent_publish_status_idx').on(table.publishStatus),
   inviteCodeUnique: uniqueIndex('agent_invite_code_unique').on(table.inviteCode),
 }));
 

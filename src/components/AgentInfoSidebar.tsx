@@ -33,9 +33,11 @@ interface AgentInfoSidebarProps {
   activeModel?: string;
   visibility?: 'public' | 'invite_only' | 'private';
   inviteCode?: string | null;
+  publishStatus?: 'draft' | 'pending_review' | 'approved' | 'rejected';
+  publishReviewNotes?: string | null;
 }
 
-export default function AgentInfoSidebar({ name, avatarUrl, tagline, description, variant = 'sidebar', agentTag, canEdit, modelOptions, activeModel, visibility, inviteCode }: AgentInfoSidebarProps) {
+export default function AgentInfoSidebar({ name, avatarUrl, tagline, description, variant = 'sidebar', agentTag, canEdit, modelOptions, activeModel, visibility, inviteCode, publishStatus, publishReviewNotes }: AgentInfoSidebarProps) {
   const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your creative thinking partner';
   const effectiveDescription = (description && description.trim().length > 0)
     ? description
@@ -62,6 +64,16 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
       setIsMac(/Mac|iPod|iPhone|iPad/.test(navigator.platform));
     }
   }, []);
+  const approvalLabel = React.useMemo(() => {
+    if (!publishStatus || publishStatus === 'approved') return null;
+    if (publishStatus === 'pending_review') {
+      return { text: 'Pending approval', tone: 'bg-amber-50 text-amber-700 border-amber-200' };
+    }
+    if (publishStatus === 'rejected') {
+      return { text: 'Public request rejected', tone: 'bg-red-50 text-red-700 border-red-200' };
+    }
+    return { text: 'Not public', tone: 'bg-slate-50 text-slate-700 border-slate-200' };
+  }, [publishStatus]);
   
   // Extract agent ID from tag (remove @ prefix)
   const agentId = agentTag ? agentTag.replace('@', '') : null;
@@ -230,6 +242,11 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
               {visibilityLabel}
             </span>
           )}
+          {approvalLabel ? (
+            <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${approvalLabel.tone}`}>
+              {approvalLabel.text}
+            </span>
+          ) : null}
         </div>
       )}
 
@@ -291,6 +308,9 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
         "border-t border-gray-200 pt-4",
         variant === 'sidebar' ? 'flex-1 overflow-y-auto' : ''
       )}>
+        {publishStatus === 'rejected' && publishReviewNotes ? (
+          <p className="text-xs text-red-700 mb-2">Public request rejected: {publishReviewNotes}</p>
+        ) : null}
         <p className="text-sm text-gray-600 leading-relaxed">
           {effectiveDescription}
         </p>

@@ -24,7 +24,7 @@ export function AgentForm({ model, secondaryModels, avatar, onSystemPromptChange
   const [tag, setTag] = useState('');
   const [isTagEdited, setIsTagEdited] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [visibility, setVisibility] = useState<'public' | 'invite_only' | 'private'>('public');
+  const [visibility, setVisibility] = useState<'public' | 'invite_only' | 'private'>('private');
   const derivedTag = useMemo(() => (name ? `@${slugify(name)}` : ''), [name]);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export function AgentForm({ model, secondaryModels, avatar, onSystemPromptChange
         <span className="font-medium text-sm">Visibility</span>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           {[
-            { value: 'public', label: 'Public', hint: 'Listed on the homepage and searchable.' },
+            { value: 'public', label: 'Public', hint: 'Listed on the homepage and searchable (requires admin approval).' },
             { value: 'invite_only', label: 'Invite only', hint: 'Hidden from listings; share via link.' },
             { value: 'private', label: 'Private', hint: 'Only you can access it.' },
           ].map((opt) => (

@@ -40,7 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Search, UserPlus, Shield, Ban, Unlock, Trash2, Key } from 'lucide-react';
+import { MoreHorizontal, Search, UserPlus, Shield, Ban, Unlock, Trash2, Key, Check, X, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type AdminRole = 'user' | 'admin';
@@ -86,6 +86,19 @@ interface ListUsersResponse {
   offset?: number;
 }
 
+interface AgentRequest {
+  tag: string;
+  name: string;
+  creatorId: string | null;
+  visibility: string | null;
+  publishStatus: 'draft' | 'pending_review' | 'approved' | 'rejected';
+  publishRequestedAt?: string | null;
+  publishRequestedBy?: string | null;
+  publishReviewNotes?: string | null;
+  tagline?: string | null;
+  model?: string | null;
+}
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
@@ -101,6 +114,8 @@ export default function AdminDashboard() {
   const [banDays, setBanDays] = useState('7');
   const [newPassword, setNewPassword] = useState('');
   const [createForm, setCreateForm] = useState<CreateFormState>(createInitialFormState());
+  const [agentRequests, setAgentRequests] = useState<AgentRequest[]>([]);
+  const [isLoadingAgents, setIsLoadingAgents] = useState(true);
 
   const pageSize = 10;
 
@@ -131,9 +146,41 @@ export default function AdminDashboard() {
     }
   }, [currentPage, pageSize, searchField, searchQuery]);
 
+  const loadAgentRequests = useCallback(async () => {
+    setIsLoadingAgents(true);
+    try {
+      const res = await fetch('/api/admin/agent-approvals?status=pending_review', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('Failed to load agent approvals');
+      const data = await res.json();
+      const normalized: AgentRequest[] = Array.isArray(data?.requests)
+        ? data.requests.map((r: AgentRequest) => ({
+            tag: r.tag,
+            name: r.name,
+            creatorId: r.creatorId ?? null,
+            visibility: r.visibility ?? null,
+            publishStatus: r.publishStatus,
+            publishRequestedAt: r.publishRequestedAt ?? null,
+            publishRequestedBy: r.publishRequestedBy ?? null,
+            publishReviewNotes: r.publishReviewNotes ?? null,
+            tagline: r.tagline ?? null,
+            model: r.model ?? null,
+          }))
+        : [];
+      setAgentRequests(normalized);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load agent approvals');
+    } finally {
+      setIsLoadingAgents(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
+  useEffect(() => {
+    void loadAgentRequests();
+  }, [loadAgentRequests]);
 
   function handleSearch() {
     setCurrentPage(1);
@@ -223,6 +270,29 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleAgentDecision(tag: string, action: 'approve' | 'reject') {
+    try {
+      let notes: string | undefined;
+      if (action === 'reject') {
+        notes = typeof window !== 'undefined' ? window.prompt('Optional rejection reason?') ?? '' : '';
+      }
+      const res = await fetch('/api/admin/agent-approvals', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tag, action, notes }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || 'Unable to update agent');
+      }
+      toast.success(action === 'approve' ? 'Agent approved for public' : 'Agent rejected');
+      await loadAgentRequests();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update agent approval');
+    }
+  }
+
   async function handleRemoveUser(userId: string) {
     if (!confirm('Are you sure you want to permanently delete this user?')) return;
     
@@ -245,6 +315,7 @@ export default function AdminDashboard() {
       <Tabs defaultValue="users" className="space-y-4">
         <TabsList>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="agents">Agent approvals</TabsTrigger>
           <TabsTrigger value="homepage">Homepage rows</TabsTrigger>
         </TabsList>
 
@@ -426,6 +497,83 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="agents" className="space-y-4">
+          <Card className="p-4 space-y-2">
+            <p className="text-sm font-medium">Public listing requests</p>
+            <p className="text-xs text-muted-foreground">
+              Approve or reject agents requesting public visibility. Approved agents will appear in search and homepage slots.
+            </p>
+          </Card>
+
+          <Card className="border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agent</TableHead>
+                  <TableHead>Requested by</TableHead>
+                  <TableHead>Requested at</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[160px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoadingAgents ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      Loading requests...
+                    </TableCell>
+                  </TableRow>
+                ) : agentRequests.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No pending requests
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  agentRequests.map((req) => {
+                    const requestedAt = req.publishRequestedAt ? new Date(req.publishRequestedAt) : null;
+                    return (
+                      <TableRow key={req.tag}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{req.name}</span>
+                            <span className="text-xs text-muted-foreground font-mono">{req.tag}</span>
+                            {req.tagline ? (
+                              <span className="text-xs text-muted-foreground line-clamp-1">{req.tagline}</span>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{req.creatorId || '—'}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {requestedAt ? `${requestedAt.toLocaleDateString()} ${requestedAt.toLocaleTimeString()}` : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="gap-1">
+                            {req.publishStatus === 'pending_review' ? <Clock3 className="size-4" /> : null}
+                            {req.publishStatus.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleAgentDecision(req.tag, 'reject')}>
+                              <X className="size-4 mr-1" />
+                              Reject
+                            </Button>
+                            <Button size="sm" onClick={() => handleAgentDecision(req.tag, 'approve')}>
+                              <Check className="size-4 mr-1" />
+                              Approve
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </Card>
         </TabsContent>
 
         <TabsContent value="homepage">

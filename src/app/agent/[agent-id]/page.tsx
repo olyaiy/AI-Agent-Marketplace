@@ -69,6 +69,8 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             canEdit={canEdit}
             modelOptions={modelOptions}
             activeModel={initialModel}
+            publishStatus={found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined}
+            publishReviewNotes={found.publishReviewNotes || undefined}
           />
         </div>
         {/* Scrollable chat area */}
@@ -112,6 +114,8 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             activeModel={initialModel}
             visibility={found.visibility as 'public' | 'invite_only' | 'private'}
             inviteCode={canEdit ? found.inviteCode || undefined : undefined}
+            publishStatus={found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined}
+            publishReviewNotes={found.publishReviewNotes || undefined}
           />
         </div>
       </div>

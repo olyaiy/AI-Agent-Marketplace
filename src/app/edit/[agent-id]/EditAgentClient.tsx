@@ -16,14 +16,37 @@ interface Props {
   inviteCode?: string;
   onChange?: (model: string | undefined) => void;
   onContextChange?: (update: { model?: string; systemPrompt?: string; tagline?: string; description?: string }) => void;
-  onTabChange?: (tab: "behaviour" | "details" | "knowledge") => void;
+  onTabChange?: (tab: "behaviour" | "details" | "knowledge" | "publish") => void;
   onSecondaryModelsChange?: (models: string[]) => void;
+  publishStatus?: 'draft' | 'pending_review' | 'approved' | 'rejected';
+  publishReviewNotes?: string;
+  publishRequestedAt?: string;
+  onRequestPublic?: (formData: FormData) => void | Promise<void>;
+  onWithdrawPublic?: (formData: FormData) => void | Promise<void>;
 }
 
-export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, initialModel, initialSecondaryModels = [], initialSystemPrompt, initialTagline, initialDescription, initialVisibility = 'public', inviteCode, onChange, onContextChange, onTabChange, onSecondaryModelsChange }: Props) {
+export const EditAgentClient = React.memo(function EditAgentClient({
+  agentTag,
+  initialModel,
+  initialSecondaryModels = [],
+  initialSystemPrompt,
+  initialTagline,
+  initialDescription,
+  initialVisibility = 'private',
+  inviteCode,
+  onChange,
+  onContextChange,
+  onTabChange,
+  onSecondaryModelsChange,
+  publishStatus = 'draft',
+  publishReviewNotes,
+  publishRequestedAt,
+  onRequestPublic,
+  onWithdrawPublic,
+}: Props) {
   const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
   const [secondaryModels, setSecondaryModels] = React.useState<string[]>(initialSecondaryModels || []);
-  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge">("behaviour");
+  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish">("behaviour");
   const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>(initialVisibility);
   const [copied, setCopied] = React.useState(false);
 
@@ -54,6 +77,20 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
     return () => clearTimeout(timer);
   }, [copied]);
 
+  const requestedDate = React.useMemo(() => publishRequestedAt ? new Date(publishRequestedAt) : null, [publishRequestedAt]);
+  const statusBadge = React.useMemo(() => {
+    switch (publishStatus) {
+      case 'approved':
+        return { label: 'Approved – public', classes: 'bg-green-50 text-green-700 border-green-200' };
+      case 'pending_review':
+        return { label: 'Pending review', classes: 'bg-amber-50 text-amber-700 border-amber-200' };
+      case 'rejected':
+        return { label: 'Rejected', classes: 'bg-red-50 text-red-700 border-red-200' };
+      default:
+        return { label: 'Not public', classes: 'bg-slate-50 text-slate-700 border-slate-200' };
+    }
+  }, [publishStatus]);
+
   return (
     <div className="space-y-4">
       {/* Tabs header */}
@@ -78,6 +115,13 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
           onClick={() => setActiveTab("knowledge")}
         >
           Knowledge Base
+        </button>
+        <button
+          type="button"
+          className={`px-3 py-2 text-sm ${activeTab === 'publish' ? 'border-b-2 border-rose-500 text-rose-600' : 'text-gray-600'}`}
+          onClick={() => setActiveTab("publish")}
+        >
+          Publish
         </button>
       </div>
 
@@ -150,7 +194,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
               <label className="text-sm font-medium text-gray-900">Visibility</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {[
-                  { value: 'public', label: 'Public', hint: 'Listed on the homepage and searchable.' },
+                  { value: 'public', label: 'Public', hint: 'Listed on the homepage and searchable (requires admin approval).' },
                   { value: 'invite_only', label: 'Invite only', hint: 'Hidden from listings; share via link.' },
                   { value: 'private', label: 'Private', hint: 'Only you can access it.' },
                 ].map((opt) => (
@@ -207,8 +251,52 @@ export const EditAgentClient = React.memo(function EditAgentClient({ agentTag, i
               )}
             </div>
           </div>
-        ) : (
+        ) : activeTab === "knowledge" ? (
           <KnowledgeManager agentTag={agentTag} />
+        ) : (
+          <div className="space-y-4 max-w-xl">
+            <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm ${statusBadge.classes}`}>
+              <span className="font-semibold">{statusBadge.label}</span>
+              {requestedDate && publishStatus === 'pending_review' ? (
+                <span className="text-xs">
+                  Requested {requestedDate.toLocaleDateString()} {requestedDate.toLocaleTimeString()}
+                </span>
+              ) : null}
+            </div>
+            {publishStatus === 'rejected' && publishReviewNotes ? (
+              <p className="text-sm text-red-700">Reason: {publishReviewNotes}</p>
+            ) : null}
+            <p className="text-sm text-gray-700">
+              Request a review to list this agent publicly. Approved agents become searchable and can appear on the homepage. While pending or rejected, you can still share via invite-only links.
+            </p>
+            <div className="flex gap-3">
+              {publishStatus === 'pending_review' ? (
+                <button
+                  type="submit"
+                  formAction={onWithdrawPublic}
+                  className="border px-3 py-2 rounded-md text-sm hover:bg-amber-50 hover:border-amber-200"
+                >
+                  Withdraw request
+                </button>
+              ) : publishStatus === 'approved' ? (
+                <button
+                  type="button"
+                  className="border px-3 py-2 rounded-md text-sm text-gray-500 cursor-default"
+                  disabled
+                >
+                  Already approved
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  formAction={onRequestPublic}
+                  className="border px-3 py-2 rounded-md text-sm bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Request public listing
+                </button>
+              )}
+            </div>
+          </div>
         )}
       </div>
       <input type="hidden" name="model" value={selectedModel || ""} />

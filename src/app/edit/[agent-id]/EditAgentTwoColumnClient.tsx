@@ -23,9 +23,14 @@ interface Props {
   initialVisibility?: 'public' | 'invite_only' | 'private';
   inviteCode?: string;
   isAuthenticated: boolean;
+  publishStatus: 'draft' | 'pending_review' | 'approved' | 'rejected';
+  publishReviewNotes?: string;
+  publishRequestedAt?: string;
   avatars: string[];
   onSave: ServerAction;
   onDelete: ServerAction;
+  onRequestPublic: ServerAction;
+  onWithdrawPublic: ServerAction;
   knowledgeItems?: { name: string; content: string }[];
 }
 
@@ -38,8 +43,8 @@ interface SendContext {
 
 interface LeftFormProps extends Props {
   sendContextRef: React.MutableRefObject<SendContext>;
-  onTabChange: (tab: "behaviour" | "details" | "knowledge") => void;
-  activeTab: "behaviour" | "details" | "knowledge";
+  onTabChange: (tab: "behaviour" | "details" | "knowledge" | "publish") => void;
+  activeTab: "behaviour" | "details" | "knowledge" | "publish";
   onModelPreviewChange: (model?: string) => void;
   onSecondaryPreviewChange: (models: string[]) => void;
 }
@@ -112,10 +117,15 @@ function LeftForm({
           onSecondaryModelsChange={(models) => {
             onSecondaryPreviewChange(models);
           }}
+          publishStatus={publishStatus}
+          publishReviewNotes={publishReviewNotes}
+          publishRequestedAt={publishRequestedAt}
+          onRequestPublic={onRequestPublic}
+          onWithdrawPublic={onWithdrawPublic}
         />
 
         {activeTab !== "knowledge" && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button type="submit" className="border p-2 hover:bg-gray-50 rounded-md transition-colors">Save</button>
             <button formAction={onDelete} className="border p-2 hover:bg-red-50 hover:border-red-300 hover:text-red-700 rounded-md transition-colors">Delete</button>
           </div>
@@ -130,7 +140,7 @@ export default function EditAgentTwoColumnClient(props: Props) {
 }
 
 function TwoColumn(props: Props) {
-  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge">("behaviour");
+  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish">("behaviour");
   const [previewModel, setPreviewModel] = React.useState<string | undefined>(props.initialModel);
   const [previewSecondaryModels, setPreviewSecondaryModels] = React.useState<string[]>(props.initialSecondaryModels || []);
   

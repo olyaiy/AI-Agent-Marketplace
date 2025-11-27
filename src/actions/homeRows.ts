@@ -48,6 +48,7 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
       agentModel: agent.model,
       agentSystemPrompt: agent.systemPrompt,
       agentVisibility: agent.visibility,
+      agentPublishStatus: agent.publishStatus,
       agentCreatorId: agent.creatorId,
     })
     .from(homeRow)
@@ -79,7 +80,7 @@ export async function listHomeRows(options?: { includeUnpublished?: boolean }): 
         agents: [],
       });
     }
-    const isPublicAgent = row.agentVisibility === 'public';
+    const isPublicAgent = row.agentVisibility === 'public' && row.agentPublishStatus === 'approved';
     if (
       row.agentTag &&
       row.agentName &&
@@ -199,7 +200,7 @@ export async function setHomeRowAgents(rowId: string, agentTags: string[]) {
   const existingAgents = await db
     .select({ tag: agent.tag })
     .from(agent)
-    .where(and(inArray(agent.tag, unique), eq(agent.visibility, 'public')));
+    .where(and(inArray(agent.tag, unique), eq(agent.visibility, 'public'), eq(agent.publishStatus, 'approved')));
   const validTags = existingAgents.map((a) => a.tag);
 
   await db.delete(homeRowAgent).where(eq(homeRowAgent.rowId, rowId));
@@ -230,7 +231,7 @@ export async function listAgentsPaginated(options: { query?: string; page?: numb
   const parsedPage = Number(options.page ?? 1);
   const requestedPage = Math.max(1, Number.isFinite(parsedPage) ? Math.floor(parsedPage) : 1);
 
-  const filters = [eq(agent.visibility, 'public')];
+  const filters = [eq(agent.visibility, 'public'), eq(agent.publishStatus, 'approved')];
   const trimmed = typeof options.query === 'string' ? options.query.trim() : '';
   if (trimmed) {
     const pattern = `%${trimmed}%`;
@@ -277,9 +278,10 @@ export async function searchAgentsForHomeRow(query: string, limit = 10) {
   const pageSize = clampPageSize(limit, 10, 50);
 
   const nameOrTag = or(ilike(agent.name, `%${search}%`), ilike(agent.tag, `%${search}%`));
+  const baseFilter = and(eq(agent.visibility, 'public'), eq(agent.publishStatus, 'approved'));
   const condition = search && nameOrTag
-    ? and(eq(agent.visibility, 'public'), nameOrTag)
-    : eq(agent.visibility, 'public');
+    ? and(baseFilter, nameOrTag)
+    : baseFilter;
 
   return db
     .select({

@@ -1,4 +1,4 @@
-import { getAgentByTag, updateAgent, deleteAgent } from '@/actions/agents';
+import { getAgentByTag, updateAgent, deleteAgent, requestAgentReview, withdrawAgentReview } from '@/actions/agents';
 import { notFound, redirect } from 'next/navigation';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -21,6 +21,10 @@ async function saveAction(formData: FormData) {
   const visibility = typeof visibilityRaw === 'string' && (visibilityRaw === 'public' || visibilityRaw === 'invite_only' || visibilityRaw === 'private')
     ? visibilityRaw
     : undefined;
+  const headerList = await headers();
+  const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
+  const actorId = session?.user?.id ?? null;
+  const actorRole = session?.user?.role ?? null;
   let secondaryModels: string[] | undefined = undefined;
   if (typeof secondaryModelsRaw === 'string' && secondaryModelsRaw.trim().length > 0) {
     try {
@@ -31,7 +35,7 @@ async function saveAction(formData: FormData) {
     }
   }
   const tag = `@${id}`;
-  await updateAgent({ tag, name, systemPrompt, model, secondaryModels, avatar, tagline: tagline ?? null, description: description ?? null, visibility });
+  await updateAgent({ tag, name, systemPrompt, model, secondaryModels, avatar, tagline: tagline ?? null, description: description ?? null, visibility, actorId, actorRole });
   redirect(`/agent/${encodeURIComponent(id)}`);
 }
 
@@ -41,6 +45,36 @@ async function deleteAction(formData: FormData) {
   const tag = `@${id}`;
   await deleteAgent(tag);
   redirect(`/`);
+}
+
+async function requestPublicAction(formData: FormData) {
+  'use server';
+  const id = (formData.get('id') as string)?.trim();
+  const tag = `@${id}`;
+  const headerList = await headers();
+  const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
+  const actorId = session?.user?.id ?? null;
+  const actorRole = session?.user?.role ?? null;
+  const result = await requestAgentReview(tag, actorId, actorRole);
+  if (!result.ok) {
+    throw new Error(result.error || 'Unable to request public review');
+  }
+  redirect(`/edit/${encodeURIComponent(id)}`);
+}
+
+async function withdrawPublicAction(formData: FormData) {
+  'use server';
+  const id = (formData.get('id') as string)?.trim();
+  const tag = `@${id}`;
+  const headerList = await headers();
+  const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
+  const actorId = session?.user?.id ?? null;
+  const actorRole = session?.user?.role ?? null;
+  const result = await withdrawAgentReview(tag, actorId, actorRole);
+  if (!result.ok) {
+    throw new Error(result.error || 'Unable to withdraw public request');
+  }
+  redirect(`/edit/${encodeURIComponent(id)}`);
 }
 
 export default async function EditAgentPage({ params }: { params: Promise<{ 'agent-id': string }> }) {
@@ -88,9 +122,14 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       initialVisibility={initialVisibility}
       inviteCode={a.inviteCode || undefined}
       isAuthenticated={isAuthenticated}
+      publishStatus={(a.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected') || 'draft'}
+      publishReviewNotes={a.publishReviewNotes || undefined}
+      publishRequestedAt={a.publishRequestedAt ? a.publishRequestedAt.toISOString() : undefined}
       avatars={avatars}
       onSave={saveAction}
       onDelete={deleteAction}
+      onRequestPublic={requestPublicAction}
+      onWithdrawPublic={withdrawPublicAction}
       knowledgeItems={knowledgeItems}
     />
   );

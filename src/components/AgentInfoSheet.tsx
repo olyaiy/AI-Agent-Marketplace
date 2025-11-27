@@ -23,6 +23,8 @@ interface AgentInfoSheetProps {
   canEdit?: boolean;
   modelOptions?: string[];
   activeModel?: string;
+  publishStatus?: 'draft' | 'pending_review' | 'approved' | 'rejected';
+  publishReviewNotes?: string | null;
 }
 
 function ModelLabel({ label, providerSlug }: { label: string; providerSlug: string | null }) {
@@ -34,7 +36,7 @@ function ModelLabel({ label, providerSlug }: { label: string; providerSlug: stri
   );
 }
 
-export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag, visibility, inviteCode, canEdit, modelOptions, activeModel }: AgentInfoSheetProps) {
+export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag, visibility, inviteCode, canEdit, modelOptions, activeModel, publishStatus, publishReviewNotes }: AgentInfoSheetProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const availableModels = useMemo(
@@ -55,6 +57,12 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
     if (!visibility || visibility === 'public') return null;
     return visibility === 'invite_only' ? 'Invite only' : 'Private';
   }, [visibility]);
+  const approvalLabel = useMemo(() => {
+    if (!publishStatus || publishStatus === 'approved') return null;
+    if (publishStatus === 'pending_review') return { text: 'Pending approval', tone: 'bg-amber-50 text-amber-700 border-amber-200' };
+    if (publishStatus === 'rejected') return { text: 'Public request rejected', tone: 'bg-red-50 text-red-700 border-red-200' };
+    return { text: 'Not public', tone: 'bg-slate-50 text-slate-700 border-slate-200' };
+  }, [publishStatus]);
   const inviteUrl = useMemo(() => {
     if (!inviteCode || visibility !== 'invite_only' || !agentTag) return '';
     if (typeof window === 'undefined') return '';
@@ -237,6 +245,11 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                     {visibilityLabel}
                   </span>
                 )}
+                {approvalLabel ? (
+                  <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${approvalLabel.tone}`}>
+                    {approvalLabel.text}
+                  </span>
+                ) : null}
               </div>
             )}
 
@@ -292,6 +305,9 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
 
             {/* Description */}
             <div className="border-t border-gray-200 pt-4">
+              {publishStatus === 'rejected' && publishReviewNotes ? (
+                <p className="text-xs text-red-700 mb-2">Public request rejected: {publishReviewNotes}</p>
+              ) : null}
               <p className="text-sm text-gray-600 leading-relaxed">
                 {effectiveDescription}
               </p>
