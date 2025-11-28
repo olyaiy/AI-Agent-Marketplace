@@ -189,12 +189,30 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                 className="border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all resize-none text-sm"
               />
             </div>
-
+          </div>
+        ) : activeTab === "knowledge" ? (
+          <KnowledgeManager agentTag={agentTag} />
+        ) : (
+          <div className="space-y-4 max-w-xl">
+            <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm ${statusBadge.classes}`}>
+              <span className="font-semibold">{statusBadge.label}</span>
+              {requestedDate && publishStatus === 'pending_review' ? (
+                <span className="text-xs">
+                  Requested {requestedDate.toLocaleDateString()} {requestedDate.toLocaleTimeString()}
+                </span>
+              ) : null}
+            </div>
+            {publishStatus === 'rejected' && publishReviewNotes ? (
+              <p className="text-sm text-red-700">Reason: {publishReviewNotes}</p>
+            ) : null}
+            <p className="text-sm text-gray-700">
+              Choose how people access this agent. Selecting Public submits for admin approval. While pending or rejected, invite-only links still work.
+            </p>
             <div className="flex flex-col gap-3">
               <label className="text-sm font-medium text-gray-900">Visibility</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {[
-                  { value: 'public', label: 'Public', hint: 'Listed on the homepage and searchable (requires admin approval).' },
+                  { value: 'public', label: 'Public', hint: publishStatus === 'approved' ? 'Live in search/homepage.' : 'Submit for approval to list publicly.' },
                   { value: 'invite_only', label: 'Invite only', hint: 'Hidden from listings; share via link.' },
                   { value: 'private', label: 'Private', hint: 'Only you can access it.' },
                 ].map((opt) => (
@@ -250,25 +268,6 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                 </div>
               )}
             </div>
-          </div>
-        ) : activeTab === "knowledge" ? (
-          <KnowledgeManager agentTag={agentTag} />
-        ) : (
-          <div className="space-y-4 max-w-xl">
-            <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm ${statusBadge.classes}`}>
-              <span className="font-semibold">{statusBadge.label}</span>
-              {requestedDate && publishStatus === 'pending_review' ? (
-                <span className="text-xs">
-                  Requested {requestedDate.toLocaleDateString()} {requestedDate.toLocaleTimeString()}
-                </span>
-              ) : null}
-            </div>
-            {publishStatus === 'rejected' && publishReviewNotes ? (
-              <p className="text-sm text-red-700">Reason: {publishReviewNotes}</p>
-            ) : null}
-            <p className="text-sm text-gray-700">
-              Request a review to list this agent publicly. Approved agents become searchable and can appear on the homepage. While pending or rejected, you can still share via invite-only links.
-            </p>
             <div className="flex gap-3">
               {publishStatus === 'pending_review' ? (
                 <button
@@ -291,6 +290,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                   type="submit"
                   formAction={onRequestPublic}
                   className="border px-3 py-2 rounded-md text-sm bg-blue-600 text-white hover:bg-blue-700"
+                  disabled={visibility !== 'public'}
+                  title={visibility === 'public' ? undefined : 'Select Public to submit for approval'}
                 >
                   Request public listing
                 </button>

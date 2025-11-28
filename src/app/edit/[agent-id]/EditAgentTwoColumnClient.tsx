@@ -71,6 +71,9 @@ function LeftForm({
   activeTab,
   onModelPreviewChange,
   onSecondaryPreviewChange,
+  publishStatus,
+  publishReviewNotes,
+  publishRequestedAt,
 }: LeftFormProps) {
   return (
     <div className="max-w-xl">
