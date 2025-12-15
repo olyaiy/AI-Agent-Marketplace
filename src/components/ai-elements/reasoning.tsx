@@ -1,6 +1,7 @@
 'use client';
 
 import { useControllableState } from '@radix-ui/react-use-controllable-state';
+import { Badge } from '@/components/ui/badge';
 import {
   Collapsible,
   CollapsibleContent,
@@ -122,19 +123,21 @@ export const ReasoningTrigger = memo(
 
     return (
       <CollapsibleTrigger
-        className={cn(
-          'flex items-center gap-2 text-muted-foreground text-sm cursor-pointer',
-          className
-        )}
+        className={cn('group/trigger', className)}
         {...props}
       >
         {children ?? (
-          <>
-            <BrainIcon className="size-4" />
+          <Badge
+            variant="secondary"
+            className="flex items-center gap-2 text-sm font-normal cursor-pointer select-none"
+          >
+            <BrainIcon className="size-4 text-muted-foreground" />
             {isStreaming || duration === 0 ? (
-              <p>Thinking...</p>
+              <span className="text-muted-foreground">Thinking...</span>
             ) : (
-              <p>Thought for {duration} seconds</p>
+              <span className="text-muted-foreground">
+                Thought for {duration} seconds
+              </span>
             )}
             <ChevronDownIcon
               className={cn(
@@ -142,7 +145,7 @@ export const ReasoningTrigger = memo(
                 isOpen ? 'rotate-180' : 'rotate-0'
               )}
             />
-          </>
+          </Badge>
         )}
       </CollapsibleTrigger>
     );
