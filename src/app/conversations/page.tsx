@@ -12,8 +12,7 @@ import {
   Calendar,
   Lock,
   MessageCircle,
-  Clock,
-  ArrowRight
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Input } from '@/components/ui/input';
@@ -156,9 +155,8 @@ export default function ConversationsPage() {
       }
     });
 
-    // Remove empty groups
     return Object.fromEntries(
-      Object.entries(groups).filter(([_, items]) => items.length > 0)
+      Object.entries(groups).filter(([, items]) => items.length > 0)
     );
   }, [data?.conversations, debouncedSearch]);
 
