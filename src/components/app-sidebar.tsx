@@ -6,7 +6,6 @@ import {
   Home,
   Settings,
   MessageSquare,
-  User,
   Shield,
   Plus,
   Bot,
@@ -30,7 +29,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
   useSidebar,
-  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { PanelLeftIcon, User } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 
@@ -36,9 +37,11 @@ export function MobileHeader({ userAvatarUrl, userName }: MobileHeaderProps) {
                 aria-label="User menu"
             >
                 {userAvatarUrl ? (
-                    <img
+                    <Image
                         src={userAvatarUrl}
                         alt={userName || 'User'}
+                        width={40}
+                        height={40}
                         className="w-full h-full object-cover"
                     />
                 ) : (

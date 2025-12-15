@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Sparkles, Eye, Check, Calendar, Globe, Lock, Users, Plus } from "lucide-react";
+import { ArrowLeft, Sparkles, Eye, Check, Globe, Lock, Users } from "lucide-react";
 import Chat from "@/components/Chat";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
@@ -37,6 +37,11 @@ export function CreateAgentClient({ avatars }: Props) {
   const [secondaryModels, setSecondaryModels] = React.useState<string[]>([]);
   const [selectedAvatar, setSelectedAvatar] = React.useState<string | undefined>(undefined);
   const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>('private');
+  const visibilityOptions: Array<{ value: 'public' | 'invite_only' | 'private'; label: string; icon: typeof Globe; hint: string }> = [
+    { value: 'public', label: 'Public', icon: Globe, hint: 'Listed & Searchable' },
+    { value: 'invite_only', label: 'Invite Only', icon: Users, hint: 'Share via Link' },
+    { value: 'private', label: 'Private', icon: Lock, hint: 'Only You' },
+  ];
 
   // UI State
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -186,7 +191,7 @@ export function CreateAgentClient({ avatars }: Props) {
                   <div className="p-6 bg-gray-50/50 rounded-3xl border border-gray-100/50 space-y-6">
                     <div className="space-y-1">
                       <label className="text-sm font-semibold text-gray-900">Intelligence Model</label>
-                      <p className="text-xs text-gray-500">Select the AI model that powers your agent's responses.</p>
+                      <p className="text-xs text-gray-500">Select the AI model that powers your agent&apos;s responses.</p>
                     </div>
 
                     <OpenRouterModelSelect
@@ -225,11 +230,7 @@ export function CreateAgentClient({ avatars }: Props) {
                 <div className="space-y-4">
                   <label className="text-sm font-semibold text-gray-900">Visibility</label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {[
-                      { value: 'public', label: 'Public', icon: Globe, hint: 'Listed & Searchable' },
-                      { value: 'invite_only', label: 'Invite Only', icon: Users, hint: 'Share via Link' },
-                      { value: 'private', label: 'Private', icon: Lock, hint: 'Only You' },
-                    ].map((opt) => (
+                    {visibilityOptions.map((opt) => (
                       <label
                         key={opt.value}
                         className={`relative flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${visibility === opt.value
@@ -242,7 +243,7 @@ export function CreateAgentClient({ avatars }: Props) {
                           name="visibility"
                           value={opt.value}
                           checked={visibility === opt.value}
-                          onChange={() => setVisibility(opt.value as any)}
+                          onChange={() => setVisibility(opt.value)}
                           className="sr-only"
                         />
                         <div className={`p-3 rounded-full ${visibility === opt.value ? 'bg-white shadow-sm ring-1 ring-gray-200 text-gray-900' : 'bg-gray-100 text-gray-400'}`}>

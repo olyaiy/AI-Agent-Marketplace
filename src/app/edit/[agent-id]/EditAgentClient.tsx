@@ -100,7 +100,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
     <div className="space-y-8">
       {/* Modern minimal tabs */}
       <div className="flex items-center gap-1 border-b border-gray-100 pb-1 overflow-x-auto no-scrollbar">
-        {["behaviour", "details", "knowledge", "publish", "preview"].map((tab) => (
+        {(["behaviour", "details", "knowledge", "publish", "preview"] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -108,7 +108,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
               ? 'bg-black text-white shadow-md shadow-gray-200'
               : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
               }`}
-            onClick={() => setActiveTab(tab as any)}
+            onClick={() => setActiveTab(tab)}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -189,10 +189,10 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                   defaultValue={initialDescription}
                   onInput={(e) => onContextChange && onContextChange({ description: e.currentTarget.value })}
                   rows={8}
-                  placeholder="Describe your agent's capabilities, use cases, and what makes it special..."
+                  placeholder="Describe your agent&apos;s capabilities, use cases, and what makes it special..."
                   className="w-full bg-gray-50 border-0 rounded-xl p-4 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-black/5 focus:bg-white transition-all resize-none"
                 />
-                <p className="text-sm text-gray-500 md:w-3/4">Detailed explanation of what this agent does. This appears on the agent's profile page.</p>
+                <p className="text-sm text-gray-500 md:w-3/4">Detailed explanation of what this agent does. This appears on the agent&apos;s profile page.</p>
               </div>
             </div>
           </div>

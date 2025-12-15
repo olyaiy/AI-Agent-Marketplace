@@ -5,7 +5,7 @@ import Chat from "@/components/Chat";
 import { EditAgentClient } from "./EditAgentClient";
 import { EditAvatarClient } from "./EditAvatarClient";
 import { buildKnowledgeSystemText } from "@/lib/knowledge";
-import { ArrowLeft, Save, Trash2, Eye } from "lucide-react";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import Link from 'next/link';
 
 interface ServerAction {
