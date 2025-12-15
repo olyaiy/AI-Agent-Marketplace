@@ -338,14 +338,17 @@ const PromptInputForm = React.memo(function PromptInputForm({
                     <button
                       type="button"
                       className={cn(
-                        'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
-                        reasoningOn && 'text-purple-600'
+                        'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                        reasoningOn
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
                       )}
                       onClick={onToggleReasoning}
                       aria-pressed={reasoningOn}
                       aria-label={reasoningOn ? 'Turn reasoning off' : 'Turn reasoning on'}
                     >
-                      <BrainIcon className="size-4" />
+                      <BrainIcon className="size-3.5" />
+                      <span>Reason</span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent sideOffset={6}>{reasoningOn ? 'Reasoning: On' : 'Reasoning: Off'}</TooltipContent>
@@ -608,12 +611,13 @@ function groupMessageParts(parts: BasicUIPart[]): PartGroup[] {
   const groups: PartGroup[] = [];
   let currentThinkingGroup: ThinkingGroup | null = null;
 
-  parts.forEach((part, index) => {
+  for (let index = 0; index < parts.length; index++) {
+    const part = parts[index];
     const partType = part.type;
 
     // Skip step-start markers
     if (partType === 'step-start') {
-      return;
+      continue;
     }
 
     // Check if this is a "thinking" part (reasoning or tool)
@@ -624,7 +628,7 @@ function groupMessageParts(parts: BasicUIPart[]): PartGroup[] {
 
     if (isThinkingPart) {
       // Start a new thinking group if needed
-      if (!currentThinkingGroup) {
+      if (currentThinkingGroup === null) {
         currentThinkingGroup = {
           type: 'thinking',
           steps: [],
@@ -641,7 +645,7 @@ function groupMessageParts(parts: BasicUIPart[]): PartGroup[] {
     } else {
       // This is a content part (text, file, etc.)
       // First, close any open thinking group
-      if (currentThinkingGroup && currentThinkingGroup.steps.length > 0) {
+      if (currentThinkingGroup !== null) {
         groups.push(currentThinkingGroup);
         currentThinkingGroup = null;
       }
@@ -653,12 +657,11 @@ function groupMessageParts(parts: BasicUIPart[]): PartGroup[] {
         index,
       });
     }
-  });
+  }
 
   // Don't forget any trailing thinking group
-  const trailingGroup = currentThinkingGroup;
-  if (trailingGroup !== null && trailingGroup.steps.length > 0) {
-    groups.push(trailingGroup);
+  if (currentThinkingGroup !== null) {
+    groups.push(currentThinkingGroup);
   }
 
   return groups;
@@ -1007,13 +1010,34 @@ const MessageItem = React.memo(
                           const stepStatus = isThinkingStreaming && isLastStep ? 'active' : 'complete';
 
                           if (step.type === 'reasoning') {
-                            // Reasoning step
+                            // Reasoning step - skip icon/label for first one since header shows "Thinking..."
                             if (step.part.text === '[REDACTED]') return null;
+
+                            // Check if this is the first reasoning step in the group
+                            const isFirstReasoning = thinkingGroup.steps.findIndex(s => s.type === 'reasoning') === stepIndex;
+
+                            if (isFirstReasoning) {
+                              // First reasoning: use step for the bar, but no icon/label (header already shows "Thinking...")
+                              return (
+                                <ChainOfThoughtStep
+                                  key={`step-${step.index}`}
+                                  icon={null}
+                                  label=""
+                                  status={stepStatus}
+                                >
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {step.part.text}
+                                  </div>
+                                </ChainOfThoughtStep>
+                              );
+                            }
+
+                            // Subsequent reasoning steps: show with icon and label
                             return (
                               <ChainOfThoughtStep
                                 key={`step-${step.index}`}
                                 icon={BrainIcon}
-                                label={stepIndex === 0 ? "Thinking..." : "Analyzing..."}
+                                label="Analyzing..."
                                 status={stepStatus}
                               >
                                 <div className="text-xs text-muted-foreground mt-1 line-clamp-3">

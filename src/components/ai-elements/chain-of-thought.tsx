@@ -120,26 +120,31 @@ export const ChainOfThoughtHeader = memo(
   ({ className, children, ...props }: ChainOfThoughtHeaderProps) => {
     const { isOpen, setIsOpen, isStreaming, duration } = useChainOfThought();
 
-    const defaultLabel = isStreaming || duration === 0
+    const defaultLabel = isStreaming
       ? "Thinking..."
-      : `Thought for ${duration} second${duration !== 1 ? 's' : ''}`;
+      : duration > 0
+        ? `Thought for ${duration} second${duration !== 1 ? 's' : ''}`
+        : "Thought for a few seconds";
 
     return (
       <Collapsible onOpenChange={setIsOpen} open={isOpen}>
         <CollapsibleTrigger
           className={cn(
-            "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground cursor-pointer",
+            "inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+            isStreaming
+              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+              : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
             className
           )}
           {...props}
         >
-          <BrainIcon className={cn("size-4", isStreaming && "animate-pulse text-purple-500")} />
-          <span className="flex-1 text-left">
+          <BrainIcon className={cn("size-3.5", isStreaming && "animate-pulse")} />
+          <span>
             {children ?? defaultLabel}
           </span>
           <ChevronDownIcon
             className={cn(
-              "size-4 transition-transform",
+              "size-3.5 transition-transform",
               isOpen ? "rotate-180" : "rotate-0"
             )}
           />
@@ -151,7 +156,7 @@ export const ChainOfThoughtHeader = memo(
 );
 
 export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
-  icon?: LucideIcon;
+  icon?: LucideIcon | null;
   label: ReactNode;
   description?: ReactNode;
   status?: "complete" | "active" | "pending";
@@ -160,7 +165,7 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
 export const ChainOfThoughtStep = memo(
   ({
     className,
-    icon: Icon = DotIcon,
+    icon: Icon,
     label,
     description,
     status = "complete",
@@ -173,6 +178,10 @@ export const ChainOfThoughtStep = memo(
       pending: "text-muted-foreground/50",
     };
 
+    // Use DotIcon as default, or nothing if explicitly set to null
+    const showIcon = Icon !== null;
+    const IconComponent = Icon === undefined ? DotIcon : Icon;
+
     return (
       <div
         className={cn(
@@ -183,9 +192,14 @@ export const ChainOfThoughtStep = memo(
         )}
         {...props}
       >
-        <div className="relative mt-0.5">
-          <Icon className="size-4" />
-          <div className="-mx-px absolute top-7 bottom-0 left-1/2 w-px bg-border" />
+        <div className="relative mt-0.5 w-4">
+          {showIcon && IconComponent && (
+            <IconComponent className="size-4" />
+          )}
+          <div className={cn(
+            "-mx-px absolute bottom-0 left-1/2 w-px bg-border",
+            showIcon ? "top-7" : "top-0"
+          )} />
         </div>
         <div className="flex-1 space-y-2 overflow-hidden">
           <div>{label}</div>
