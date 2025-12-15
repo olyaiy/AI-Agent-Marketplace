@@ -4,6 +4,7 @@ import * as React from "react";
 import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
 import { KnowledgeManager } from "./KnowledgeManager";
 import { SecondaryModelsInput } from "@/components/SecondaryModelsInput";
+import { Copy, Check, Globe, Lock, Users } from "lucide-react";
 
 interface Props {
   agentTag: string;
@@ -92,208 +93,230 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   }, [publishStatus]);
 
   return (
-    <div className="space-y-4">
-      {/* Tabs header */}
-      <div className="flex items-center gap-2 border-b">
-        <button
-          type="button"
-          className={`px-3 py-2 text-sm ${activeTab === 'behaviour' ? 'border-b-2 border-rose-500 text-rose-600' : 'text-gray-600'}`}
-          onClick={() => setActiveTab("behaviour")}
-        >
-          Behaviour
-        </button>
-        <button
-          type="button"
-          className={`px-3 py-2 text-sm ${activeTab === 'details' ? 'border-b-2 border-rose-500 text-rose-600' : 'text-gray-600'}`}
-          onClick={() => setActiveTab("details")}
-        >
-          Details
-        </button>
-        <button
-          type="button"
-          className={`px-3 py-2 text-sm ${activeTab === 'knowledge' ? 'border-b-2 border-rose-500 text-rose-600' : 'text-gray-600'}`}
-          onClick={() => setActiveTab("knowledge")}
-        >
-          Knowledge Base
-        </button>
-        <button
-          type="button"
-          className={`px-3 py-2 text-sm ${activeTab === 'publish' ? 'border-b-2 border-rose-500 text-rose-600' : 'text-gray-600'}`}
-          onClick={() => setActiveTab("publish")}
-        >
-          Publish
-        </button>
+    <div className="space-y-8">
+      {/* Modern minimal tabs */}
+      <div className="flex items-center gap-1 border-b border-gray-100 pb-1 overflow-x-auto no-scrollbar">
+        {["behaviour", "details", "knowledge", "publish"].map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all cursor-pointer whitespace-nowrap ${activeTab === tab
+                ? 'bg-black text-white shadow-md shadow-gray-200'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            onClick={() => setActiveTab(tab as any)}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
       </div>
 
       {/* Tabs content */}
-      <div className="pt-4">
+      <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
         {activeTab === "behaviour" ? (
-          <div className="space-y-3">
-            <div className="space-y-2">
+          <div className="space-y-8">
+            <div className="space-y-4 p-5 bg-gray-50/50 rounded-2xl border border-gray-100/50">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-gray-900">Model Configuration</h3>
+                <p className="text-xs text-gray-500">Choose the brain behind your agent.</p>
+              </div>
               <OpenRouterModelSelect
                 value={selectedModel}
                 onChange={(value) => setSelectedModel(value)}
                 placeholder="Select a model..."
                 width="100%"
-                label="Primary model"
+                label=""
               />
-              <SecondaryModelsInput
-                value={secondaryModels}
-                onChange={setSecondaryModels}
-                includeHiddenInput={false}
-                primaryModelId={selectedModel || undefined}
-              />
+              <div className="pt-2">
+                <SecondaryModelsInput
+                  value={secondaryModels}
+                  onChange={setSecondaryModels}
+                  includeHiddenInput={false}
+                  primaryModelId={selectedModel || undefined}
+                />
+              </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-900">System Prompt</label>
-              <p className="text-sm text-gray-500">
-                Define how your agent behaves and responds. This sets the personality, tone, and expertise of your agent.
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-lg font-semibold text-gray-900">System Prompt</label>
+                <span className="text-xs text-gray-400 font-mono">Core Instruction</span>
+              </div>
+              <p className="text-sm text-gray-500 leading-relaxed max-w-2xl">
+                Define how your agent behaves, responds, and interacts. This is the core personality and instruction set.
               </p>
-              <textarea
-                name="systemPrompt"
-                defaultValue={initialSystemPrompt}
-                onInput={(e) => onContextChange && onContextChange({ systemPrompt: e.currentTarget.value })}
-                rows={8}
-                placeholder="e.g., You are a helpful assistant specialized in..."
-                className="border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all resize-none text-sm"
-              />
+              <div className="relative group">
+                <textarea
+                  name="systemPrompt"
+                  defaultValue={initialSystemPrompt}
+                  onInput={(e) => onContextChange && onContextChange({ systemPrompt: e.currentTarget.value })}
+                  rows={12}
+                  placeholder="You are a helpful assistant specialized in..."
+                  className="w-full bg-gray-50 border-0 rounded-xl p-5 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-black/5 focus:bg-white transition-all resize-none text-base leading-relaxed shadow-sm group-hover:bg-gray-50/80"
+                />
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="p-1.5 bg-white rounded-md shadow-sm border border-gray-100 text-xs text-gray-400">Markdown supported</div>
+                </div>
+              </div>
             </div>
           </div>
         ) : activeTab === "details" ? (
-          <div className="space-y-6">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-900">Tagline</label>
-              <p className="text-sm text-gray-500">
-                A short, catchy phrase that describes your agent in a few words.
-              </p>
-              <input
-                name="tagline"
-                defaultValue={initialTagline}
-                onInput={(e) => onContextChange && onContextChange({ tagline: e.currentTarget.value })}
-                placeholder="e.g., Your personal coding assistant"
-                className="border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all text-sm"
-              />
-            </div>
+          <div className="space-y-8">
+            <div className="grid gap-6">
+              <div className="space-y-3">
+                <label className="block text-base font-semibold text-gray-900">Tagline</label>
+                <input
+                  name="tagline"
+                  defaultValue={initialTagline}
+                  onInput={(e) => onContextChange && onContextChange({ tagline: e.currentTarget.value })}
+                  placeholder="e.g., Your personal coding assistant"
+                  className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-black/5 focus:bg-white transition-all"
+                />
+                <p className="text-sm text-gray-500">A short, catchy phrase shown in lists.</p>
+              </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-900">Description</label>
-              <p className="text-sm text-gray-500">
-                Provide a detailed description of what your agent does and how it can help users.
-              </p>
-              <textarea
-                name="description"
-                defaultValue={initialDescription}
-                onInput={(e) => onContextChange && onContextChange({ description: e.currentTarget.value })}
-                rows={6}
-                placeholder="Describe your agent's capabilities, use cases, and what makes it special..."
-                className="border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all resize-none text-sm"
-              />
+              <div className="space-y-3">
+                <label className="block text-base font-semibold text-gray-900">Description</label>
+                <textarea
+                  name="description"
+                  defaultValue={initialDescription}
+                  onInput={(e) => onContextChange && onContextChange({ description: e.currentTarget.value })}
+                  rows={8}
+                  placeholder="Describe your agent's capabilities, use cases, and what makes it special..."
+                  className="w-full bg-gray-50 border-0 rounded-xl p-4 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-black/5 focus:bg-white transition-all resize-none"
+                />
+                <p className="text-sm text-gray-500 md:w-3/4">Detailed explanation of what this agent does. This appears on the agent's profile page.</p>
+              </div>
             </div>
           </div>
         ) : activeTab === "knowledge" ? (
-          <KnowledgeManager agentTag={agentTag} />
+          <div className="bg-gray-50/50 rounded-2xl border border-gray-100/50 p-1">
+            <KnowledgeManager agentTag={agentTag} />
+          </div>
         ) : (
-          <div className="space-y-4 max-w-xl">
-            <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm ${statusBadge.classes}`}>
-              <span className="font-semibold">{statusBadge.label}</span>
-              {requestedDate && publishStatus === 'pending_review' ? (
-                <span className="text-xs">
-                  Requested {requestedDate.toLocaleDateString()} {requestedDate.toLocaleTimeString()}
-                </span>
-              ) : null}
+          <div className="space-y-8 max-w-2xl">
+            <div className="p-5 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-100 space-y-4">
+              <h3 className="font-semibold text-gray-900">Current Status</h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium ${statusBadge.classes}`}>
+                  {statusBadge.label}
+                </div>
+                {requestedDate && publishStatus === 'pending_review' && (
+                  <span className="text-xs text-gray-500">
+                    Requested {requestedDate.toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+
+              {publishStatus === 'rejected' && publishReviewNotes && (
+                <div className="p-3 bg-red-50 rounded-lg border border-red-100 text-sm text-red-800 flex items-start gap-2">
+                  <div className="bg-red-200 text-red-800 rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 text-xs font-bold">!</div>
+                  <div><span className="font-semibold block mb-1">Feedback:</span> {publishReviewNotes}</div>
+                </div>
+              )}
             </div>
-            {publishStatus === 'rejected' && publishReviewNotes ? (
-              <p className="text-sm text-red-700">Reason: {publishReviewNotes}</p>
-            ) : null}
-            <p className="text-sm text-gray-700">
-              Choose how people access this agent. Selecting Public submits for admin approval. While pending or rejected, invite-only links still work.
-            </p>
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-medium text-gray-900">Visibility</label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-lg font-semibold text-gray-900">Visibility Settings</label>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
                 {[
-                  { value: 'public', label: 'Public', hint: publishStatus === 'approved' ? 'Live in search/homepage.' : 'Submit for approval to list publicly.' },
-                  { value: 'invite_only', label: 'Invite only', hint: 'Hidden from listings; share via link.' },
-                  { value: 'private', label: 'Private', hint: 'Only you can access it.' },
-                ].map((opt) => (
-                  <label
-                    key={opt.value}
-                    className={`flex flex-col gap-1 border rounded-md p-3 cursor-pointer transition-colors ${visibility === opt.value ? 'border-blue-500 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <div className="flex items-center gap-2">
+                  { value: 'public', label: 'Public', hint: 'Visible to everyone. Requires approval.', icon: Globe },
+                  { value: 'invite_only', label: 'Invite only', hint: 'Accessible via invite link only.', icon: Users },
+                  { value: 'private', label: 'Private', hint: 'Only visible to you.', icon: Lock },
+                ].map((opt) => {
+                  const Icon = opt.icon;
+                  return (
+                    <label
+                      key={opt.value}
+                      className={`relative flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${visibility === opt.value
+                        ? 'border-black bg-gray-50'
+                        : 'border-transparent bg-white shadow-sm ring-1 ring-gray-100 hover:ring-gray-200 hover:bg-gray-50/50'
+                        }`}
+                    >
                       <input
                         type="radio"
                         name="visibility-choice"
                         value={opt.value}
                         checked={visibility === opt.value}
                         onChange={() => setVisibility(opt.value as typeof visibility)}
+                        className="sr-only"
                       />
-                      <span className="font-semibold text-sm">{opt.label}</span>
-                    </div>
-                    <p className="text-xs text-gray-600">{opt.hint}</p>
-                  </label>
-                ))}
-              </div>
-              {visibility === 'invite_only' && (
-                <div className="rounded-md border border-dashed p-3 bg-gray-50 space-y-2">
-                  {inviteUrl ? (
-                    <>
-                      <p className="text-xs text-gray-700">Share this link to give people access:</p>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          readOnly
-                          value={inviteUrl}
-                          className="flex-1 border rounded px-2 py-1 text-xs bg-white"
-                          onFocus={(e) => e.currentTarget.select()}
-                        />
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(inviteUrl);
-                              setCopied(true);
-                            } catch {
-                              setCopied(false);
-                            }
-                          }}
-                          className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                        >
-                          {copied ? 'Copied!' : 'Copy link'}
-                        </button>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${visibility === opt.value ? 'bg-black text-white' : 'bg-gray-100 text-gray-500'}`}>
+                        <Icon className="w-5 h-5" />
                       </div>
-                    </>
+                      <div className="flex-1">
+                        <span className={`block font-semibold text-sm ${visibility === opt.value ? 'text-gray-900' : 'text-gray-700'}`}>{opt.label}</span>
+                        <span className="text-xs text-gray-500">{opt.hint}</span>
+                      </div>
+                      {visibility === opt.value && (
+                        <div className="text-black">
+                          <Check className="w-5 h-5" />
+                        </div>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+
+              {visibility === 'invite_only' && (
+                <div className="mt-4 p-5 rounded-2xl bg-blue-50/50 border border-blue-100/50 space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <h4 className="text-sm font-semibold text-blue-900">Invite Link</h4>
+                  {inviteUrl ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-white border border-blue-100 rounded-lg px-3 py-2 text-xs font-mono text-gray-600 truncate">
+                        {inviteUrl}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(inviteUrl);
+                            setCopied(true);
+                          } catch {
+                            setCopied(false);
+                          }
+                        }}
+                        className="p-2 bg-white border border-blue-100 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
+                        title="Copy link"
+                      >
+                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
                   ) : (
-                    <p className="text-xs text-gray-700">Save changes to generate a shareable invite link.</p>
+                    <p className="text-xs text-blue-700 italic">Save changes to generate your invite link.</p>
                   )}
                 </div>
               )}
             </div>
-            <div className="flex gap-3">
+
+            <div className="pt-4 border-t border-gray-100">
               {publishStatus === 'pending_review' ? (
                 <button
                   type="submit"
                   formAction={onWithdrawPublic}
-                  className="border px-3 py-2 rounded-md text-sm hover:bg-amber-50 hover:border-amber-200"
+                  className="px-5 py-2.5 rounded-full text-sm font-medium border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors"
                 >
                   Withdraw request
                 </button>
               ) : publishStatus === 'approved' ? (
-                <button
-                  type="button"
-                  className="border px-3 py-2 rounded-md text-sm text-gray-500 cursor-default"
-                  disabled
-                >
-                  Already approved
-                </button>
+                <span className="inline-flex items-center px-4 py-2 text-sm text-green-700 bg-green-50 rounded-full border border-green-100 font-medium">
+                  <Check className="w-4 h-4 mr-2" />
+                  Currently Public
+                </span>
               ) : (
                 <button
                   type="submit"
                   formAction={onRequestPublic}
-                  className="border px-3 py-2 rounded-md text-sm bg-blue-600 text-white hover:bg-blue-700"
+                  className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm ${visibility === 'public'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    }`}
                   disabled={visibility !== 'public'}
-                  title={visibility === 'public' ? undefined : 'Select Public to submit for approval'}
                 >
-                  Request public listing
+                  Request Public Listing
                 </button>
               )}
             </div>

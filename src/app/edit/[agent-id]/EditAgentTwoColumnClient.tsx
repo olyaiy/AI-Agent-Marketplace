@@ -5,6 +5,8 @@ import Chat from "@/components/Chat";
 import { EditAgentClient } from "./EditAgentClient";
 import { EditAvatarClient } from "./EditAvatarClient";
 import { buildKnowledgeSystemText } from "@/lib/knowledge";
+import { ArrowLeft, Save, Trash2, Eye } from "lucide-react";
+import Link from 'next/link';
 
 interface ServerAction {
   (formData: FormData): Promise<void>;
@@ -75,66 +77,123 @@ function LeftForm({
   publishReviewNotes,
   publishRequestedAt,
 }: LeftFormProps) {
+  const [nameValue, setNameValue] = React.useState(initialName);
+
   return (
-    <div className="max-w-xl">
-      <form action={onSave} className="flex flex-col gap-4">
+    <div className="w-full pb-20 lg:pb-0">
+      <form action={onSave} className="flex flex-col">
         <input type="hidden" name="id" value={id} />
 
-        {/* Top: Avatar (left) and Name/Tag (right) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <div>
-            <label className="block mb-2">Avatar</label>
-            <EditAvatarClient avatars={avatars} initialAvatar={initialAvatar} />
-          </div>
-          <div className="space-y-3">
-            <label className="flex flex-col gap-1">
-              <span>Agent name</span>
-              <input name="name" defaultValue={initialName} className="border p-2" />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span>Tag</span>
-              <input disabled value={tag} className="border p-2 bg-gray-50" />
-            </label>
+        {/* Floating Action Bar (Mobile Sticky / Desktop Inline) */}
+        <div className="sticky top-0 z-30 flex items-center justify-between py-4 bg-white/80 backdrop-blur-md mb-8 lg:static lg:bg-transparent lg:p-0 lg:mb-10">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
+          </Link>
+
+          <div className="flex items-center gap-3">
+            {activeTab !== "knowledge" && (
+              <>
+                <button
+                  formAction={onDelete}
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
+                  title="Delete Agent"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 bg-black text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-all shadow-lg shadow-gray-200/50"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Changes</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Model + Tabs (Behaviour / Details / Knowledge) */}
-        <EditAgentClient
-          agentTag={tag}
-          initialModel={initialModel}
-          initialSecondaryModels={initialSecondaryModels}
-          initialSystemPrompt={initialSystemPrompt}
-          initialTagline={initialTagline}
-          initialDescription={initialDescription}
-          initialVisibility={initialVisibility}
-          inviteCode={inviteCode}
-          onChange={(value) => {
-            sendContextRef.current.model = value;
-            onModelPreviewChange(value);
-          }}
-          onContextChange={(u) => {
-            if (u.model !== undefined) sendContextRef.current.model = u.model;
-            if (u.systemPrompt !== undefined) sendContextRef.current.systemPrompt = u.systemPrompt;
-            if (u.tagline !== undefined) sendContextRef.current.tagline = u.tagline;
-            if (u.description !== undefined) sendContextRef.current.description = u.description;
-          }}
-          onTabChange={onTabChange}
-          onSecondaryModelsChange={(models) => {
-            onSecondaryPreviewChange(models);
-          }}
-          publishStatus={publishStatus}
-          publishReviewNotes={publishReviewNotes}
-          publishRequestedAt={publishRequestedAt}
-          onRequestPublic={onRequestPublic}
-          onWithdrawPublic={onWithdrawPublic}
-        />
+        {/* Hero Section: Avatar & Name */}
+        <div className="mb-12 group">
+          <div className="flex items-start gap-6">
+            <div className="flex-shrink-0 relative">
+              <div className="absolute -inset-2 bg-gradient-to-br from-gray-100 to-gray-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
+              <EditAvatarClient avatars={avatars} initialAvatar={initialAvatar} />
+            </div>
 
-        {activeTab !== "knowledge" && (
-          <div className="flex items-center gap-3 flex-wrap">
-            <button type="submit" className="border p-2 hover:bg-gray-50 rounded-md transition-colors">Save</button>
-            <button formAction={onDelete} className="border p-2 hover:bg-red-50 hover:border-red-300 hover:text-red-700 rounded-md transition-colors">Delete</button>
+            <div className="flex-grow space-y-3 pt-2 min-w-0">
+              <div className="relative grid">
+                {/* Invisible element to force height expansion */}
+                <div className="col-start-1 row-start-1 whitespace-pre-wrap break-words invisible pointer-events-none text-2xl md:text-3xl lg:text-4xl font-bold p-0 leading-tight border-none" aria-hidden="true">
+                  {nameValue || "Name your agent"}{" "}
+                </div>
+
+                {/* Actual Textarea */}
+                <textarea
+                  name="name"
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  placeholder="Name your agent"
+                  rows={1}
+                  className="col-start-1 row-start-1 w-full text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 bg-transparent border-none p-0 placeholder-gray-300 focus:ring-0 focus:outline-none focus:placeholder-gray-200 transition-colors resize-none overflow-hidden leading-tight"
+                  autoComplete="off"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.preventDefault();
+                  }}
+                />
+                <div className="absolute bottom-0 left-0 w-12 h-0.5 bg-gray-100 group-focus-within:bg-black group-focus-within:w-24 transition-all duration-500" />
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-md bg-gray-100 text-gray-500 font-mono text-xs tracking-tight truncate max-w-full">
+                  {tag}
+                </span>
+                {publishStatus === 'approved' && (
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 flex-shrink-0">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    Live
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Main Editor Tabs & Content */}
+        <div className="pl-1">
+          <EditAgentClient
+            agentTag={tag}
+            initialModel={initialModel}
+            initialSecondaryModels={initialSecondaryModels}
+            initialSystemPrompt={initialSystemPrompt}
+            initialTagline={initialTagline}
+            initialDescription={initialDescription}
+            initialVisibility={initialVisibility}
+            inviteCode={inviteCode}
+            onChange={(value) => {
+              sendContextRef.current.model = value;
+              onModelPreviewChange(value);
+            }}
+            onContextChange={(u) => {
+              if (u.model !== undefined) sendContextRef.current.model = u.model;
+              if (u.systemPrompt !== undefined) sendContextRef.current.systemPrompt = u.systemPrompt;
+              if (u.tagline !== undefined) sendContextRef.current.tagline = u.tagline;
+              if (u.description !== undefined) sendContextRef.current.description = u.description;
+            }}
+            onTabChange={onTabChange}
+            onSecondaryModelsChange={(models) => {
+              onSecondaryPreviewChange(models);
+            }}
+            publishStatus={publishStatus}
+            publishReviewNotes={publishReviewNotes}
+            publishRequestedAt={publishRequestedAt}
+            onRequestPublic={onRequestPublic}
+            onWithdrawPublic={onWithdrawPublic}
+          />
+        </div>
       </form>
     </div>
   );
@@ -148,7 +207,7 @@ function TwoColumn(props: Props) {
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish">("behaviour");
   const [previewModel, setPreviewModel] = React.useState<string | undefined>(props.initialModel);
   const [previewSecondaryModels, setPreviewSecondaryModels] = React.useState<string[]>(props.initialSecondaryModels || []);
-  
+
   const sendContextRef = React.useRef<SendContext>({
     model: props.initialModel,
     systemPrompt: props.initialSystemPrompt,
@@ -171,35 +230,47 @@ function TwoColumn(props: Props) {
   );
 
   return (
-    <div className="mx-auto p-6 max-w-7xl">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
-        {/* Left column - scrollable */}
-        <div className="w-full">
-          <LeftForm
-            {...props}
-            sendContextRef={sendContextRef}
-            onTabChange={setActiveTab}
-            activeTab={activeTab}
-            onModelPreviewChange={setPreviewModel}
-            onSecondaryPreviewChange={setPreviewSecondaryModels}
-          />
-        </div>
-        
-        {/* Right column - sticky */}
-        <div className="lg:sticky lg:top-6 h-[calc(100vh-3rem)] min-h-[600px]">
-          <div className="h-full border rounded-lg p-2 bg-white shadow-sm">
-            <Chat
-              className="h-full"
-              systemPrompt={combinedSystem}
-              knowledgeText={combinedSystem}
-              model={previewModel}
-              modelOptions={modelOptions}
-              agentTag={props.tag}
-              getChatContext={getChatContext}
-              isAuthenticated={props.isAuthenticated}
-              showModelSelectorInPrompt
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto max-w-screen-2xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-screen">
+
+          {/* Left Editor Pane */}
+          <div className="lg:col-span-7 xl:col-span-6 p-6 lg:p-12 xl:p-16 flex flex-col">
+            <LeftForm
+              {...props}
+              sendContextRef={sendContextRef}
+              onTabChange={setActiveTab}
+              activeTab={activeTab}
+              onModelPreviewChange={setPreviewModel}
+              onSecondaryPreviewChange={setPreviewSecondaryModels}
             />
           </div>
+
+          {/* Right Preview Pane (Sticky) */}
+          <div className="hidden lg:block lg:col-span-5 xl:col-span-6 bg-gray-50/50 border-l border-gray-100 relative">
+            <div className="sticky top-0 h-screen p-8 xl:p-12 flex flex-col">
+              <div className="flex items-center gap-2 mb-6 text-gray-400 text-sm font-medium uppercase tracking-wider pl-2">
+                <Eye className="w-4 h-4" />
+                <span>Live Preview</span>
+              </div>
+              <div className="flex-1 bg-white rounded-3xl shadow-2xl shadow-gray-200/50 overflow-hidden ring-1 ring-black/5 border border-gray-100">
+                <Chat
+                  className="h-full"
+                  systemPrompt={combinedSystem}
+                  knowledgeText={combinedSystem}
+                  model={previewModel}
+                  modelOptions={modelOptions}
+                  agentTag={props.tag}
+                  getChatContext={getChatContext}
+                  isAuthenticated={props.isAuthenticated}
+                  showModelSelectorInPrompt
+                />
+              </div>
+              {/* Device decorative elements */}
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-32 h-1 bg-gray-200 rounded-full opacity-50 pointer-events-none" />
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

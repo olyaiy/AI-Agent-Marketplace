@@ -67,14 +67,14 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
   const approvalLabel = React.useMemo(() => {
     if (!publishStatus || publishStatus === 'approved') return null;
     if (publishStatus === 'pending_review') {
-      return { text: 'Pending approval', tone: 'bg-amber-50 text-amber-700 border-amber-200' };
+      return { text: 'Pending approval', tone: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/50' };
     }
     if (publishStatus === 'rejected') {
-      return { text: 'Public request rejected', tone: 'bg-red-50 text-red-700 border-red-200' };
+      return { text: 'Rejected', tone: 'bg-red-50 text-red-700 ring-1 ring-red-200/50' };
     }
-    return { text: 'Not public', tone: 'bg-slate-50 text-slate-700 border-slate-200' };
+    return { text: 'Not public', tone: 'bg-slate-50 text-slate-700 ring-1 ring-slate-200/50' };
   }, [publishStatus]);
-  
+
   // Extract agent ID from tag (remove @ prefix)
   const agentId = agentTag ? agentTag.replace('@', '') : null;
   const availableModels = React.useMemo(
@@ -169,153 +169,170 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
 
   return (
     <div className={cn(
-      "w-full bg-white rounded-lg border border-gray-200 p-4 space-y-4",
+      "w-full transition-all duration-500",
       variant === 'sidebar' ? 'h-full flex flex-col' : '',
-      'relative'
     )}>
-      <div className="flex justify-end gap-2">
-        {agentId && (
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            aria-label={`New chat (${isMac ? '⌘' : 'Ctrl+'}K)`}
-          >
+
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto px-1 pr-2 space-y-8">
+
+        {/* Identity Section */}
+        <div className="space-y-4 pt-2">
+          {/* Avatar with gradient glow */}
+          <div className="relative inline-block group">
+            <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-400/30 to-purple-400/30 rounded-2xl blur opacity-75 group-hover:opacity-100 transition-opacity" />
+            {avatarUrl ? (
+              <Image
+                src={avatarUrl}
+                alt="Agent Avatar"
+                width={72}
+                height={72}
+                className="relative rounded-2xl shadow-sm bg-white ring-2 ring-white"
+              />
+            ) : (
+              <div className="relative w-[72px] h-[72px] rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 ring-2 ring-white flex items-center justify-center text-xl font-bold text-gray-400 select-none">
+                {name.charAt(0)}
+              </div>
+            )}
+
+            {/* Status Indicator */}
+            {publishStatus === 'approved' && (
+              <div className="absolute -bottom-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500 ring-2 ring-white"></span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-bold text-gray-900 tracking-tight leading-tight">{name}</h2>
+            <p className="text-sm text-gray-500 leading-snug">{effectiveTagline}</p>
+          </div>
+
+          {/* Badges / Meta */}
+          {agentTag && (
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-500 text-xs font-medium font-mono">
+                {agentTag}
+              </span>
+              {visibilityLabel && (
+                <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">
+                  {visibilityLabel}
+                </span>
+              )}
+              {approvalLabel && (
+                <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${approvalLabel.tone}`}>
+                  {approvalLabel.text}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Primary Actions */}
+        <div className="flex gap-2">
+          {agentId && (
             <Link
               href={`/agent/${agentId}`}
               prefetch={false}
               onClick={(event) => {
-                if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
-                  return;
-                }
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
                 event.preventDefault();
                 dispatchAgentNewChat(agentTag);
               }}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 text-white font-medium text-sm shadow-sm hover:bg-gray-800 active:scale-[0.98] transition-all"
             >
-              <Plus className="w-4 h-4 mr-1" />
-              New Chat
-              <kbd className="ml-1.5 pointer-events-none hidden h-5 select-none items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium sm:inline-flex">
-                <span className="text-xs">{isMac ? '⌘' : 'Ctrl+'}</span>K
-              </kbd>
+              <Plus className="w-4 h-4" />
+              <span>New Chat</span>
             </Link>
-          </Button>
-        )}
-        {canEdit && agentId ? (
-          <Button
-            asChild
-            variant="outline"
-            size="icon"
-            aria-label="Edit agent"
-          >
-            <Link href={`/edit/${agentId}`}>
+          )}
+          {canEdit && agentId && (
+            <Link
+              href={`/edit/${agentId}`}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 active:scale-[0.98] transition-all"
+              aria-label="Edit agent"
+            >
               <Pencil className="w-4 h-4" />
             </Link>
-          </Button>
-        ) : null}
-      </div>
-      {/* Header with Avatar and Info */}
-      <div className="flex items-center gap-3">
-        {/* Avatar on left */}
-        {avatarUrl ? (
-          <Image 
-            src={avatarUrl} 
-            alt="Agent Avatar" 
-            width={64} 
-            height={64}
-            className="rounded-lg flex-shrink-0"
-          />
-        ) : null}
-        
-        {/* Name and tagline on right */}
-        <div className="flex-1 min-w-0">
-          <h2 className="text-base font-semibold text-gray-900">{name}</h2>
-          <p className="text-sm text-gray-600 line-clamp-2 leading-tight mt-1">{effectiveTagline}</p>
-        </div>
-      </div>
-
-      {/* Tag */}
-      {agentTag && (
-        <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500 font-mono">
-          <span>{agentTag}</span>
-          {visibilityLabel && (
-            <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 uppercase tracking-wide text-[10px]">
-              {visibilityLabel}
-            </span>
           )}
-          {approvalLabel ? (
-            <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${approvalLabel.tone}`}>
-              {approvalLabel.text}
-            </span>
-          ) : null}
         </div>
-      )}
 
-      {canEdit && inviteUrl && (
-        <button
-          type="button"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(inviteUrl);
-              setCopiedInvite(true);
-            } catch {
-              setCopiedInvite(false);
-            }
-          }}
-          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-        >
-          {copiedInvite ? 'Invite link copied' : 'Copy invite link'}
-        </button>
-      )}
+        {/* Divider */}
+        <div className="border-t border-gray-100" />
 
-      {availableModels.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs text-gray-500">Model</p>
-          {availableModels.length === 1 ? (
-            <ModelLabel
-              label={selectedMeta?.label || getDisplayName(undefined, availableModels[0])}
-              providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(null, availableModels[0])}
-            />
-          ) : (
-            <Select
-              value={selectedValue}
-              onValueChange={(val) => {
-                setSelectedModel(val);
-                dispatchAgentModelChange(agentTag, val);
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue asChild>
+        {/* Description & Model */}
+        <div className="space-y-6">
+          {publishStatus === 'rejected' && publishReviewNotes && (
+            <div className="p-3 bg-red-50 rounded-lg border border-red-100 text-sm text-red-800">
+              <span className="font-semibold block mb-0.5">Note:</span> {publishReviewNotes}
+            </div>
+          )}
+
+          <div className="prose prose-sm prose-gray text-gray-600 leading-relaxed">
+            {effectiveDescription}
+          </div>
+
+          {availableModels.length > 0 && (
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-gray-900 uppercase tracking-wider">Model</label>
+              {availableModels.length === 1 ? (
+                <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100/50">
                   <ModelLabel
-                    label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
-                    providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(null, selectedValue)}
+                    label={selectedMeta?.label || getDisplayName(undefined, availableModels[0])}
+                    providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(null, availableModels[0])}
                   />
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {modelsWithMeta.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    <ModelLabel label={m.label} providerSlug={m.providerSlug} />
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                </div>
+              ) : (
+                <Select
+                  value={selectedValue}
+                  onValueChange={(val) => {
+                    setSelectedModel(val);
+                    dispatchAgentModelChange(agentTag, val);
+                  }}
+                >
+                  <SelectTrigger className="w-full h-11 rounded-xl bg-white border-gray-200 hover:bg-gray-50 transition-colors focus:ring-2 focus:ring-gray-900/10">
+                    <SelectValue asChild>
+                      <ModelLabel
+                        label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
+                        providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(null, selectedValue)}
+                      />
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelsWithMeta.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <ModelLabel label={m.label} providerSlug={m.providerSlug} />
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+
+          {/* Invite Link */}
+          {canEdit && inviteUrl && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(inviteUrl);
+                    setCopiedInvite(true);
+                  } catch {
+                    setCopiedInvite(false);
+                  }
+                }}
+                className="w-full py-2 text-xs font-medium text-blue-600 bg-blue-50/50 hover:bg-blue-50 rounded-lg border border-blue-100 transition-colors flex items-center justify-center gap-2"
+              >
+                {copiedInvite ? 'Link copied to clipboard' : 'Copy invite link'}
+              </button>
+            </div>
           )}
         </div>
-      )}
-
-      {/* Description */}
-      <div className={cn(
-        "border-t border-gray-200 pt-4",
-        variant === 'sidebar' ? 'flex-1 overflow-y-auto' : ''
-      )}>
-        {publishStatus === 'rejected' && publishReviewNotes ? (
-          <p className="text-xs text-red-700 mb-2">Public request rejected: {publishReviewNotes}</p>
-        ) : null}
-        <p className="text-sm text-gray-600 leading-relaxed">
-          {effectiveDescription}
-        </p>
       </div>
 
+      {/* Footer / Shortcuts? Optional */}
     </div>
   );
 }
