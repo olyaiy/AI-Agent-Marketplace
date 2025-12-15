@@ -243,7 +243,7 @@ const isReadToolName = (toolName: string): boolean => {
 
 type PromptInputFormProps = {
   text: string;
-  status: string;
+  status: ChatStatus;
   onSubmit: (message: PromptInputMessage) => void | Promise<void>;
   onStop: () => void;
   onChangeText: (value: string) => void;
@@ -362,7 +362,7 @@ const PromptInputForm = React.memo(function PromptInputForm({
           <div className="row-start-2 col-start-3">
             <PromptInputSubmit
               disabled={isSubmitDisabled}
-              status={status as ChatStatus}
+              status={status}
               onStop={onStop}
               className="shrink-0"
             />
@@ -716,7 +716,7 @@ function splitStableMarkdown(text: string): StableMarkdownSplit {
 
 type MessageItemProps = {
   message: BasicUIMessage;
-  status: string;
+  status: ChatStatus;
   isLastAssistant: boolean;
   isRegenerating: boolean;
   isCopied: boolean;
