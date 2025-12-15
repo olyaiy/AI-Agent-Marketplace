@@ -116,7 +116,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
     const controller = new AbortController();
     (async () => {
       try {
-        const url = new URL('/api/openrouter/models', window.location.origin);
+        const url = new URL('/api/gateway/models', window.location.origin);
         url.searchParams.set('ttlMs', '60000');
         const res = await fetch(url.toString(), { signal: controller.signal });
         if (!res.ok) throw new Error('failed');

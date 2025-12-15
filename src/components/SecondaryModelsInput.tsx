@@ -79,7 +79,7 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
     missing.slice(0, 6).forEach(async (id) => {
       try {
         inflight.current.add(id);
-        const url = new URL("/api/openrouter/models", window.location.origin);
+        const url = new URL("/api/gateway/models", window.location.origin);
         url.searchParams.set("q", id);
         url.searchParams.set("ttlMs", "60000");
         const res = await fetch(url.toString());

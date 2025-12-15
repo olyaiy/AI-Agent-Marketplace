@@ -1,5 +1,5 @@
 import { streamText, smoothStream, UIMessage, convertToModelMessages, stepCountIs } from 'ai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createGateway } from '@ai-sdk/gateway';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/db/drizzle';
@@ -335,17 +335,10 @@ export async function POST(req: Request) {
     }
   }
 
-  const openrouter = createOpenRouter({
-    apiKey: process.env.OPENROUTER_API_KEY,
+  // Create Vercel AI Gateway provider
+  const gateway = createGateway({
+    apiKey: process.env.VERCEL_AI_GATEWAY_API_KEY,
   });
-
-  const openrouterOptions: Record<string, JsonValue> = {
-    usage: { include: true }, // Enable usage accounting to get cost
-  };
-  if (reasoningEnabled) {
-    openrouterOptions.includeReasoning = true;
-    openrouterOptions.reasoning = { effort: 'low', enabled: true };
-  }
 
   const tools = webSearchEnabled
     ? {
@@ -354,29 +347,72 @@ export async function POST(req: Request) {
     }
     : undefined;
 
-  // Check if this is an Anthropic model to enable interleaved thinking
-  const isAnthropicModel = modelId.toLowerCase().includes('anthropic') || modelId.toLowerCase().includes('claude');
+  // Detect provider type for provider-specific options
+  const modelIdLower = modelId.toLowerCase();
+  const isAnthropicModel = modelIdLower.includes('anthropic') || modelIdLower.includes('claude');
+  const isOpenAIModel = modelIdLower.includes('openai') || modelIdLower.includes('gpt') || modelIdLower.includes('o1') || modelIdLower.includes('o3') || modelIdLower.includes('o4');
+  const isDeepSeekModel = modelIdLower.includes('deepseek');
+  const isGoogleModel = modelIdLower.includes('google') || modelIdLower.includes('gemini');
 
-  // Build headers for interleaved thinking (required for reasoning + tools on Anthropic)
-  const streamHeaders: Record<string, string> = {};
-  if (reasoningEnabled && isAnthropicModel) {
-    streamHeaders['x-anthropic-beta'] = 'interleaved-thinking-2025-05-14';
+  // Build provider-specific options for reasoning
+  // Gateway uses native provider options instead of unified openrouter options
+  const providerOptions: Record<string, Record<string, JsonValue>> = {};
+
+  if (reasoningEnabled) {
+    if (isAnthropicModel) {
+      // Anthropic Claude models (claude-opus-4, claude-sonnet-4, claude-3-7-sonnet)
+      // Use thinking with a budget in tokens
+      providerOptions.anthropic = {
+        thinking: { type: 'enabled', budgetTokens: 10000 },
+      };
+    } else if (isOpenAIModel) {
+      // OpenAI reasoning models (o1, o3, o4, gpt-5, gpt-5.1)
+      // For gpt-5 and gpt-5.1, BOTH reasoningEffort AND reasoningSummary are required
+      // For o-series models, reasoningEffort controls reasoning depth
+      providerOptions.openai = {
+        reasoningEffort: 'low', // 'none' | 'low' | 'medium' | 'high'
+        reasoningSummary: 'auto', // 'auto' | 'concise' | 'detailed'
+      };
+    } else if (isDeepSeekModel) {
+      // DeepSeek reasoner model (deepseek-reasoner) exposes reasoning through streaming
+      // automatically - no special providerOptions needed, reasoning just flows through
+      // the fullStream as { type: 'reasoning', text: '...' } parts
+      // Note: Other deepseek models don't support reasoning
+    } else if (isGoogleModel) {
+      // Google/Gemini models with thinking capability
+      // Gemini 3 models: use thinkingLevel ('low' | 'medium' | 'high')
+      // Gemini 2.5 models: use thinkingBudget (number of tokens)
+      const isGemini3 = modelIdLower.includes('gemini-3');
+      providerOptions.google = {
+        thinkingConfig: isGemini3
+          ? { thinkingLevel: 'medium', includeThoughts: true }
+          : { thinkingBudget: 8192, includeThoughts: true },
+      };
+    }
   }
 
-  // Debug logging for interleaved thinking
+  // Build headers for provider-specific features
+  const streamHeaders: Record<string, string> = {};
+
+  // Enable interleaved thinking for Anthropic models when reasoning is enabled
+  // This allows Claude to alternate between reasoning and tool use
+  if (reasoningEnabled && isAnthropicModel) {
+    streamHeaders['anthropic-beta'] = 'interleaved-thinking-2025-05-14';
+  }
+
+  // Debug logging
   const convertedMessages = convertToModelMessages(messages as UIMessage[]);
   console.log('🔍 Debug - Model:', modelId);
-  console.log('🔍 Debug - Is Anthropic:', isAnthropicModel);
+  console.log('🔍 Debug - Provider:', isAnthropicModel ? 'anthropic' : isOpenAIModel ? 'openai' : isDeepSeekModel ? 'deepseek' : isGoogleModel ? 'google' : 'unknown');
   console.log('🔍 Debug - Reasoning enabled:', reasoningEnabled);
-  console.log('🔍 Debug - Headers:', JSON.stringify(streamHeaders));
+  console.log('🔍 Debug - Provider Options:', JSON.stringify(providerOptions, null, 2));
+  console.log('🔍 Debug - Stream Headers:', JSON.stringify(streamHeaders, null, 2));
   console.log('🔍 Debug - UI Messages count:', messages.length);
-  console.log('🔍 Debug - UI Messages:', JSON.stringify(messages, null, 2));
-  console.log('🔍 Debug - Converted Messages:', JSON.stringify(convertedMessages, null, 2));
 
   const result = streamText({
-    model: openrouter(modelId),
+    model: gateway(modelId),
     abortSignal: req.signal,
-    providerOptions: { openrouter: openrouterOptions },
+    providerOptions,
     headers: Object.keys(streamHeaders).length > 0 ? streamHeaders : undefined,
     experimental_transform: smoothStream({
       delayInMs: 30,

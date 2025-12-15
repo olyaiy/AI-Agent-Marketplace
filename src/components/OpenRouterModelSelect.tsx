@@ -86,9 +86,8 @@ function enhanceModels(raw: SlimModel[]): EnhancedModel[] {
   raw.forEach((model) => {
     const providerSlug = deriveProviderSlug(model.name, model.id);
     const displayName = getDisplayName(model.name, model.id);
-    const searchText = `${model.id} ${model.name} ${model.description} ${
-      providerSlug || ""
-    }`.toLowerCase();
+    const searchText = `${model.id} ${model.name} ${model.description} ${providerSlug || ""
+      }`.toLowerCase();
 
     const enhanced: EnhancedModel = {
       ...model,
@@ -115,7 +114,7 @@ async function loadModels(category?: string) {
     return cached.data;
   }
 
-  const url = new URL("/api/openrouter/models", window.location.origin);
+  const url = new URL("/api/gateway/models", window.location.origin);
   if (category) url.searchParams.set("category", category);
   url.searchParams.set("ttlMs", String(CACHE_TTL_MS));
 
@@ -418,14 +417,14 @@ export function OpenRouterModelSelect({
                   <span>Loading models…</span>
                 </div>
               ) : error ? (
-                  <ModelSelectorEmpty>
-                    <div className="flex flex-col items-center gap-2">
-                      <span>{error}</span>
-                      <Button size="sm" variant="outline" onClick={retry}>
-                        Retry
-                      </Button>
-                    </div>
-                  </ModelSelectorEmpty>
+                <ModelSelectorEmpty>
+                  <div className="flex flex-col items-center gap-2">
+                    <span>{error}</span>
+                    <Button size="sm" variant="outline" onClick={retry}>
+                      Retry
+                    </Button>
+                  </div>
+                </ModelSelectorEmpty>
               ) : (
                 <>
                   {prioritizedModels.length > 0 && (
@@ -555,7 +554,7 @@ const ModelListItem = React.memo(function ModelListItem({
             Added
           </Badge>
         )}
-       
+
         {contextLabel && (
           <span className="hidden sm:inline whitespace-nowrap">
             {contextLabel}
@@ -567,9 +566,9 @@ const ModelListItem = React.memo(function ModelListItem({
     </ModelSelectorItem>
   );
 },
-(prev, next) =>
-  prev.model === next.model &&
-  prev.isSelected === next.isSelected &&
-  prev.isInSelection === next.isInSelection &&
-  prev.isPrimary === next.isPrimary &&
-  prev.primaryLabel === next.primaryLabel);
+  (prev, next) =>
+    prev.model === next.model &&
+    prev.isSelected === next.isSelected &&
+    prev.isInSelection === next.isInSelection &&
+    prev.isPrimary === next.isPrimary &&
+    prev.primaryLabel === next.primaryLabel);

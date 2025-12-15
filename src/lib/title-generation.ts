@@ -1,11 +1,14 @@
 import { generateText } from 'ai';
-import { openrouter } from '@openrouter/ai-sdk-provider';
+import { createGateway } from '@ai-sdk/gateway';
 
+const gateway = createGateway({
+  apiKey: process.env.VERCEL_AI_GATEWAY_API_KEY,
+});
 
 export async function generateConversationTitle(userMessage: string): Promise<string> {
   try {
     const { text: title } = await generateText({
-      model: openrouter('openai/gpt-5-nano'),
+      model: gateway('openai/gpt-4o-mini'),
       system: `You will generate a short title based on the first message a user begins a conversation with.
 - Ensure it is not more than 60 characters long
 - The title should be a summary of the user's message

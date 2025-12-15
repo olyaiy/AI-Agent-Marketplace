@@ -1444,7 +1444,7 @@ const Chat = React.memo(function Chat({
       }
 
       try {
-        const url = new URL('/api/openrouter/models', window.location.origin);
+        const url = new URL('/api/gateway/models', window.location.origin);
         url.searchParams.set('q', effectiveModel);
         url.searchParams.set('ttlMs', '60000');
         const res = await fetch(url.toString());
