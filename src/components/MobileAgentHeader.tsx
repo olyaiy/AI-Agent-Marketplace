@@ -16,10 +16,10 @@ export function MobileAgentHeader({ name, avatarUrl, tagline, onAgentClick, onMe
 
   return (
     <div className="w-full flex items-stretch">
-      {/* Left Zone - Menu Button (30%) */}
+      {/* Left Zone - Menu Button */}
       <button
         onClick={onMenuClick}
-        className="w-[30%] flex items-center justify-center py-2 hover:bg-gray-50 active:bg-gray-100 transition-colors rounded-l-lg"
+        className="flex-shrink-0 w-12 flex items-center justify-center py-2 hover:bg-gray-50 active:bg-gray-100 transition-colors rounded-l-lg"
         type="button"
         aria-label="Open sidebar menu"
       >
@@ -29,10 +29,10 @@ export function MobileAgentHeader({ name, avatarUrl, tagline, onAgentClick, onMe
       {/* Divider */}
       <div className="w-px bg-gray-200 my-2" />
 
-      {/* Right Zone - Agent Info (70%) */}
+      {/* Right Zone - Agent Info */}
       <button
         onClick={onAgentClick}
-        className="w-[70%] flex items-center gap-3 px-3 py-2 hover:bg-gray-50 active:bg-gray-100 transition-colors rounded-r-lg"
+        className="flex-1 flex items-center gap-3 px-3 py-2 hover:bg-gray-50 active:bg-gray-100 transition-colors rounded-r-lg"
         type="button"
         aria-label="View agent details"
       >

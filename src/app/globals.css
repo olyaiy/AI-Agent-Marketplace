@@ -121,18 +121,20 @@
   *::-webkit-scrollbar {
     display: none; /* Hide scrollbars in WebKit browsers */
   }
+  html {
+    overscroll-behavior: none; /* Prevent overscroll bounce on all browsers */
+    overscroll-behavior-y: none; /* Specifically prevent vertical overscroll */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
   body {
     @apply bg-background text-foreground font-sans;
     overscroll-behavior: none; /* Disable overscroll behavior */
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
+    overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
+    /* Prevent text size adjustment on iOS */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Improve touch scrolling performance */
+    touch-action: pan-y;
   }
 }
 
