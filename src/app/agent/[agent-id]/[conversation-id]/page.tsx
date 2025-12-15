@@ -22,14 +22,15 @@ interface UIMessageShape {
   parts: readonly UIMessagePartText[] | readonly unknown[];
 }
 
-export default async function ConversationPage({ params, searchParams }: { params: Promise<{ 'agent-id': string; 'conversation-id': string }>; searchParams?: { invite?: string; model?: string } }) {
+export default async function ConversationPage({ params, searchParams }: { params: Promise<{ 'agent-id': string; 'conversation-id': string }>; searchParams?: Promise<{ invite?: string; model?: string }> }) {
   const { 'agent-id': agentId, 'conversation-id': conversationId } = await params;
+  const resolvedSearchParams = await searchParams;
   const tag = `@${agentId}`;
 
   const headerList = await headers();
   const cookieStore = await cookies();
-  const inviteParam = typeof searchParams?.invite === 'string' ? searchParams.invite : undefined;
-  const modelParam = typeof searchParams?.model === 'string' ? searchParams.model : undefined;
+  const inviteParam = typeof resolvedSearchParams?.invite === 'string' ? resolvedSearchParams.invite : undefined;
+  const modelParam = typeof resolvedSearchParams?.model === 'string' ? resolvedSearchParams.model : undefined;
   const cookieInvite = cookieStore.get(`agent_invite_${agentId}`)?.value;
 
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);

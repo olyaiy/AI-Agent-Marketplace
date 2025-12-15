@@ -349,22 +349,42 @@ export async function POST(req: Request) {
 
   const tools = webSearchEnabled
     ? {
-        'web-search': tavilySearchTool,
-        'read-page': tavilyReadPageTool,
-      }
+      'web-search': tavilySearchTool,
+      'read-page': tavilyReadPageTool,
+    }
     : undefined;
+
+  // Check if this is an Anthropic model to enable interleaved thinking
+  const isAnthropicModel = modelId.toLowerCase().includes('anthropic') || modelId.toLowerCase().includes('claude');
+
+  // Build headers for interleaved thinking (required for reasoning + tools on Anthropic)
+  const streamHeaders: Record<string, string> = {};
+  if (reasoningEnabled && isAnthropicModel) {
+    streamHeaders['x-anthropic-beta'] = 'interleaved-thinking-2025-05-14';
+  }
+
+  // Debug logging for interleaved thinking
+  const convertedMessages = convertToModelMessages(messages as UIMessage[]);
+  console.log('🔍 Debug - Model:', modelId);
+  console.log('🔍 Debug - Is Anthropic:', isAnthropicModel);
+  console.log('🔍 Debug - Reasoning enabled:', reasoningEnabled);
+  console.log('🔍 Debug - Headers:', JSON.stringify(streamHeaders));
+  console.log('🔍 Debug - UI Messages count:', messages.length);
+  console.log('🔍 Debug - UI Messages:', JSON.stringify(messages, null, 2));
+  console.log('🔍 Debug - Converted Messages:', JSON.stringify(convertedMessages, null, 2));
 
   const result = streamText({
     model: openrouter(modelId),
     abortSignal: req.signal,
     providerOptions: { openrouter: openrouterOptions },
+    headers: Object.keys(streamHeaders).length > 0 ? streamHeaders : undefined,
     experimental_transform: smoothStream({
       delayInMs: 30,
       chunking: 'word',
     }),
     tools,
     system: systemPrompt,
-    messages: convertToModelMessages(messages as UIMessage[]),
+    messages: convertedMessages,
     stopWhen: tools ? stepCountIs(10) : undefined,
     onStepFinish: ({ toolCalls, toolResults }) => {
       if (process.env.NODE_ENV === 'production') return;

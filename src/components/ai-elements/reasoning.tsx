@@ -1,12 +1,9 @@
-'use client';
-
 import { useControllableState } from '@radix-ui/react-use-controllable-state';
-import { Badge } from '@/components/ui/badge';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtHeader,
+} from './chain-of-thought';
 import { cn } from '@/lib/utils';
 import { BrainIcon, ChevronDownIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
@@ -30,11 +27,8 @@ const useReasoning = () => {
   return context;
 };
 
-export type ReasoningProps = ComponentProps<typeof Collapsible> & {
+export type ReasoningProps = ComponentProps<typeof ChainOfThought> & {
   isStreaming?: boolean;
-  open?: boolean;
-  defaultOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
   duration?: number;
 };
 
@@ -96,65 +90,48 @@ export const Reasoning = memo(
 
     return (
       <ReasoningContext.Provider
-        value={{ isStreaming, isOpen, setIsOpen, duration }}
+        value={{ isStreaming, isOpen: isOpen ?? false, setIsOpen: handleOpenChange, duration: duration ?? 0 }}
       >
-        <Collapsible
-          className={cn('not-prose mb-4', className)}
-          onOpenChange={handleOpenChange}
+        <ChainOfThought
+          className={cn('mb-4', className)}
           open={isOpen}
+          onOpenChange={handleOpenChange}
           {...props}
         >
           {children}
-        </Collapsible>
+        </ChainOfThought>
       </ReasoningContext.Provider>
     );
   }
 );
 
-export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger>;
+export type ReasoningTriggerProps = ComponentProps<typeof ChainOfThoughtHeader>;
 
 export const ReasoningTrigger = memo(
-  ({
-    className,
-    children,
-    ...props
-  }: ReasoningTriggerProps) => {
+  ({ className, children, ...props }: ReasoningTriggerProps) => {
     const { isStreaming, isOpen, duration } = useReasoning();
 
     return (
-      <CollapsibleTrigger
-        className={cn('group/trigger', className)}
+      <ChainOfThoughtHeader
+        className={cn('text-sm', className)}
         {...props}
       >
         {children ?? (
-          <Badge
-            variant="secondary"
-            className="flex items-center gap-2 text-sm font-normal cursor-pointer select-none"
-          >
-            <BrainIcon className="size-4 text-muted-foreground" />
+          <>
             {isStreaming || duration === 0 ? (
-              <span className="text-muted-foreground">Thinking...</span>
+              <span>Thinking...</span>
             ) : (
-              <span className="text-muted-foreground">
-                Thought for {duration} seconds
-              </span>
+              <span>Thought for {duration} seconds</span>
             )}
-            <ChevronDownIcon
-              className={cn(
-                'size-4 text-muted-foreground transition-transform',
-                isOpen ? 'rotate-180' : 'rotate-0'
-              )}
-            />
-          </Badge>
+          </>
         )}
-      </CollapsibleTrigger>
+      </ChainOfThoughtHeader>
     );
   }
 );
 
-export type ReasoningContentProps = Omit<
-  ComponentProps<typeof CollapsibleContent>,
-  'children'
+export type ReasoningContentProps = ComponentProps<
+  typeof ChainOfThoughtContent
 > & {
   children?: string;
 };
@@ -163,18 +140,12 @@ export const ReasoningContent = memo(
   ({ className, children, ...props }: ReasoningContentProps) => {
     const { isStreaming } = useReasoning();
     return (
-      <CollapsibleContent
-        className={cn(
-          'mt-4 text-sm ',
-          'border border-border rounded-lg p-4 bg-primary/5',
-          'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in',
-          isStreaming && 'animate-shimmer',
-          className
-        )}
+      <ChainOfThoughtContent
+        className={cn(isStreaming && 'animate-shimmer', className)}
         {...props}
       >
-        <Response className="grid gap-2">{children}</Response>
-      </CollapsibleContent>
+        <Response className="first:mt-0">{children}</Response>
+      </ChainOfThoughtContent>
     );
   }
 );
