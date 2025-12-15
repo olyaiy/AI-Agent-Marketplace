@@ -26,7 +26,7 @@ export function AgentCard({ tag, name, avatar, tagline, model, visibility, isOwn
       <Card className="h-36 md:h-44 overflow-hidden hover:shadow-md transition-all duration-200 border-grey-200 hover:border-gray-900 bg-white p-3 md:p-4 relative">
         <div className="flex flex-col h-full justify-between pr-16 md:pr-20">
           <div className="space-y-1 md:space-y-2">
-            <h3 className="font-semibold text-gray-900 text-sm md:text-base truncate">
+            <h3 className="font-semibold text-gray-900 text-sm md:text-base ">
               {name}
             </h3>
             {visibility && visibility !== 'public' && (
