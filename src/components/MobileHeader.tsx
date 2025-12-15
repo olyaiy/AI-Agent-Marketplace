@@ -14,7 +14,7 @@ export function MobileHeader({ userAvatarUrl, userName }: MobileHeaderProps) {
     return (
         <header
             data-mobile-header
-            className="fixed top-0 left-0 right-0 z-50 w-full flex items-center justify-between px-3 py-2.5 bg-background/95 backdrop-blur-sm border-b border-border/50"
+            className="md:hidden fixed top-0 left-0 right-0 z-50 w-full flex items-center justify-between px-3 py-2.5 bg-background/95 backdrop-blur-sm border-b border-border/50"
         >
             {/* Left Zone - Menu Button */}
             <button
