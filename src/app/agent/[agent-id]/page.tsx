@@ -54,10 +54,10 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
 
   return (
     <main className="h-full">
-      {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col h-full">
-        {/* Sticky header at top */}
-        <div className="flex-shrink-0 sticky top-0 z-10 bg-background border-b px-2 py-2">
+      {/* Mobile Layout - uses fixed positioning to avoid layout scroll conflicts */}
+      <div className="md:hidden fixed inset-0 flex flex-col bg-background">
+        {/* Header at top */}
+        <div className="flex-shrink-0 bg-background border-b px-2 py-2">
           <AgentInfoSheet
             name={found.name}
             avatarUrl={avatarUrl}
@@ -73,8 +73,8 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             publishReviewNotes={found.publishReviewNotes || undefined}
           />
         </div>
-        {/* Scrollable chat area */}
-        <div className="flex-1 overflow-hidden px-2">
+        {/* Chat area */}
+        <div className="flex-1 min-h-0 overflow-hidden px-2">
           <Chat
             className="mx-auto h-full"
             systemPrompt={combinedSystem}
