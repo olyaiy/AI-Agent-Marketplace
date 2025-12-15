@@ -55,12 +55,12 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
   );
   const [selectedModel, setSelectedModel] = useState<string | undefined>(() => activeModel || availableModels[0]);
   const [modelMeta, setModelMeta] = useState<Record<string, { label: string; providerSlug: string | null }>>({});
-  
+
   const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your creative thinking partner';
   const effectiveDescription = (description && description.trim().length > 0)
     ? description
     : `Hi there! I'm ${name}, your friendly AI companion. I love helping with creative projects, brainstorming ideas, and turning thoughts into reality.`;
-  
+
   // Extract agent ID from tag (remove @ prefix)
   const agentId = agentTag ? agentTag.replace('@', '') : null;
   const visibilityLabel = useMemo(() => {
@@ -177,124 +177,173 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
         onAgentClick={() => setOpen(true)}
         onMenuClick={toggleSidebar}
       />
-      
-      <SheetContent side="bottom" className="h-[80vh]">
-        <SheetHeader>
-          <SheetTitle>About this agent</SheetTitle>
-        </SheetHeader>
-        
-        <div className="mt-4 overflow-y-auto h-full pb-20">
-          {/* Agent Info Card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-            {agentId && (
-              <div className="flex justify-end gap-2">
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  aria-label="New chat"
-                  className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300"
-                >
-                  <Link
-                    href={`/agent/${agentId}`}
-                    prefetch={false}
-                    onClick={(event) => {
-                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
-                        return;
-                      }
-                      event.preventDefault();
-                      dispatchAgentNewChat(agentTag);
-                      setOpen(false);
-                    }}
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    New Chat
-                  </Link>
-                </Button>
-                {canEdit ? (
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="icon"
-                    aria-label="Edit agent"
-                    className="shrink-0 border-gray-200 hover:border-gray-300"
-                  >
-                    <Link href={`/edit/${agentId}`}>
-                      <Pencil className="w-4 h-4" />
-                    </Link>
-                  </Button>
-                ) : null}
-              </div>
-            )}
 
-            {/* Header with Avatar and Info */}
-            <div className="flex items-center gap-3">
-              {/* Avatar */}
+      <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-3xl px-0 pb-0">
+        {/* Visually hidden title for accessibility */}
+        <SheetHeader className="sr-only">
+          <SheetTitle>About {name}</SheetTitle>
+        </SheetHeader>
+
+        {/* Drag Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+
+        {/* Compact Header - Horizontal Layout */}
+        <div className="px-4 py-3">
+          <div className="flex items-start gap-3">
+            {/* Smaller Avatar with subtle glow */}
+            <div className="relative flex-shrink-0">
+              <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-400/20 via-purple-400/20 to-pink-400/20 rounded-2xl blur-sm" />
               {avatarUrl ? (
-                <Image 
-                  src={avatarUrl} 
-                  alt="Agent Avatar" 
-                  width={64} 
+                <Image
+                  src={avatarUrl}
+                  alt="Agent Avatar"
+                  width={64}
                   height={64}
-                  className="rounded-lg flex-shrink-0"
+                  className="relative rounded-2xl shadow-sm ring-1 ring-white"
                 />
-              ) : null}
-              
-              {/* Name and tagline */}
-              <div className="flex-1 min-w-0">
-                <h2 className="text-base font-semibold text-gray-900">{name}</h2>
-                <p className="text-sm text-gray-600 line-clamp-2 leading-tight mt-1">{effectiveTagline}</p>
-              </div>
+              ) : (
+                <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 shadow-sm ring-1 ring-white flex items-center justify-center">
+                  <span className="text-xl font-semibold text-gray-400">{name.charAt(0)}</span>
+                </div>
+              )}
             </div>
 
-            {/* Tag */}
-            {agentTag && (
-              <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500 font-mono">
-                <span>{agentTag}</span>
-                {visibilityLabel && (
-                  <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 uppercase tracking-wide text-[10px]">
-                    {visibilityLabel}
-                  </span>
+            {/* Name, Tagline & Badges - compact */}
+            <div className="flex-1 min-w-0 pt-0.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold text-gray-900 truncate">{name}</h2>
+                  <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{effectiveTagline}</p>
+                </div>
+
+                {/* Inline Action buttons */}
+                {agentId && (
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      aria-label="New chat"
+                      className="h-8 px-2.5 rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    >
+                      <Link
+                        href={`/agent/${agentId}`}
+                        prefetch={false}
+                        onClick={(event) => {
+                          if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+                            return;
+                          }
+                          event.preventDefault();
+                          dispatchAgentNewChat(agentTag);
+                          setOpen(false);
+                        }}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Link>
+                    </Button>
+                    {canEdit && (
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        aria-label="Edit agent"
+                        className="h-8 px-2.5 rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        <Link href={`/edit/${agentId}`}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
                 )}
-                {approvalLabel ? (
-                  <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${approvalLabel.tone}`}>
-                    {approvalLabel.text}
-                  </span>
-                ) : null}
+              </div>
+
+              {/* Badges row - inline below name */}
+              {(agentTag || visibilityLabel || approvalLabel) && (
+                <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                  {agentTag && (
+                    <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-2 py-0.5 rounded-md">{agentTag}</span>
+                  )}
+                  {visibilityLabel && (
+                    <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wide text-[9px] font-medium">
+                      {visibilityLabel}
+                    </span>
+                  )}
+                  {approvalLabel && (
+                    <span className={`px-2 py-0.5 rounded-md border text-[9px] uppercase tracking-wide font-medium ${approvalLabel.tone}`}>
+                      {approvalLabel.text}
+                    </span>
+                  )}
+                  {canEdit && inviteUrl && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(inviteUrl);
+                          setCopied(true);
+                        } catch {
+                          setCopied(false);
+                        }
+                      }}
+                      className="text-[10px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    >
+                      {copied ? '✓ Copied' : 'Copy invite'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="overflow-y-auto px-4 pb-8 max-h-[calc(85vh-120px)]">
+          {/* Divider */}
+          <div className="border-t border-gray-100 mb-4" />
+
+          {/* Description Section - First, more prominent */}
+          <div className="mb-4">
+            <p className="text-[13px] text-gray-600 leading-relaxed">
+              {effectiveDescription}
+            </p>
+            {publishStatus === 'rejected' && publishReviewNotes && (
+              <div className="flex items-start gap-2 mt-3 p-2.5 bg-red-50 rounded-lg border border-red-100">
+                <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-xs text-red-700">{publishReviewNotes}</p>
               </div>
             )}
+          </div>
 
-            {canEdit && inviteUrl && (
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(inviteUrl);
-                    setCopied(true);
-                  } catch {
-                    setCopied(false);
-                  }
-                }}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium text-left"
-              >
-                {copied ? 'Invite link copied' : 'Copy invite link'}
-              </button>
-            )}
+          {/* Model Selection - Compact inline style */}
+          {availableModels.length > 0 && (
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-50 to-purple-100 flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-medium text-gray-500">Model</span>
+                </div>
 
-            {availableModels.length > 0 && (
-              <div className="space-y-2 border-t border-gray-200 pt-4">
-                <p className="text-xs text-gray-500">Model</p>
                 {availableModels.length === 1 ? (
-                  <ModelLabel
-                    label={selectedMeta?.label || getDisplayName(undefined, availableModels[0])}
-                    providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(null, availableModels[0])}
-                  />
+                  <div className="flex-1 min-w-0">
+                    <ModelLabel
+                      label={selectedMeta?.label || getDisplayName(undefined, availableModels[0])}
+                      providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(null, availableModels[0])}
+                    />
+                  </div>
                 ) : (
                   <Select
                     value={selectedValue}
                     onValueChange={(val) => applyModelSelection(val)}
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-9 flex-1 min-w-0 rounded-lg border-gray-200 bg-white hover:bg-gray-50 transition-colors text-sm">
                       <SelectValue asChild>
                         <ModelLabel
                           label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
@@ -312,19 +361,8 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                   </Select>
                 )}
               </div>
-            )}
-
-            {/* Description */}
-            <div className="border-t border-gray-200 pt-4">
-              {publishStatus === 'rejected' && publishReviewNotes ? (
-                <p className="text-xs text-red-700 mb-2">Public request rejected: {publishReviewNotes}</p>
-              ) : null}
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {effectiveDescription}
-              </p>
             </div>
-
-          </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>
