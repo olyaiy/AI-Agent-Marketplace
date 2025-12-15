@@ -17,7 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useChat } from '@ai-sdk/react';
-import type { FileUIPart, ToolUIPart, UIMessage } from 'ai';
+import type { ChatStatus, FileUIPart, ToolUIPart, UIMessage } from 'ai';
 import {
   Conversation,
   ConversationScrollButton,
@@ -57,7 +57,7 @@ import {
 } from '@/lib/conversations-cache';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent } from '@/lib/agent-events';
+import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent, dispatchAgentModelChange } from '@/lib/agent-events';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
 import { ProviderAvatar } from '@/components/ProviderAvatar';
 import {
@@ -362,7 +362,7 @@ const PromptInputForm = React.memo(function PromptInputForm({
           <div className="row-start-2 col-start-3">
             <PromptInputSubmit
               disabled={isSubmitDisabled}
-              status={status}
+              status={status as ChatStatus}
               onStop={onStop}
               className="shrink-0"
             />

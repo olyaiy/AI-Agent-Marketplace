@@ -329,7 +329,7 @@ export async function POST(req: Request) {
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
   if (lastUser) {
     try {
-      await persistUserMessage(ensuredConversationId!, lastUser);
+      await persistUserMessage(ensuredConversationId!, lastUser as UIMessage);
     } catch (error) {
       debugLog('Failed to persist user message', error);
     }
@@ -364,7 +364,7 @@ export async function POST(req: Request) {
     }),
     tools,
     system: systemPrompt,
-    messages: convertToModelMessages(messages),
+    messages: convertToModelMessages(messages as UIMessage[]),
     stopWhen: tools ? stepCountIs(10) : undefined,
     onStepFinish: ({ toolCalls, toolResults }) => {
       if (process.env.NODE_ENV === 'production') return;
@@ -388,7 +388,8 @@ export async function POST(req: Request) {
     onFinish: async (result) => {
       // Log the full usage object to see what's available
       console.log('Full usage object:', JSON.stringify(result.usage, null, 2));
-      console.log('Provider metadata:', JSON.stringify(result.experimental_providerMetadata, null, 2));
+      const resultWithMetadata = result as { experimental_providerMetadata?: unknown };
+      console.log('Provider metadata:', JSON.stringify(resultWithMetadata.experimental_providerMetadata, null, 2));
 
       try {
         const usage = normalizeUsage(result.usage);
