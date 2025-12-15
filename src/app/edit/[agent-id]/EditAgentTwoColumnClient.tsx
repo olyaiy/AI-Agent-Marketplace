@@ -45,10 +45,11 @@ interface SendContext {
 
 interface LeftFormProps extends Props {
   sendContextRef: React.MutableRefObject<SendContext>;
-  onTabChange: (tab: "behaviour" | "details" | "knowledge" | "publish") => void;
-  activeTab: "behaviour" | "details" | "knowledge" | "publish";
+  onTabChange: (tab: "behaviour" | "details" | "knowledge" | "publish" | "preview") => void;
+  activeTab: "behaviour" | "details" | "knowledge" | "publish" | "preview";
   onModelPreviewChange: (model?: string) => void;
   onSecondaryPreviewChange: (models: string[]) => void;
+  previewNode: React.ReactNode;
 }
 
 function LeftForm({
@@ -76,13 +77,15 @@ function LeftForm({
   publishStatus,
   publishReviewNotes,
   publishRequestedAt,
+  previewNode,
 }: LeftFormProps) {
   const [nameValue, setNameValue] = React.useState(initialName);
 
   return (
     <div className="w-full pb-20 lg:pb-0">
-      <form action={onSave} className="flex flex-col">
-        <input type="hidden" name="id" value={id} />
+      <form id="agent-form" action={onSave} className="hidden" />
+      <div className="flex flex-col">
+        <input type="hidden" name="id" value={id} form="agent-form" />
 
         {/* Floating Action Bar (Mobile Sticky / Desktop Inline) */}
         <div className="sticky top-0 z-30 flex items-center justify-between py-4 bg-white/80 backdrop-blur-md mb-8 lg:static lg:bg-transparent lg:p-0 lg:mb-10">
@@ -95,6 +98,7 @@ function LeftForm({
             {activeTab !== "knowledge" && (
               <>
                 <button
+                  form="agent-form"
                   formAction={onDelete}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
                   title="Delete Agent"
@@ -103,6 +107,7 @@ function LeftForm({
                 </button>
                 <button
                   type="submit"
+                  form="agent-form"
                   className="inline-flex items-center gap-2 bg-black text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-all shadow-lg shadow-gray-200/50"
                 >
                   <Save className="w-4 h-4" />
@@ -131,6 +136,7 @@ function LeftForm({
                 {/* Actual Textarea */}
                 <textarea
                   name="name"
+                  form="agent-form"
                   value={nameValue}
                   onChange={(e) => setNameValue(e.target.value)}
                   placeholder="Name your agent"
@@ -192,9 +198,11 @@ function LeftForm({
             publishRequestedAt={publishRequestedAt}
             onRequestPublic={onRequestPublic}
             onWithdrawPublic={onWithdrawPublic}
+            previewContent={previewNode}
+            formId="agent-form"
           />
         </div>
-      </form>
+      </div>
     </div>
   );
 }
@@ -204,7 +212,7 @@ export default function EditAgentTwoColumnClient(props: Props) {
 }
 
 function TwoColumn(props: Props) {
-  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish">("behaviour");
+  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish" | "preview">("behaviour");
   const [previewModel, setPreviewModel] = React.useState<string | undefined>(props.initialModel);
   const [previewSecondaryModels, setPreviewSecondaryModels] = React.useState<string[]>(props.initialSecondaryModels || []);
 
@@ -231,46 +239,29 @@ function TwoColumn(props: Props) {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="mx-auto max-w-screen-2xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-screen">
-
-          {/* Left Editor Pane */}
-          <div className="lg:col-span-7 xl:col-span-6 p-6 lg:p-12 xl:p-16 flex flex-col">
-            <LeftForm
-              {...props}
-              sendContextRef={sendContextRef}
-              onTabChange={setActiveTab}
-              activeTab={activeTab}
-              onModelPreviewChange={setPreviewModel}
-              onSecondaryPreviewChange={setPreviewSecondaryModels}
-            />
-          </div>
-
-          {/* Right Preview Pane (Sticky) */}
-          <div className="hidden lg:block lg:col-span-5 xl:col-span-6 bg-gray-50/50 border-l border-gray-100 relative">
-            <div className="sticky top-0 h-screen p-8 xl:p-12 flex flex-col">
-              <div className="flex items-center gap-2 mb-6 text-gray-400 text-sm font-medium uppercase tracking-wider pl-2">
-                <Eye className="w-4 h-4" />
-                <span>Live Preview</span>
-              </div>
-              <div className="flex-1 bg-white rounded-3xl shadow-2xl shadow-gray-200/50 overflow-hidden ring-1 ring-black/5 border border-gray-100">
-                <Chat
-                  className="h-full"
-                  systemPrompt={combinedSystem}
-                  knowledgeText={combinedSystem}
-                  model={previewModel}
-                  modelOptions={modelOptions}
-                  agentTag={props.tag}
-                  getChatContext={getChatContext}
-                  isAuthenticated={props.isAuthenticated}
-                  showModelSelectorInPrompt
-                />
-              </div>
-              {/* Device decorative elements */}
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-32 h-1 bg-gray-200 rounded-full opacity-50 pointer-events-none" />
-            </div>
-          </div>
-
+      <div className="mx-auto max-w-screen-xl">
+        <div className="min-h-screen p-6 lg:p-12 xl:p-16 flex flex-col">
+          <LeftForm
+            {...props}
+            sendContextRef={sendContextRef}
+            onTabChange={setActiveTab}
+            activeTab={activeTab}
+            onModelPreviewChange={setPreviewModel}
+            onSecondaryPreviewChange={setPreviewSecondaryModels}
+            previewNode={
+              <Chat
+                className="h-full"
+                systemPrompt={combinedSystem}
+                knowledgeText={combinedSystem}
+                model={previewModel}
+                modelOptions={modelOptions}
+                agentTag={props.tag}
+                getChatContext={getChatContext}
+                isAuthenticated={props.isAuthenticated}
+                showModelSelectorInPrompt
+              />
+            }
+          />
         </div>
       </div>
     </div>

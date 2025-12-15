@@ -17,13 +17,15 @@ interface Props {
   inviteCode?: string;
   onChange?: (model: string | undefined) => void;
   onContextChange?: (update: { model?: string; systemPrompt?: string; tagline?: string; description?: string }) => void;
-  onTabChange?: (tab: "behaviour" | "details" | "knowledge" | "publish") => void;
+  onTabChange?: (tab: "behaviour" | "details" | "knowledge" | "publish" | "preview") => void;
   onSecondaryModelsChange?: (models: string[]) => void;
   publishStatus?: 'draft' | 'pending_review' | 'approved' | 'rejected';
   publishReviewNotes?: string;
   publishRequestedAt?: string;
   onRequestPublic?: (formData: FormData) => void | Promise<void>;
   onWithdrawPublic?: (formData: FormData) => void | Promise<void>;
+  formId?: string;
+  previewContent?: React.ReactNode;
 }
 
 export const EditAgentClient = React.memo(function EditAgentClient({
@@ -44,10 +46,12 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   publishRequestedAt,
   onRequestPublic,
   onWithdrawPublic,
+  previewContent,
+  formId,
 }: Props) {
   const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
   const [secondaryModels, setSecondaryModels] = React.useState<string[]>(initialSecondaryModels || []);
-  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish">("behaviour");
+  const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish" | "preview">("behaviour");
   const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>(initialVisibility);
   const [copied, setCopied] = React.useState(false);
 
@@ -96,13 +100,13 @@ export const EditAgentClient = React.memo(function EditAgentClient({
     <div className="space-y-8">
       {/* Modern minimal tabs */}
       <div className="flex items-center gap-1 border-b border-gray-100 pb-1 overflow-x-auto no-scrollbar">
-        {["behaviour", "details", "knowledge", "publish"].map((tab) => (
+        {["behaviour", "details", "knowledge", "publish", "preview"].map((tab) => (
           <button
             key={tab}
             type="button"
             className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all cursor-pointer whitespace-nowrap ${activeTab === tab
-                ? 'bg-black text-white shadow-md shadow-gray-200'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+              ? 'bg-black text-white shadow-md shadow-gray-200'
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
               }`}
             onClick={() => setActiveTab(tab as any)}
           >
@@ -148,6 +152,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
               <div className="relative group">
                 <textarea
                   name="systemPrompt"
+                  form={formId}
                   defaultValue={initialSystemPrompt}
                   onInput={(e) => onContextChange && onContextChange({ systemPrompt: e.currentTarget.value })}
                   rows={12}
@@ -167,6 +172,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                 <label className="block text-base font-semibold text-gray-900">Tagline</label>
                 <input
                   name="tagline"
+                  form={formId}
                   defaultValue={initialTagline}
                   onInput={(e) => onContextChange && onContextChange({ tagline: e.currentTarget.value })}
                   placeholder="e.g., Your personal coding assistant"
@@ -179,6 +185,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                 <label className="block text-base font-semibold text-gray-900">Description</label>
                 <textarea
                   name="description"
+                  form={formId}
                   defaultValue={initialDescription}
                   onInput={(e) => onContextChange && onContextChange({ description: e.currentTarget.value })}
                   rows={8}
@@ -192,6 +199,10 @@ export const EditAgentClient = React.memo(function EditAgentClient({
         ) : activeTab === "knowledge" ? (
           <div className="bg-gray-50/50 rounded-2xl border border-gray-100/50 p-1">
             <KnowledgeManager agentTag={agentTag} />
+          </div>
+        ) : activeTab === "preview" ? (
+          <div className="h-[calc(100vh-300px)] min-h-[500px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+            {previewContent}
           </div>
         ) : (
           <div className="space-y-8 max-w-2xl">
@@ -239,6 +250,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                       <input
                         type="radio"
                         name="visibility-choice"
+                        form={formId}
                         value={opt.value}
                         checked={visibility === opt.value}
                         onChange={() => setVisibility(opt.value as typeof visibility)}
@@ -296,6 +308,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
               {publishStatus === 'pending_review' ? (
                 <button
                   type="submit"
+                  form={formId}
                   formAction={onWithdrawPublic}
                   className="px-5 py-2.5 rounded-full text-sm font-medium border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors"
                 >
@@ -309,6 +322,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
               ) : (
                 <button
                   type="submit"
+                  form={formId}
                   formAction={onRequestPublic}
                   className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm ${visibility === 'public'
                     ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200'
@@ -323,9 +337,9 @@ export const EditAgentClient = React.memo(function EditAgentClient({
           </div>
         )}
       </div>
-      <input type="hidden" name="model" value={selectedModel || ""} />
-      <input type="hidden" name="secondaryModels" value={JSON.stringify(secondaryModels || [])} />
-      <input type="hidden" name="visibility" value={visibility} />
+      <input type="hidden" name="model" value={selectedModel || ""} form={formId} />
+      <input type="hidden" name="secondaryModels" value={JSON.stringify(secondaryModels || [])} form={formId} />
+      <input type="hidden" name="visibility" value={visibility} form={formId} />
     </div>
   );
 });
