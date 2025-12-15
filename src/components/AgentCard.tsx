@@ -54,7 +54,7 @@ export function AgentCard({ tag, name, avatar, tagline, model, visibility, isOwn
             alt={`${name} avatar`}
             width={90}
             height={90}
-            className="absolute bottom-0 right-0 w-16 h-16 md:w-[90px] md:h-[90px] rounded-lg scale-x-[-1] -mr-0 -mb-2 group-hover:scale-y-110 group-hover:-scale-x-110 transition-transform duration-200"
+            className="absolute bottom-0 right-0 size-24 md:size-30 rounded-lg scale-x-[-1] -mr-0 -mb-2 group-hover:scale-y-110 group-hover:-scale-x-110 transition-transform duration-200 object-contain"
             quality={90}
           />
         )}
