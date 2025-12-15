@@ -76,44 +76,44 @@ export const Response = memo(
     }, [deferredContent]);
 
     return (
-      <div className={cn('size-full whitespace-pre-wrap', className)}>
+      <div className={cn('size-full max-w-none', className)}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
             h1: ({ className, ...props }) => (
-              <h1 className={cn('text-2xl font-bold mt-6 mb-4', className)} {...props} />
+              <h1 className={cn('text-2xl md:text-3xl font-bold mt-8 mb-4 text-pretty', className)} {...props} />
             ),
             h2: ({ className, ...props }) => (
-              <h2 className={cn('text-xl font-bold mt-5 mb-3', className)} {...props} />
+              <h2 className={cn('text-xl md:text-2xl font-semibold mt-8 mb-4 text-pretty', className)} {...props} />
             ),
             h3: ({ className, ...props }) => (
-              <h3 className={cn('text-lg font-semibold mt-4 mb-2', className)} {...props} />
+              <h3 className={cn('text-lg md:text-xl font-semibold mt-6 mb-3 text-pretty', className)} {...props} />
             ),
             h4: ({ className, ...props }) => (
-              <h4 className={cn('text-base font-semibold mt-3 mb-2', className)} {...props} />
+              <h4 className={cn('text-base md:text-lg font-medium mt-6 mb-3 text-pretty', className)} {...props} />
             ),
             h5: ({ className, ...props }) => (
-              <h5 className={cn('text-sm font-semibold mt-3 mb-2', className)} {...props} />
+              <h5 className={cn('text-sm md:text-base font-medium mt-4 mb-2 text-pretty', className)} {...props} />
             ),
             h6: ({ className, ...props }) => (
-              <h6 className={cn('text-sm font-medium mt-3 mb-2', className)} {...props} />
+              <h6 className={cn('text-sm font-medium mt-4 mb-2 opacity-70 text-pretty', className)} {...props} />
             ),
             p: ({ className, ...props }) => (
               <p
-                className={cn('text-[15px] md:text-base leading-relaxed my-0 whitespace-pre-wrap', className)}
+                className={cn('text-[15px] md:text-base leading-7 mb-4 last:mb-0 text-pretty', className)}
                 {...props}
               />
             ),
             ul: ({ className, ...props }) => (
-              <ul className={cn('list-disc list-inside pl-5 whitespace-normal', className)} {...props} />
+              <ul className={cn('list-disc list-outside ml-5 mb-4', className)} {...props} />
             ),
             ol: ({ className, ...props }) => (
-              <ol className={cn('list-decimal list-inside pl-5 whitespace-normal', className)} {...props} />
+              <ol className={cn('list-decimal list-outside ml-5 mb-4', className)} {...props} />
             ),
             li: ({ className, ...props }) => (
               <li
                 className={cn(
-                  'text-[15px] md:text-base leading-relaxed whitespace-pre-wrap break-words [&>p]:inline [&>p]:my-0 [&>p]:whitespace-pre-wrap',
+                  'text-[15px] md:text-base leading-7 pl-1 mb-1',
                   className
                 )}
                 {...props}
@@ -128,7 +128,7 @@ export const Response = memo(
                   <CodeBlock
                     language={match?.[1] || 'text'}
                     code={String(children).replace(/\n$/, '')}
-                    className="my-3"
+                    className="my-4 rounded-lg border shadow-sm"
                     {...props}
                   >
                     <CodeBlockCopyButton />
@@ -139,7 +139,7 @@ export const Response = memo(
               return (
                 <code
                   className={cn(
-                    'text-xs bg-muted px-1.5 py-0.5 rounded font-mono',
+                    'text-[0.9em] bg-muted/50 text-foreground/80 px-1.5 py-0.5 rounded font-mono font-medium',
                     className
                   )}
                   {...props}
@@ -171,7 +171,7 @@ export const Response = memo(
             blockquote: ({ className, ...props }) => (
               <blockquote
                 className={cn(
-                  'border-l-4 border-muted-foreground/20 pl-4 py-1 my-3 italic text-muted-foreground',
+                  'border-l-4 border-primary/20 pl-4 py-1 my-4 italic opacity-80',
                   className
                 )}
                 {...props}
@@ -179,29 +179,37 @@ export const Response = memo(
             ),
             hr: ({ className, ...props }) => (
               <hr
-                className={cn('border-border my-1', className)}
+                className={cn('border-border/50 my-8', className)}
                 {...props}
               />
             ),
             table: ({ className, ...props }) => (
-              <table
-                className={cn('w-full my-3 border-collapse', className)}
-                {...props}
-              />
+              <div className="my-4 w-full overflow-y-auto rounded-lg border border-border">
+                <table
+                  className={cn('w-full border-collapse text-sm', className)}
+                  {...props}
+                />
+              </div>
+            ),
+            thead: ({ className, ...props }) => (
+              <thead className={cn('bg-muted/50 border-b border-border', className)} {...props} />
             ),
             th: ({ className, ...props }) => (
               <th
                 className={cn(
-                  'border border-border px-3 py-2 bg-muted font-semibold text-left text-[15px] md:text-base',
+                  'px-4 py-3 font-semibold text-left align-middle opacity-80',
                   className
                 )}
                 {...props}
               />
             ),
+            tr: ({ className, ...props }) => (
+              <tr className={cn('border-b border-border/50 hover:bg-muted/20 transition-colors', className)} {...props} />
+            ),
             td: ({ className, ...props }) => (
               <td
                 className={cn(
-                  'border border-border px-3 py-2 text-[15px] md:text-base',
+                  'px-4 py-3 align-middle',
                   className
                 )}
                 {...props}
@@ -209,7 +217,7 @@ export const Response = memo(
             ),
             strong: ({ className, ...props }) => (
               <strong
-                className={cn('font-semibold text-[1.1em]', className)}
+                className={cn('font-semibold', className)}
                 {...props}
               />
             ),
