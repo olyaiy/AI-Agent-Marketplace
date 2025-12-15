@@ -23,10 +23,10 @@ export function AgentCard({ tag, name, avatar, tagline, model, visibility, isOwn
 
   return (
     <div className="relative group h-full overflow-hidden border-black">
-      <Card className="h-64 md:h-44 overflow-hidden hover:shadow-md transition-all duration-200 border-grey-200 hover:border-gray-900 bg-white p-4 relative">
-        <div className="flex flex-col h-full justify-between">
-          <div className="space-y-2 text-center md:text-left">
-            <h3 className="font-semibold text-gray-900 text-base truncate">
+      <Card className="h-36 md:h-44 overflow-hidden hover:shadow-md transition-all duration-200 border-grey-200 hover:border-gray-900 bg-white p-3 md:p-4 relative">
+        <div className="flex flex-col h-full justify-between pr-16 md:pr-20">
+          <div className="space-y-1 md:space-y-2">
+            <h3 className="font-semibold text-gray-900 text-sm md:text-base truncate">
               {name}
             </h3>
             {visibility && visibility !== 'public' && (
@@ -35,14 +35,14 @@ export function AgentCard({ tag, name, avatar, tagline, model, visibility, isOwn
               </span>
             )}
             {tagline && (
-              <p className="text-sm text-gray-600 line-clamp-2 leading-tight">
+              <p className="text-xs md:text-sm text-gray-600 line-clamp-2 leading-tight">
                 {tagline}
               </p>
             )}
           </div>
-          <div className="mt-auto text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-2 text-xs text-gray-600 truncate">
-              <ProviderAvatar providerSlug={providerSlug} size={20} />
+          <div className="mt-auto">
+            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-gray-600 truncate">
+              <ProviderAvatar providerSlug={providerSlug} size={18} />
               <span className="truncate">{displayLabel}</span>
             </div>
           </div>
@@ -54,7 +54,7 @@ export function AgentCard({ tag, name, avatar, tagline, model, visibility, isOwn
             alt={`${name} avatar`}
             width={90}
             height={90}
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 md:left-auto md:right-0 md:translate-x-0 rounded-lg scale-x-[-1] -mr-0 -mb-2 group-hover:scale-y-110  group-hover:-scale-x-110 group-hover:scale-y-110 transition-transform duration-200"
+            className="absolute bottom-0 right-0 w-16 h-16 md:w-[90px] md:h-[90px] rounded-lg scale-x-[-1] -mr-0 -mb-2 group-hover:scale-y-110 group-hover:-scale-x-110 transition-transform duration-200"
             quality={90}
           />
         )}
