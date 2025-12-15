@@ -37,13 +37,11 @@ export default async function RootLayout({
         <SidebarProvider>
           <AppSidebar userEmail={currentUser?.email} userRole={userRole} />
           <SidebarInset className="min-w-0 w-full flex flex-col">
-            {/* Mobile Header - only visible on mobile */}
-            <div className="md:hidden flex-shrink-0">
-              <MobileHeader
-                userAvatarUrl={currentUser?.image || undefined}
-                userName={currentUser?.name || currentUser?.email || undefined}
-              />
-            </div>
+            {/* Mobile Header - fixed at top, only visible on mobile */}
+            <MobileHeader
+              userAvatarUrl={currentUser?.image || undefined}
+              userName={currentUser?.name || currentUser?.email || undefined}
+            />
 
             {/* Desktop Sidebar Trigger - only visible on desktop */}
             <div className="hidden md:block sticky top-2 left-2 z-50">
@@ -51,7 +49,7 @@ export default async function RootLayout({
             </div>
 
             {/* Main content */}
-            <div className="flex-1 min-h-0 overflow-y-auto relative overflow-x-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto relative overflow-x-hidden pt-[52px] md:pt-0">
               <div className="md:p-6 max-w-full relative h-full md:pt-4">
                 {children}
               </div>
