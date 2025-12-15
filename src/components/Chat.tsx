@@ -301,7 +301,7 @@ const PromptInputForm = React.memo(function PromptInputForm({
             onChange={(e) => onChangeText(e.target.value)}
             value={text}
             placeholder="Type your message..."
-            className="min-h-[40px] py-2 text-sm md:text-base row-start-1 col-start-1 col-end-4"
+            className="min-h-[40px] py-2 text-base row-start-1 col-start-1 col-end-4"
           />
           <div className="row-start-2 col-start-1">
             <div className="flex items-center gap-1">
@@ -869,7 +869,7 @@ const MessageItem = React.memo(
               const allImages: Array<{ src: string; alt: string; partIndex: number }> = [];
               const imagePrefixes = new Set<string>();
               const PREFIX_LENGTH = 500; // Compare first 500 chars to detect near-duplicates
-              
+
               message.parts.forEach((part: BasicUIPart, i: number) => {
                 if (part.type === 'file') {
                   const imageSrc = getImageSrcFromPart(part);
@@ -982,7 +982,7 @@ const MessageItem = React.memo(
                     if (!imagesRendered && allImages.length > 0) {
                       imagesRendered = true;
                       const imageData = allImages.map((img) => ({ src: img.src, alt: img.alt }));
-                      
+
                       // Determine grid layout based on image count
                       const gridClass = allImages.length === 1
                         ? 'grid-cols-1'

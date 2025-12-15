@@ -86,18 +86,18 @@ export const PromptInput = ({
   const createFileAttachment = (file: File): FileAttachment => {
     const id = `${file.name}-${file.size}-${Date.now()}`;
     const attachment: FileAttachment = { id, file };
-    
+
     // Create preview for images
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setAttachments(prev => 
+        setAttachments(prev =>
           prev.map(a => a.id === id ? { ...a, preview: e.target?.result as string } : a)
         );
       };
       reader.readAsDataURL(file);
     }
-    
+
     return attachment;
   };
 
@@ -170,13 +170,13 @@ export const PromptInput = ({
 
   const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     const formData = new FormData(e.currentTarget);
     const text = (formData.get('message') as string) || '';
     const files = attachments.map(a => a.file);
-    
+
     onSubmit?.({ text, files }, e);
-    
+
     // Clear form
     if (formRef.current) {
       formRef.current.reset();
@@ -353,11 +353,11 @@ export const PromptInputAttachment = ({
   const { remove } = usePromptInputAttachments();
   const isImage = data.file.type.startsWith('image/');
   const isPDF = data.file.type === 'application/pdf';
-  const isExcel = data.file.type === 'application/vnd.ms-excel' || 
-                  data.file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-                  data.file.type === 'text/csv';
-  const isWord = data.file.type === 'application/msword' || 
-                 data.file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const isExcel = data.file.type === 'application/vnd.ms-excel' ||
+    data.file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    data.file.type === 'text/csv';
+  const isWord = data.file.type === 'application/msword' ||
+    data.file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
   const getFileStyles = () => {
     if (isPDF) return 'bg-red-700 border-red-100 text-zinc-100';
