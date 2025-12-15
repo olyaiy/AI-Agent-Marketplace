@@ -16,6 +16,7 @@ import {
 import { RecentConversationsClient } from "@/components/recent-conversations-client"
 import { GoogleSignInButton } from "@/components/GoogleSignInButton"
 import { signOutAction } from '@/actions/auth'
+import { ThemeToggleSidebar } from "@/components/theme-toggle-sidebar"
 import {
   Sidebar,
   SidebarContent,
@@ -55,7 +56,7 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <Sidebar variant="inset" collapsible="icon" className="border-r border-gray-100 bg-gray-50/50">
+    <Sidebar variant="inset" collapsible="icon" className="border-r border-gray-100 bg-[#F4F2F0] dark:bg-sidebar">
       <SidebarHeader className="pb-0">
         <div className="flex items-center gap-3 px-2 py-3 h-14">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-black text-white shadow-sm flex-shrink-0">
@@ -139,6 +140,7 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <ThemeToggleSidebar />
               {isAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Admin Dashboard" isActive={isActive("/admin")}>
