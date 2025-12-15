@@ -130,25 +130,38 @@ export const ChainOfThoughtHeader = memo(
       <Collapsible onOpenChange={setIsOpen} open={isOpen}>
         <CollapsibleTrigger
           className={cn(
-            "inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+            // Base styles
+            "inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium -ml-2",
+            // Transitions
+            "transition-all duration-200 ease-out",
+            // Focus ring
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2",
+            // Hover scale
+            "hover:scale-[1.02] active:scale-[0.98]",
+            // Border
+            "border ",
+            // State-based styles
             isStreaming
-              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
-              : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
+              ? "bg-purple-100 text-purple-700 border-purple-200 shadow-sm shadow-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800/50 dark:shadow-purple-900/20"
+              : "bg-secondary text-secondary-foreground border-border shadow-sm hover:bg-accent hover:text-foreground hover:shadow-md",
+            "cursor-pointer",
             className
           )}
           {...props}
         >
-          <BrainIcon className={cn("size-3.5", isStreaming && "animate-pulse")} />
-          <span>
+          <BrainIcon className={cn(
+            "size-3.5 transition-transform duration-200",
+            isStreaming && "animate-pulse"
+          )} />
+          <span className="select-none">
             {children ?? defaultLabel}
           </span>
           <ChevronDownIcon
             className={cn(
-              "size-3.5 transition-transform",
+              "size-3.5 transition-transform duration-200 ease-out",
               isOpen ? "rotate-180" : "rotate-0"
             )}
           />
-
         </CollapsibleTrigger>
       </Collapsible>
     );
