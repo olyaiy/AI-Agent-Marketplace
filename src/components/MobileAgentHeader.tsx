@@ -1,46 +1,64 @@
 'use client';
 
 import Image from 'next/image';
-import { ChevronDownIcon } from 'lucide-react';
+import { ChevronDownIcon, PanelLeftIcon } from 'lucide-react';
 
 interface MobileAgentHeaderProps {
   name: string;
   avatarUrl?: string;
   tagline?: string | null;
-  onClick?: () => void;
+  onAgentClick?: () => void;
+  onMenuClick?: () => void;
 }
 
-export function MobileAgentHeader({ name, avatarUrl, tagline, onClick }: MobileAgentHeaderProps) {
+export function MobileAgentHeader({ name, avatarUrl, tagline, onAgentClick, onMenuClick }: MobileAgentHeaderProps) {
   const effectiveTagline = (tagline && tagline.trim().length > 0) ? tagline : 'Your AI assistant';
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full  border-b border-gray-200 px-2 pb-2 flex items-center gap-3 active:bg-gray-50 transition-colors"
-      type="button"
-    >
-      {/* Avatar */}
-      {avatarUrl ? (
-        <Image 
-          src={avatarUrl} 
-          alt={name}
-          width={40}
-          height={40}
-          className="rounded-lg flex-shrink-0"
-        />
-      ) : (
-        <div className="w-10 h-10 rounded-lg bg-gray-200 flex-shrink-0" />
-      )}
-      
-      {/* Name and Tagline */}
-      <div className="flex-1 text-left overflow-hidden">
-        <h2 className="text-sm font-semibold text-gray-900 truncate">{name}</h2>
-        <p className="text-xs text-gray-600 truncate">{effectiveTagline}</p>
-      </div>
-      
-      {/* Indicator */}
-      <ChevronDownIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
-    </button>
+    <div className="w-full flex items-stretch">
+      {/* Left Zone - Menu Button (30%) */}
+      <button
+        onClick={onMenuClick}
+        className="w-[30%] flex items-center justify-center py-2 hover:bg-gray-50 active:bg-gray-100 transition-colors rounded-l-lg"
+        type="button"
+        aria-label="Open sidebar menu"
+      >
+        <PanelLeftIcon className="w-5 h-5 text-gray-600" />
+      </button>
+
+      {/* Divider */}
+      <div className="w-px bg-gray-200 my-2" />
+
+      {/* Right Zone - Agent Info (70%) */}
+      <button
+        onClick={onAgentClick}
+        className="w-[70%] flex items-center gap-3 px-3 py-2 hover:bg-gray-50 active:bg-gray-100 transition-colors rounded-r-lg"
+        type="button"
+        aria-label="View agent details"
+      >
+        {/* Avatar */}
+        {avatarUrl ? (
+          <Image 
+            src={avatarUrl} 
+            alt={name}
+            width={36}
+            height={36}
+            className="rounded-lg flex-shrink-0"
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-lg bg-gray-200 flex-shrink-0" />
+        )}
+        
+        {/* Name and Tagline */}
+        <div className="flex-1 text-left overflow-hidden min-w-0">
+          <h2 className="text-sm font-semibold text-gray-900 truncate">{name}</h2>
+          <p className="text-xs text-gray-600 truncate">{effectiveTagline}</p>
+        </div>
+        
+        {/* Indicator */}
+        <ChevronDownIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+      </button>
+    </div>
   );
 }
 

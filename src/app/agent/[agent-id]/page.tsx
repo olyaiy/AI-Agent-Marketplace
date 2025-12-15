@@ -53,11 +53,11 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
   const initialModel = modelParam && modelOptions.includes(modelParam) ? modelParam : found.model;
 
   return (
-    <main className="h-full ">
+    <main className="h-full">
       {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col h-full  p-4">
+      <div className="md:hidden flex flex-col h-full">
         {/* Sticky header at top */}
-        <div className="flex-shrink-0 sticky top-0 px-6 z-10 bg-background border-b">
+        <div className="flex-shrink-0 sticky top-0 z-10 bg-background border-b px-2 py-2">
           <AgentInfoSheet
             name={found.name}
             avatarUrl={avatarUrl}
@@ -74,7 +74,7 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
           />
         </div>
         {/* Scrollable chat area */}
-        <div className="flex-1 overflow-hidden ">
+        <div className="flex-1 overflow-hidden px-2">
           <Chat
             className="mx-auto h-full"
             systemPrompt={combinedSystem}

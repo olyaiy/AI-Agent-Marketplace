@@ -865,12 +865,22 @@ const MessageItem = React.memo(
           <MessageContent>
             {(() => {
               const renderedImages = new Set<string>();
-              // Collect all unique images from file parts
+              // Collect all unique images from file parts, deduping by prefix
               const allImages: Array<{ src: string; alt: string; partIndex: number }> = [];
+              const imagePrefixes = new Set<string>();
+              const PREFIX_LENGTH = 500; // Compare first 500 chars to detect near-duplicates
+              
               message.parts.forEach((part: BasicUIPart, i: number) => {
                 if (part.type === 'file') {
                   const imageSrc = getImageSrcFromPart(part);
                   if (imageSrc && !renderedImages.has(imageSrc)) {
+                    // Check if we already have an image with the same prefix
+                    const prefix = imageSrc.slice(0, PREFIX_LENGTH);
+                    if (imagePrefixes.has(prefix)) {
+                      // Skip this image - it's a near-duplicate
+                      return;
+                    }
+                    imagePrefixes.add(prefix);
                     renderedImages.add(imageSrc);
                     allImages.push({
                       src: imageSrc,

@@ -339,7 +339,9 @@ export async function POST(req: Request) {
     apiKey: process.env.OPENROUTER_API_KEY,
   });
 
-  const openrouterOptions: Record<string, JsonValue> = {};
+  const openrouterOptions: Record<string, JsonValue> = {
+    usage: { include: true }, // Enable usage accounting to get cost
+  };
   if (reasoningEnabled) {
     openrouterOptions.includeReasoning = true;
     openrouterOptions.reasoning = { effort: 'low', enabled: true };
@@ -355,7 +357,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: openrouter(modelId),
     abortSignal: req.signal,
-    providerOptions: Object.keys(openrouterOptions).length > 0 ? { openrouter: openrouterOptions } : undefined,
+    providerOptions: { openrouter: openrouterOptions },
     experimental_transform: smoothStream({
       delayInMs: 30,
       chunking: 'word',
@@ -384,6 +386,10 @@ export async function POST(req: Request) {
       }
     },
     onFinish: async (result) => {
+      // Log the full usage object to see what's available
+      console.log('Full usage object:', JSON.stringify(result.usage, null, 2));
+      console.log('Provider metadata:', JSON.stringify(result.experimental_providerMetadata, null, 2));
+
       try {
         const usage = normalizeUsage(result.usage);
         const hasUsage = Object.values(usage).some((value) => value > 0);

@@ -153,3 +153,10 @@
   color: transparent;
   animation: shimmer 2s linear infinite;
 }
+
+/* Hide the global sidebar trigger on mobile when chat header handles it */
+@media (max-width: 767px) {
+  .hide-mobile-sidebar-trigger [data-sidebar="trigger"] {
+    display: none !important;
+  }
+}

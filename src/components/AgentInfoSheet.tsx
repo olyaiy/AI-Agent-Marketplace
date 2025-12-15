@@ -11,6 +11,7 @@ import { dispatchAgentModelChange, dispatchAgentNewChat } from '@/lib/agent-even
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProviderAvatar } from '@/components/ProviderAvatar';
+import { useSidebar } from '@/components/ui/sidebar';
 
 interface AgentInfoSheetProps {
   name: string;
@@ -39,6 +40,15 @@ function ModelLabel({ label, providerSlug }: { label: string; providerSlug: stri
 export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag, visibility, inviteCode, canEdit, modelOptions, activeModel, publishStatus, publishReviewNotes }: AgentInfoSheetProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { toggleSidebar } = useSidebar();
+
+  // Hide the global sidebar trigger on mobile when this component is mounted
+  useEffect(() => {
+    document.body.classList.add('hide-mobile-sidebar-trigger');
+    return () => {
+      document.body.classList.remove('hide-mobile-sidebar-trigger');
+    };
+  }, []);
   const availableModels = useMemo(
     () => Array.isArray(modelOptions) ? Array.from(new Set(modelOptions.filter(Boolean))) : [],
     [modelOptions]
@@ -164,7 +174,8 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
         name={name}
         avatarUrl={avatarUrl}
         tagline={tagline}
-        onClick={() => setOpen(true)}
+        onAgentClick={() => setOpen(true)}
+        onMenuClick={toggleSidebar}
       />
       
       <SheetContent side="bottom" className="h-[80vh]">
