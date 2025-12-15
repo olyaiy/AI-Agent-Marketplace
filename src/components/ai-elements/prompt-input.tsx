@@ -495,8 +495,9 @@ export const PromptInputButton = ({
   return (
     <Button
       className={cn(
-        'shrink-0 gap-1.5 rounded-lg',
-        variant === 'ghost' && 'text-muted-foreground',
+        'shrink-0 gap-1.5 rounded-lg cursor-pointer',
+        'transition-all duration-200 hover:scale-105 active:scale-95',
+        variant === 'ghost' && 'text-muted-foreground hover:text-foreground',
         newSize === 'default' && 'px-3',
         className
       )}
@@ -543,7 +544,11 @@ export const PromptInputSubmit = ({
 
   return (
     <Button
-      className={cn('gap-1.5 rounded-2xl', className)}
+      className={cn(
+        'gap-1.5 rounded-2xl cursor-pointer',
+        'transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-md',
+        className
+      )}
       size={size}
       type={status === 'streaming' ? 'button' : 'submit'}
       variant={variant}

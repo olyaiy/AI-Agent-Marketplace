@@ -3,13 +3,10 @@
 import * as React from 'react';
 import {
   PromptInput,
-  PromptInputActionAddAttachments,
-  PromptInputActionMenu,
-  PromptInputActionMenuContent,
-  PromptInputActionMenuTrigger,
   PromptInputAttachment,
   PromptInputAttachments,
   PromptInputBody,
+  PromptInputButton,
   PromptInputSubmit,
   PromptInputTextarea,
   type PromptInputMessage,
@@ -49,7 +46,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon, FileTextIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon, FileTextIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -308,25 +305,41 @@ const PromptInputForm = React.memo(function PromptInputForm({
           />
           <div className="row-start-2 col-start-1">
             <div className="flex items-center gap-1">
-              <PromptInputActionMenu>
-                <PromptInputActionMenuTrigger />
-                <PromptInputActionMenuContent>
-                  <PromptInputActionAddAttachments />
-                </PromptInputActionMenuContent>
-              </PromptInputActionMenu>
+              {/* Direct file upload button - no dropdown needed */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PromptInputButton
+                    onClick={() => {
+                      // Access the file input through form
+                      const form = document.querySelector('form');
+                      const input = form?.querySelector('input[type="file"]') as HTMLInputElement;
+                      input?.click();
+                    }}
+                    className="transition-all duration-200 hover:scale-105 active:scale-95"
+                    aria-label="Add files"
+                  >
+                    <PlusIcon className="size-4" />
+                  </PromptInputButton>
+                </TooltipTrigger>
+                <TooltipContent sideOffset={6}>Add files</TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     className={cn(
-                      'shrink-0 rounded-lg p-2 hover:bg-accent text-muted-foreground transition-colors',
-                      webSearchOn && 'text-blue-600'
+                      'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium cursor-pointer',
+                      'transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]',
+                      webSearchOn
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
                     )}
                     onClick={onToggleWebSearch}
                     aria-pressed={webSearchOn}
                     aria-label={webSearchOn ? 'Turn web search off' : 'Turn web search on'}
                   >
-                    <GlobeIcon className="size-4" />
+                    <GlobeIcon className="size-3.5" />
+                    <span>Search</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent sideOffset={6}>Web Search: {webSearchOn ? 'On' : 'Off'}</TooltipContent>
@@ -338,7 +351,8 @@ const PromptInputForm = React.memo(function PromptInputForm({
                     <button
                       type="button"
                       className={cn(
-                        'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                        'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium cursor-pointer',
+                        'transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]',
                         reasoningOn
                           ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                           : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -375,7 +389,7 @@ const PromptInputForm = React.memo(function PromptInputForm({
           </div>
         </div>
       </PromptInputBody>
-    </PromptInput>
+    </PromptInput >
   );
 });
 PromptInputForm.displayName = 'PromptInputForm';
