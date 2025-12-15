@@ -422,24 +422,66 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: convertedMessages,
     stopWhen: tools ? stepCountIs(10) : undefined,
-    onStepFinish: ({ toolCalls, toolResults }) => {
+    onStepFinish: (stepResult) => {
       if (process.env.NODE_ENV === 'production') return;
-      if (toolCalls && toolCalls.length > 0) {
-        toolCalls.forEach((toolCall) => {
-          debugLog('Tool call', {
-            toolCallId: 'toolCallId' in toolCall ? toolCall.toolCallId : undefined,
-            toolName: toolCall.toolName,
-          });
+
+      // Cast to access all properties
+      const step = stepResult as Record<string, unknown>;
+      const { text, reasoning, toolCalls, toolResults, response } = step;
+
+      console.log('\n' + '='.repeat(80));
+      console.log('📍 STEP FINISHED');
+      console.log('='.repeat(80));
+      console.log('Step keys:', Object.keys(step));
+
+      // Log reasoning content
+      if (reasoning) {
+        const reasoningStr = typeof reasoning === 'string' ? reasoning : JSON.stringify(reasoning);
+        console.log('\n🧠 REASONING:');
+        console.log('  - Type:', typeof reasoning);
+        console.log('  - Length:', reasoningStr.length);
+        console.log('  - Preview:', reasoningStr.slice(0, 200) + (reasoningStr.length > 200 ? '...' : ''));
+      }
+
+      // Log text content
+      if (text && typeof text === 'string') {
+        console.log('\n📝 TEXT:');
+        console.log('  - Length:', text.length);
+        console.log('  - Preview:', text.slice(0, 200) + (text.length > 200 ? '...' : ''));
+      }
+
+      // Log tool calls
+      const toolCallsArr = toolCalls as Array<{ toolName: string; toolCallId?: string; args?: unknown }> | undefined;
+      if (toolCallsArr && toolCallsArr.length > 0) {
+        console.log('\n🔧 TOOL CALLS:', toolCallsArr.length);
+        toolCallsArr.forEach((toolCall, idx) => {
+          console.log(`  [${idx}] Tool: ${toolCall.toolName}`);
+          console.log(`       ID: ${toolCall.toolCallId || 'N/A'}`);
+          console.log(`       Args:`, JSON.stringify(toolCall.args || {}, null, 2).slice(0, 200));
         });
       }
-      if (toolResults && toolResults.length > 0) {
-        toolResults.forEach((toolResult) => {
-          debugLog('Tool result', {
-            toolCallId: toolResult.toolCallId,
-            toolName: toolResult.toolName,
-          });
+
+      // Log tool results
+      const toolResultsArr = toolResults as Array<{ toolName: string; toolCallId: string; result?: unknown }> | undefined;
+      if (toolResultsArr && toolResultsArr.length > 0) {
+        console.log('\n✅ TOOL RESULTS:', toolResultsArr.length);
+        toolResultsArr.forEach((result, idx) => {
+          console.log(`  [${idx}] Tool: ${result.toolName}`);
+          console.log(`       ID: ${result.toolCallId}`);
+          const resultStr = JSON.stringify(result.result || {});
+          console.log(`       Result length: ${resultStr.length} chars`);
         });
       }
+
+      // Log response info
+      const resp = response as { id?: string; modelId?: string } | undefined;
+      if (resp) {
+        console.log('\n📦 RESPONSE:');
+        console.log('  - ID:', resp.id);
+        console.log('  - Model:', resp.modelId);
+      }
+
+      console.log('='.repeat(80) + '\n');
     },
     onFinish: async (result) => {
       // Log the full usage object to see what's available

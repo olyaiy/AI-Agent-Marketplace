@@ -15,18 +15,21 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, memo, useContext, useMemo } from "react";
+import { createContext, memo, useContext, useEffect, useMemo, useState } from "react";
+import { Response } from "./response";
 
 type ChainOfThoughtContextValue = {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  isStreaming: boolean;
+  duration: number;
 };
 
 const ChainOfThoughtContext = createContext<ChainOfThoughtContextValue | null>(
   null
 );
 
-const useChainOfThought = () => {
+export const useChainOfThought = () => {
   const context = useContext(ChainOfThoughtContext);
   if (!context) {
     throw new Error(
@@ -40,7 +43,10 @@ export type ChainOfThoughtProps = ComponentProps<"div"> & {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  isStreaming?: boolean;
 };
+
+const AUTO_CLOSE_DELAY = 1000;
 
 export const ChainOfThought = memo(
   ({
@@ -48,6 +54,7 @@ export const ChainOfThought = memo(
     open,
     defaultOpen = false,
     onOpenChange,
+    isStreaming = false,
     children,
     ...props
   }: ChainOfThoughtProps) => {
@@ -57,15 +64,45 @@ export const ChainOfThought = memo(
       onChange: onOpenChange,
     });
 
+    const [duration, setDuration] = useState(0);
+    const [hasAutoClosedRef, setHasAutoClosedRef] = useState(false);
+    const [startTime, setStartTime] = useState<number | null>(null);
+
+    // Track duration when streaming starts and ends
+    useEffect(() => {
+      if (isStreaming) {
+        if (startTime === null) {
+          setStartTime(Date.now());
+        }
+      } else if (startTime !== null) {
+        setDuration(Math.round((Date.now() - startTime) / 1000));
+        setStartTime(null);
+      }
+    }, [isStreaming, startTime]);
+
+    // Auto-open when streaming starts, auto-close when streaming ends (once only)
+    useEffect(() => {
+      if (isStreaming && !isOpen) {
+        setIsOpen(true);
+      } else if (!isStreaming && isOpen && !defaultOpen && !hasAutoClosedRef) {
+        // Add a small delay before closing to allow user to see the content
+        const timer = setTimeout(() => {
+          setIsOpen(false);
+          setHasAutoClosedRef(true);
+        }, AUTO_CLOSE_DELAY);
+        return () => clearTimeout(timer);
+      }
+    }, [isStreaming, isOpen, defaultOpen, setIsOpen, hasAutoClosedRef]);
+
     const chainOfThoughtContext = useMemo(
-      () => ({ isOpen, setIsOpen }),
-      [isOpen, setIsOpen]
+      () => ({ isOpen: isOpen ?? false, setIsOpen, isStreaming, duration }),
+      [isOpen, setIsOpen, isStreaming, duration]
     );
 
     return (
       <ChainOfThoughtContext.Provider value={chainOfThoughtContext}>
         <div
-          className={cn("not-prose max-w-prose space-y-4", className)}
+          className={cn("not-prose max-w-prose space-y-4 mb-4", className)}
           {...props}
         >
           {children}
@@ -81,20 +118,24 @@ export type ChainOfThoughtHeaderProps = ComponentProps<
 
 export const ChainOfThoughtHeader = memo(
   ({ className, children, ...props }: ChainOfThoughtHeaderProps) => {
-    const { isOpen, setIsOpen } = useChainOfThought();
+    const { isOpen, setIsOpen, isStreaming, duration } = useChainOfThought();
+
+    const defaultLabel = isStreaming || duration === 0
+      ? "Thinking..."
+      : `Thought for ${duration} second${duration !== 1 ? 's' : ''}`;
 
     return (
       <Collapsible onOpenChange={setIsOpen} open={isOpen}>
         <CollapsibleTrigger
           className={cn(
-            "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
+            "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground cursor-pointer",
             className
           )}
           {...props}
         >
-          <BrainIcon className="size-4" />
+          <BrainIcon className={cn("size-4", isStreaming && "animate-pulse text-purple-500")} />
           <span className="flex-1 text-left">
-            {children ?? "Chain of Thought"}
+            {children ?? defaultLabel}
           </span>
           <ChevronDownIcon
             className={cn(
@@ -102,6 +143,7 @@ export const ChainOfThoughtHeader = memo(
               isOpen ? "rotate-180" : "rotate-0"
             )}
           />
+
         </CollapsibleTrigger>
       </Collapsible>
     );
@@ -184,11 +226,18 @@ export const ChainOfThoughtSearchResult = memo(
 
 export type ChainOfThoughtContentProps = ComponentProps<
   typeof CollapsibleContent
->;
+> & {
+  children?: ReactNode;
+};
 
 export const ChainOfThoughtContent = memo(
   ({ className, children, ...props }: ChainOfThoughtContentProps) => {
-    const { isOpen } = useChainOfThought();
+    const { isOpen, isStreaming } = useChainOfThought();
+
+    // If children is a string, render it through Response for markdown support
+    const content = typeof children === 'string'
+      ? <Response className="first:mt-0">{children}</Response>
+      : children;
 
     return (
       <Collapsible open={isOpen}>
@@ -196,11 +245,12 @@ export const ChainOfThoughtContent = memo(
           className={cn(
             "mt-2 space-y-3",
             "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+            isStreaming && "animate-shimmer",
             className
           )}
           {...props}
         >
-          {children}
+          {content}
         </CollapsibleContent>
       </Collapsible>
     );

@@ -26,10 +26,13 @@ import { Message, MessageContent } from '@/components/ai-elements/message';
 import { Response } from '@/components/ai-elements/response';
 import { MessageLoading } from '@/components/ui/message-loading';
 import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from '@/components/ai-elements/reasoning';
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtHeader,
+  ChainOfThoughtStep,
+  ChainOfThoughtSearchResults,
+  ChainOfThoughtSearchResult,
+} from '@/components/ai-elements/chain-of-thought';
 import { Actions, Action } from '@/components/ai-elements/actions';
 import {
   Context,
@@ -578,6 +581,89 @@ function getToolDisplayInfo(
   return { displayName: toolName, hideStatus: false, icon: null, preview: null, fullPreview: null };
 }
 
+// Types for grouped message parts
+type ThinkingStepType = 'reasoning' | 'tool';
+interface ThinkingStep {
+  type: ThinkingStepType;
+  index: number;
+  part: BasicUIPart;
+}
+interface ThinkingGroup {
+  type: 'thinking';
+  steps: ThinkingStep[];
+  startIndex: number;
+}
+interface ContentGroup {
+  type: 'content';
+  part: BasicUIPart;
+  index: number;
+}
+type PartGroup = ThinkingGroup | ContentGroup;
+
+/**
+ * Groups message parts into thinking groups (consecutive reasoning + tools) and content groups.
+ * This allows us to render all reasoning/tool steps in a single ChainOfThought block.
+ */
+function groupMessageParts(parts: BasicUIPart[]): PartGroup[] {
+  const groups: PartGroup[] = [];
+  let currentThinkingGroup: ThinkingGroup | null = null;
+
+  parts.forEach((part, index) => {
+    const partType = part.type;
+
+    // Skip step-start markers
+    if (partType === 'step-start') {
+      return;
+    }
+
+    // Check if this is a "thinking" part (reasoning or tool)
+    const isReasoning = partType === 'reasoning';
+    const isToolInvocation = partType === 'tool-invocation';
+    const isToolPart = typeof partType === 'string' && partType.startsWith('tool-');
+    const isThinkingPart = isReasoning || isToolInvocation || isToolPart;
+
+    if (isThinkingPart) {
+      // Start a new thinking group if needed
+      if (!currentThinkingGroup) {
+        currentThinkingGroup = {
+          type: 'thinking',
+          steps: [],
+          startIndex: index,
+        };
+      }
+
+      // Add to current thinking group
+      currentThinkingGroup.steps.push({
+        type: isReasoning ? 'reasoning' : 'tool',
+        index,
+        part,
+      });
+    } else {
+      // This is a content part (text, file, etc.)
+      // First, close any open thinking group
+      if (currentThinkingGroup && currentThinkingGroup.steps.length > 0) {
+        groups.push(currentThinkingGroup);
+        currentThinkingGroup = null;
+      }
+
+      // Add the content part
+      groups.push({
+        type: 'content',
+        part,
+        index,
+      });
+    }
+  });
+
+  // Don't forget any trailing thinking group
+  const trailingGroup = currentThinkingGroup;
+  if (trailingGroup !== null && trailingGroup.steps.length > 0) {
+    groups.push(trailingGroup);
+  }
+
+  return groups;
+}
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -894,207 +980,216 @@ const MessageItem = React.memo(
               // Reset for tracking during render
               renderedImages.clear();
 
-              // Render non-image parts and collect image grid
+              // Render grouped parts
               const elements: React.ReactNode[] = [];
               let imagesRendered = false;
 
-              message.parts.forEach((part: BasicUIPart, i: number) => {
-                switch (part.type) {
-                  case 'text':
-                    if (!part.text) return;
-                    if (isStreamingActive) {
-                      const { stable, live } = splitStableMarkdown(part.text);
-                      elements.push(
-                        <div key={`${message.id}-${i}`} className="flex flex-col gap-2 text-[15px] md:text-base leading-relaxed">
-                          {stable ? (
-                            <Response sources={sources}>
-                              {stable}
-                            </Response>
-                          ) : null}
-                          {live ? (
-                            <pre className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
-                              {live}
-                            </pre>
-                          ) : null}
-                        </div>
-                      );
-                    } else {
-                      elements.push(
-                        <Response key={`${message.id}-${i}`} sources={sources}>
-                          {part.text}
-                        </Response>
-                      );
-                    }
-                    break;
-                  case 'reasoning':
-                    if (part.text === '[REDACTED]') return;
-                    elements.push(
-                      <Reasoning
-                        key={`${message.id}-${i}`}
-                        className="w-full"
-                        isStreaming={
-                          isStreamingActive && i === message.parts.length - 1
-                        }
-                      >
-                        <ReasoningTrigger />
-                        <ReasoningContent>{part.text}</ReasoningContent>
-                      </Reasoning>
-                    );
-                    break;
-                  case 'tool-invocation': {
-                    const toolInvocation = part.toolInvocation;
-                    if (!toolInvocation) return;
-                    const toolState =
-                      part.state || (toolInvocation.result ? 'output-available' : 'input-available');
-                    const isToolStreaming =
-                      toolState === 'input-streaming' || toolState === 'input-available';
-                    const resultJson = toolInvocation.result
-                      ? JSON.stringify(toolInvocation.result, null, 2)
-                      : null;
-                    const toolDisplayInfo = getToolDisplayInfo(toolInvocation.toolName, toolState, toolInvocation.args, toolInvocation.result);
-                    elements.push(
-                      <Tool key={`${message.id}-${i}`} defaultOpen={false}>
-                        <ToolHeader
-                          type={toolInvocation.toolName}
-                          state={toolState}
-                          displayName={toolDisplayInfo.displayName}
-                          hideStatus={toolDisplayInfo.hideStatus}
-                          icon={toolDisplayInfo.icon}
-                          preview={toolDisplayInfo.preview ?? undefined}
-                          fullPreview={toolDisplayInfo.fullPreview ?? undefined}
-                        />
-                        <ToolContent>
-                          <ToolInput
-                            input={toolInvocation.args}
-                            renderMode={isToolStreaming ? 'plain' : 'code'}
-                          />
-                          <ToolOutput
-                            outputText={resultJson ?? undefined}
-                            errorText={part.error}
-                          />
-                        </ToolContent>
-                      </Tool>
-                    );
-                    break;
-                  }
-                  case 'file': {
-                    // Render image grid once when we encounter the first file part
-                    if (!imagesRendered && allImages.length > 0) {
-                      imagesRendered = true;
-                      const imageData = allImages.map((img) => ({ src: img.src, alt: img.alt }));
+              // Group parts for ChainOfThought rendering
+              const partGroups = groupMessageParts(message.parts);
 
-                      // Determine grid layout based on image count
-                      const gridClass = allImages.length === 1
-                        ? 'grid-cols-1'
-                        : allImages.length === 2
-                          ? 'grid-cols-2'
-                          : allImages.length === 3
-                            ? 'grid-cols-2 md:grid-cols-3'
-                            : 'grid-cols-2';
+              partGroups.forEach((group, groupIndex) => {
+                if (group.type === 'thinking') {
+                  // Render all thinking steps (reasoning + tools) in a single ChainOfThought
+                  const thinkingGroup = group;
+                  const lastStepIndex = thinkingGroup.steps[thinkingGroup.steps.length - 1]?.index ?? 0;
+                  const isThinkingStreaming = isStreamingActive && lastStepIndex === message.parts.length - 1;
 
-                      elements.push(
-                        <div
-                          key={`${message.id}-images`}
-                          className={`grid gap-2 ${gridClass}`}
-                        >
-                          {allImages.map((img, imgIndex) => (
-                            <div
-                              key={`${message.id}-img-${imgIndex}`}
-                              className="group relative overflow-hidden rounded-lg border bg-background"
-                            >
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  onPreviewImages({
-                                    images: imageData,
-                                    startIndex: imgIndex,
-                                  })
-                                }
-                                className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
+                  elements.push(
+                    <ChainOfThought
+                      key={`${message.id}-thinking-${groupIndex}`}
+                      className="w-full"
+                      isStreaming={isThinkingStreaming}
+                    >
+                      <ChainOfThoughtHeader />
+                      <ChainOfThoughtContent>
+                        {thinkingGroup.steps.map((step, stepIndex) => {
+                          const isLastStep = stepIndex === thinkingGroup.steps.length - 1;
+                          const stepStatus = isThinkingStreaming && isLastStep ? 'active' : 'complete';
+
+                          if (step.type === 'reasoning') {
+                            // Reasoning step
+                            if (step.part.text === '[REDACTED]') return null;
+                            return (
+                              <ChainOfThoughtStep
+                                key={`step-${step.index}`}
+                                icon={BrainIcon}
+                                label={stepIndex === 0 ? "Thinking..." : "Analyzing..."}
+                                status={stepStatus}
                               >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={img.src}
-                                  alt={img.alt}
-                                  className={cn(
-                                    'w-full object-cover transition-transform duration-150 group-hover:scale-[1.02]',
-                                    allImages.length === 1 ? 'max-h-[512px] object-contain' : 'aspect-square'
-                                  )}
-                                  loading="lazy"
-                                />
-                              </button>
-                              <a
-                                href={img.src}
-                                download
-                                className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border bg-background/80 p-1.5 text-foreground shadow-sm opacity-0 transition-opacity duration-150 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
-                                aria-label="Download image"
-                              >
-                                <DownloadIcon className="size-4" />
-                              </a>
-                              {allImages.length > 1 && (
-                                <div className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 text-xs font-medium text-foreground">
-                                  {imgIndex + 1}/{allImages.length}
+                                <div className="text-xs text-muted-foreground mt-1 line-clamp-3">
+                                  {step.part.text?.slice(0, 200)}
+                                  {(step.part.text?.length ?? 0) > 200 ? '...' : ''}
                                 </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      );
+                              </ChainOfThoughtStep>
+                            );
+                          } else {
+                            // Tool step
+                            const part = step.part;
+                            const toolInvocation = part.toolInvocation;
+                            const toolName = toolInvocation?.toolName ||
+                              (typeof part.type === 'string' && part.type.startsWith('tool-')
+                                ? part.type.replace(/^tool-/, '')
+                                : 'tool');
+                            const toolState = part.state ||
+                              (toolInvocation?.result || part.output ? 'output-available' : 'input-available');
+                            const isToolComplete = toolState === 'output-available';
+                            const toolInput = toolInvocation?.args ?? part.input ?? part.args;
+                            const toolOutput = toolInvocation?.result ?? part.output;
+
+                            // Get display info
+                            const displayInfo = getToolDisplayInfo(
+                              toolName,
+                              toolState as ToolUIPart['state'],
+                              toolInput,
+                              toolOutput
+                            );
+
+                            // Extract search results for web-search tool
+                            const isWebSearch = isSearchToolName(toolName);
+                            const searchResults = isWebSearch && toolOutput && typeof toolOutput === 'object'
+                              ? extractSourcesFromToolOutput(toolOutput)
+                              : [];
+
+                            return (
+                              <ChainOfThoughtStep
+                                key={`step-${step.index}`}
+                                icon={isWebSearch ? SearchIcon : FileTextIcon}
+                                label={displayInfo.displayName}
+                                description={displayInfo.preview || undefined}
+                                status={isToolComplete ? 'complete' : 'active'}
+                              >
+                                {searchResults.length > 0 && (
+                                  <ChainOfThoughtSearchResults className="mt-2">
+                                    {searchResults.slice(0, 5).map((result, resultIdx) => (
+                                      <ChainOfThoughtSearchResult
+                                        key={result.url || resultIdx}
+                                        asChild
+                                      >
+                                        <a
+                                          href={result.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="hover:bg-accent transition-colors"
+                                        >
+                                          {result.title || new URL(result.url).hostname}
+                                        </a>
+                                      </ChainOfThoughtSearchResult>
+                                    ))}
+                                    {searchResults.length > 5 && (
+                                      <ChainOfThoughtSearchResult>
+                                        +{searchResults.length - 5} more
+                                      </ChainOfThoughtSearchResult>
+                                    )}
+                                  </ChainOfThoughtSearchResults>
+                                )}
+                              </ChainOfThoughtStep>
+                            );
+                          }
+                        })}
+                      </ChainOfThoughtContent>
+                    </ChainOfThought>
+                  );
+                } else {
+                  // Content group - render individual content parts
+                  const part = group.part;
+                  const i = group.index;
+
+                  switch (part.type) {
+                    case 'text':
+                      if (!part.text) return;
+                      if (isStreamingActive) {
+                        const { stable, live } = splitStableMarkdown(part.text);
+                        elements.push(
+                          <div key={`${message.id}-${i}`} className="flex flex-col gap-2 text-[15px] md:text-base leading-relaxed">
+                            {stable ? (
+                              <Response sources={sources}>
+                                {stable}
+                              </Response>
+                            ) : null}
+                            {live ? (
+                              <pre className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
+                                {live}
+                              </pre>
+                            ) : null}
+                          </div>
+                        );
+                      } else {
+                        elements.push(
+                          <Response key={`${message.id}-${i}`} sources={sources}>
+                            {part.text}
+                          </Response>
+                        );
+                      }
+                      break;
+                    case 'file': {
+                      // Render image grid once when we encounter the first file part
+                      if (!imagesRendered && allImages.length > 0) {
+                        imagesRendered = true;
+                        const imageData = allImages.map((img) => ({ src: img.src, alt: img.alt }));
+
+                        // Determine grid layout based on image count
+                        const gridClass = allImages.length === 1
+                          ? 'grid-cols-1'
+                          : allImages.length === 2
+                            ? 'grid-cols-2'
+                            : allImages.length === 3
+                              ? 'grid-cols-2 md:grid-cols-3'
+                              : 'grid-cols-2';
+
+                        elements.push(
+                          <div
+                            key={`${message.id}-images`}
+                            className={`grid gap-2 ${gridClass}`}
+                          >
+                            {allImages.map((img, imgIndex) => (
+                              <div
+                                key={`${message.id}-img-${imgIndex}`}
+                                className="group relative overflow-hidden rounded-lg border bg-background"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onPreviewImages({
+                                      images: imageData,
+                                      startIndex: imgIndex,
+                                    })
+                                  }
+                                  className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={img.src}
+                                    alt={img.alt}
+                                    className={cn(
+                                      'w-full object-cover transition-transform duration-150 group-hover:scale-[1.02]',
+                                      allImages.length === 1 ? 'max-h-[512px] object-contain' : 'aspect-square'
+                                    )}
+                                    loading="lazy"
+                                  />
+                                </button>
+                                <a
+                                  href={img.src}
+                                  download
+                                  className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border bg-background/80 p-1.5 text-foreground shadow-sm opacity-0 transition-opacity duration-150 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
+                                  aria-label="Download image"
+                                >
+                                  <DownloadIcon className="size-4" />
+                                </a>
+                                {allImages.length > 1 && (
+                                  <div className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 text-xs font-medium text-foreground">
+                                    {imgIndex + 1}/{allImages.length}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      break;
                     }
-                    break;
-                  }
-                  default: {
-                    const isToolPart = typeof part.type === 'string' && part.type.startsWith('tool-');
-                    if (isToolPart) {
-                      const toolName = part.type.replace(/^tool-/, '') || 'tool';
-                      const toolState =
-                        part.state ||
-                        (part.output
-                          ? 'output-available'
-                          : part.errorText
-                            ? 'output-error'
-                            : 'input-available');
-                      const isToolStreaming =
-                        toolState === 'input-streaming' || toolState === 'input-available';
-                      const toolInput =
-                        part.input ?? part.rawInput ?? part.args ?? null;
-                      const toolOutput = part.output;
-                      const errorText = part.errorText || part.error;
-                      const outputJson =
-                        toolOutput && typeof toolOutput !== 'string'
-                          ? JSON.stringify(toolOutput, null, 2)
-                          : toolOutput;
-                      const toolDisplayInfo = getToolDisplayInfo(toolName, toolState as ToolUIPart['state'], toolInput, toolOutput);
-                      elements.push(
-                        <Tool
-                          key={`${message.id}-${i}`}
-                          defaultOpen={false}
-                        >
-                          <ToolHeader
-                            type={toolName}
-                            state={toolState as ToolUIPart['state']}
-                            displayName={toolDisplayInfo.displayName}
-                            hideStatus={toolDisplayInfo.hideStatus}
-                            icon={toolDisplayInfo.icon}
-                            preview={toolDisplayInfo.preview ?? undefined}
-                            fullPreview={toolDisplayInfo.fullPreview ?? undefined}
-                          />
-                          <ToolContent>
-                            <ToolInput
-                              input={toolInput}
-                              renderMode={isToolStreaming ? 'plain' : 'code'}
-                            />
-                            <ToolOutput
-                              outputText={
-                                typeof outputJson === 'string' ? outputJson : undefined
-                              }
-                              errorText={errorText}
-                            />
-                          </ToolContent>
-                        </Tool>
-                      );
-                    }
-                    break;
+                    default:
+                      // Skip other content types (step-start, etc.)
+                      break;
                   }
                 }
               });
