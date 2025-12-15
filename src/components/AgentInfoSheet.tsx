@@ -218,43 +218,36 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                   <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{effectiveTagline}</p>
                 </div>
 
-                {/* Inline Action buttons */}
+                {/* Action buttons - better visual hierarchy */}
                 {agentId && (
-                  <div className="flex gap-1.5 flex-shrink-0">
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      aria-label="New chat"
-                      className="h-8 px-2.5 rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  <div className="flex gap-2 flex-shrink-0">
+                    {/* New Chat - Primary action with filled style */}
+                    <Link
+                      href={`/agent/${agentId}`}
+                      prefetch={false}
+                      onClick={(event) => {
+                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+                          return;
+                        }
+                        event.preventDefault();
+                        dispatchAgentNewChat(agentTag);
+                        setOpen(false);
+                      }}
+                      className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-gradient-to-r from-gray-900 to-gray-800 text-white text-sm font-medium shadow-sm hover:from-gray-800 hover:to-gray-700 active:scale-[0.98] transition-all"
                     >
-                      <Link
-                        href={`/agent/${agentId}`}
-                        prefetch={false}
-                        onClick={(event) => {
-                          if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
-                            return;
-                          }
-                          event.preventDefault();
-                          dispatchAgentNewChat(agentTag);
-                          setOpen(false);
-                        }}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Link>
-                    </Button>
+                      <Plus className="w-4 h-4" />
+                      <span>New</span>
+                    </Link>
+
+                    {/* Edit - Secondary subtle action */}
                     {canEdit && (
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="sm"
+                      <Link
+                        href={`/edit/${agentId}`}
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 active:scale-[0.98] transition-all"
                         aria-label="Edit agent"
-                        className="h-8 px-2.5 rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       >
-                        <Link href={`/edit/${agentId}`}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Link>
-                      </Button>
+                        <Pencil className="w-4 h-4" />
+                      </Link>
                     )}
                   </div>
                 )}
