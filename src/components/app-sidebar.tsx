@@ -8,10 +8,10 @@ import {
   MessageSquare,
   Shield,
   Plus,
-  Bot,
   LayoutGrid,
   LogOut,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Command
 } from "lucide-react"
 import { RecentConversationsClient } from "@/components/recent-conversations-client"
 import { GoogleSignInButton } from "@/components/GoogleSignInButton"
@@ -28,7 +28,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
+  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
 import {
@@ -53,24 +53,35 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
   const isAdmin = userRole === 'admin';
   const initial = userEmail ? userEmail[0].toUpperCase() : "U";
 
-  const isActive = (path: string) => pathname === path;
+  // Improved active state detection
+  const isActive = (path: string) => {
+    if (path === "/") {
+      return pathname === "/";
+    }
+    return pathname?.startsWith(path);
+  };
 
   return (
-    <Sidebar variant="inset" collapsible="icon" className="border-r border-gray-100 bg-gray-50/50">
-      <SidebarHeader className="pb-0">
-        <div className="flex items-center gap-3 px-2 py-3 h-14">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-black text-white shadow-sm flex-shrink-0">
-            <Bot className="w-5 h-5" />
-          </div>
-          {isExpanded && (
-            <div className="flex flex-col overflow-hidden transition-all duration-300">
-              <span className="text-sm font-bold text-gray-900 leading-none">Agent Vendor</span>
-            </div>
-          )}
-        </div>
+    <Sidebar variant="inset" collapsible="icon" className="bg-sidebar">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <Command className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold text-foreground">Agent Vendor</span>
+                  <span className="truncate text-xs text-muted-foreground">Admin Console</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent>
         {/* Platform Section */}
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -96,6 +107,8 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <SidebarSeparator className="mx-2" />
+
         {/* Studio Section (Personal) */}
         {userEmail && (
           <SidebarGroup>
@@ -111,9 +124,9 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Create Agent" className="text-blue-600 hover:text-blue-700">
+                  <SidebarMenuButton asChild tooltip="Create Agent" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20 data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-950/20" isActive={isActive("/create")}>
                     <Link href="/create">
-                      <Plus className="bg-blue-100 text-blue-600 rounded-full p-0.5" />
+                      <Plus className="text-blue-600" />
                       <span>Create Agent</span>
                     </Link>
                   </SidebarMenuButton>
@@ -123,10 +136,8 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
           </SidebarGroup>
         )}
 
-        {/* Recent Chats (Auto-collapsible in sidebar logic) */}
-        <div className="mt-2">
-          <RecentConversationsClient />
-        </div>
+        {/* Recent Chats */}
+        <RecentConversationsClient />
 
         <SidebarGroup className="mt-auto">
           <SidebarGroupLabel>Settings</SidebarGroupLabel>
@@ -157,7 +168,7 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
       </SidebarContent>
 
       {/* User Footer */}
-      <SidebarFooter className="p-2 border-t border-gray-100/50">
+      <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             {userEmail ? (
@@ -165,14 +176,14 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton
                     size="lg"
-                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground transition-all duration-200"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   >
-                    <Avatar className="h-8 w-8 rounded-lg bg-gray-100 ring-1 ring-gray-200">
-                      <AvatarFallback className="rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 font-semibold">{initial}</AvatarFallback>
+                    <Avatar className="h-8 w-8 rounded-lg">
+                      <AvatarFallback className="rounded-lg">{initial}</AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold text-gray-900">Account</span>
-                      <span className="truncate text-xs text-gray-500">{userEmail}</span>
+                      <span className="truncate font-semibold text-foreground">Account</span>
+                      <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
                     </div>
                     <ChevronsUpDown className="ml-auto size-4" />
                   </SidebarMenuButton>
@@ -190,7 +201,7 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
                       </Avatar>
                       <div className="grid flex-1 text-left text-sm leading-tight">
                         <span className="truncate font-semibold">{userEmail}</span>
-                        <span className="truncate text-xs text-gray-500">{userRole || 'User'}</span>
+                        <span className="truncate text-xs text-muted-foreground">{userRole || 'User'}</span>
                       </div>
                     </div>
                   </DropdownMenuLabel>
@@ -203,7 +214,7 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
                     onClick={async () => {
                       await signOutAction();
                     }}
@@ -221,7 +232,6 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
 }
