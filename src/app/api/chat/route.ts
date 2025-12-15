@@ -277,7 +277,7 @@ export async function POST(req: Request) {
     modelId = allowedModels[0];
   }
 
-  const conversationTitle = extractTitleFromMessages(messages);
+  const conversationTitle = extractTitleFromMessages(messages as UIMessage[]);
   const resolvedAgentTag = effectiveAgentTag || 'unknown';
 
   if (!ensuredConversationId) {

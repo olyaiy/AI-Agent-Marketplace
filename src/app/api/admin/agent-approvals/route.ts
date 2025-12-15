@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth';
-import { approveAgentForPublic, listAgentApprovalQueue, rejectAgentForPublic } from '@/actions/agents';
+import { approveAgentForPublic, listAgentApprovalQueue, rejectAgentForPublic, type PublishStatus } from '@/actions/agents';
 
 async function requireAdmin(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
@@ -24,9 +24,9 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const statusParam = searchParams.get('status');
   const rawStatuses = statusParam ? statusParam.split(',').map((s) => s.trim()).filter(Boolean) : ['pending_review'];
-  const allowedStatuses = ['draft', 'pending_review', 'approved', 'rejected'];
-  const statuses = rawStatuses.filter((s) => allowedStatuses.includes(s));
-  const requests = await listAgentApprovalQueue((statuses.length ? statuses : ['pending_review']) as any);
+  const allowedStatuses: PublishStatus[] = ['draft', 'pending_review', 'approved', 'rejected'];
+  const statuses = rawStatuses.filter((s): s is PublishStatus => allowedStatuses.includes(s as PublishStatus));
+  const requests = await listAgentApprovalQueue(statuses.length ? statuses : ['pending_review']);
 
   return new Response(JSON.stringify({ requests }), {
     status: 200,

@@ -9,7 +9,7 @@ import { and, eq, ilike, inArray, notInArray, or, sql } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 
 type AgentVisibility = 'public' | 'invite_only' | 'private';
-type PublishStatus = 'draft' | 'pending_review' | 'approved' | 'rejected';
+export type PublishStatus = 'draft' | 'pending_review' | 'approved' | 'rejected';
 
 const allowedVisibilities: AgentVisibility[] = ['public', 'invite_only', 'private'];
 
