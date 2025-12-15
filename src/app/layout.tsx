@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { auth } from "@/lib/auth";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { MobileHeader } from "@/components/MobileHeader";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,15 +36,23 @@ export default async function RootLayout({
         <Toaster />
         <SidebarProvider>
           <AppSidebar userEmail={currentUser?.email} userRole={userRole} />
-          <SidebarInset className="min-w-0 w-full">
-            {/* Sidebar Trigger - fixed at top left on mobile, sticky on desktop */}
-            <div className="fixed md:sticky top-2 left-2 z-50">
-              <SidebarTrigger className="bg-background/80 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none shadow-sm md:shadow-none" />
+          <SidebarInset className="min-w-0 w-full flex flex-col">
+            {/* Mobile Header - only visible on mobile */}
+            <div className="md:hidden flex-shrink-0">
+              <MobileHeader
+                userAvatarUrl={currentUser?.image || undefined}
+                userName={currentUser?.name || currentUser?.email || undefined}
+              />
+            </div>
+
+            {/* Desktop Sidebar Trigger - only visible on desktop */}
+            <div className="hidden md:block sticky top-2 left-2 z-50">
+              <SidebarTrigger className="bg-transparent" />
             </div>
 
             {/* Main content */}
-            <div className="flex-1 min-h-0 overflow-y-auto relative overflow-x-none">
-              <div className="md:p-6 max-w-full relative  h-dvh md:h-full  md:pt-4">
+            <div className="flex-1 min-h-0 overflow-y-auto relative overflow-x-hidden">
+              <div className="md:p-6 max-w-full relative h-full md:pt-4">
                 {children}
               </div>
             </div>

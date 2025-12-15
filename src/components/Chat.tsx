@@ -821,7 +821,7 @@ const MessageItem = React.memo(
         <div className="group/message">
           <Message from={message.role}>
             <MessageContent className="p-0 bg-transparent">
-              <div className="flex flex-col gap-2 w-full min-w-[280px] max-w-md">
+              <div className="flex flex-col gap-2 w-full min-w-[280px] max-w-md p-2 md:p-0">
                 <textarea
                   ref={editTextareaRef}
                   value={editText}
@@ -2265,7 +2265,7 @@ const Chat = React.memo(function Chat({
       {hasMessages ? (
         <>
           {/* Scrollable conversation area */}
-          <div className="flex-1 overflow-hidden pb-32 mt-4 md:pb-0">
+          <div className="flex-1 overflow-hidden pb-32 md:pb-0">
             <Conversation
               className="h-full"
               items={conversationItems}

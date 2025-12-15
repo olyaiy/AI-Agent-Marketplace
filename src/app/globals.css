@@ -156,9 +156,13 @@
   animation: shimmer 2s linear infinite;
 }
 
-/* Hide the global sidebar trigger on mobile when chat header handles it */
+/* Hide the global sidebar trigger and mobile header when chat header handles it */
 @media (max-width: 767px) {
   .hide-mobile-sidebar-trigger [data-sidebar="trigger"] {
     display: none !important;
   }
+  .hide-mobile-sidebar-trigger [data-mobile-header] {
+    display: none !important;
+  }
 }
+
