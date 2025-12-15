@@ -46,7 +46,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon, FileTextIcon, SearchIcon } from 'lucide-react';
+import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon, FileTextIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -725,7 +725,7 @@ type MessageItemProps = {
   onRegenerate: (message: BasicUIMessage) => void;
   onCopy: (message: BasicUIMessage) => void;
   onDelete?: (messageId: string) => void;
-  onPreviewImage: (payload: { src: string; alt: string }) => void;
+  onPreviewImages: (payload: { images: Array<{ src: string; alt: string }>; startIndex: number }) => void;
   onStartEdit?: (messageId: string) => void;
   onCancelEdit?: () => void;
   onConfirmEdit?: (messageId: string, newText: string) => void;
@@ -743,7 +743,7 @@ const MessageItem = React.memo(
     onRegenerate,
     onCopy,
     onDelete,
-    onPreviewImage,
+    onPreviewImages,
     onStartEdit,
     onCancelEdit,
     onConfirmEdit,
@@ -865,13 +865,36 @@ const MessageItem = React.memo(
           <MessageContent>
             {(() => {
               const renderedImages = new Set<string>();
-              return message.parts.map((part: BasicUIPart, i: number) => {
+              // Collect all unique images from file parts
+              const allImages: Array<{ src: string; alt: string; partIndex: number }> = [];
+              message.parts.forEach((part: BasicUIPart, i: number) => {
+                if (part.type === 'file') {
+                  const imageSrc = getImageSrcFromPart(part);
+                  if (imageSrc && !renderedImages.has(imageSrc)) {
+                    renderedImages.add(imageSrc);
+                    allImages.push({
+                      src: imageSrc,
+                      alt: part.title || part.filename || 'Generated image',
+                      partIndex: i,
+                    });
+                  }
+                }
+              });
+
+              // Reset for tracking during render
+              renderedImages.clear();
+
+              // Render non-image parts and collect image grid
+              const elements: React.ReactNode[] = [];
+              let imagesRendered = false;
+
+              message.parts.forEach((part: BasicUIPart, i: number) => {
                 switch (part.type) {
                   case 'text':
-                    if (!part.text) return null;
+                    if (!part.text) return;
                     if (isStreamingActive) {
                       const { stable, live } = splitStableMarkdown(part.text);
-                      return (
+                      elements.push(
                         <div key={`${message.id}-${i}`} className="flex flex-col gap-2 text-[15px] md:text-base leading-relaxed">
                           {stable ? (
                             <Response sources={sources}>
@@ -885,15 +908,17 @@ const MessageItem = React.memo(
                           ) : null}
                         </div>
                       );
+                    } else {
+                      elements.push(
+                        <Response key={`${message.id}-${i}`} sources={sources}>
+                          {part.text}
+                        </Response>
+                      );
                     }
-                    return (
-                      <Response key={`${message.id}-${i}`} sources={sources}>
-                        {part.text}
-                      </Response>
-                    );
+                    break;
                   case 'reasoning':
-                    if (part.text === '[REDACTED]') return null;
-                    return (
+                    if (part.text === '[REDACTED]') return;
+                    elements.push(
                       <Reasoning
                         key={`${message.id}-${i}`}
                         className="w-full"
@@ -905,9 +930,10 @@ const MessageItem = React.memo(
                         <ReasoningContent>{part.text}</ReasoningContent>
                       </Reasoning>
                     );
+                    break;
                   case 'tool-invocation': {
                     const toolInvocation = part.toolInvocation;
-                    if (!toolInvocation) return null;
+                    if (!toolInvocation) return;
                     const toolState =
                       part.state || (toolInvocation.result ? 'output-available' : 'input-available');
                     const isToolStreaming =
@@ -916,7 +942,7 @@ const MessageItem = React.memo(
                       ? JSON.stringify(toolInvocation.result, null, 2)
                       : null;
                     const toolDisplayInfo = getToolDisplayInfo(toolInvocation.toolName, toolState, toolInvocation.args, toolInvocation.result);
-                    return (
+                    elements.push(
                       <Tool key={`${message.id}-${i}`} defaultOpen={false}>
                         <ToolHeader
                           type={toolInvocation.toolName}
@@ -939,45 +965,73 @@ const MessageItem = React.memo(
                         </ToolContent>
                       </Tool>
                     );
+                    break;
                   }
                   case 'file': {
-                    const imageSrc = getImageSrcFromPart(part);
-                    if (!imageSrc || renderedImages.has(imageSrc)) return null;
-                    renderedImages.add(imageSrc);
-                    return (
-                      <div
-                        key={`${message.id}-${i}`}
-                        className="group relative overflow-hidden rounded-lg border bg-background"
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onPreviewImage({
-                              src: imageSrc,
-                              alt: part.title || part.filename || 'Generated image',
-                            })
-                          }
-                          className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
+                    // Render image grid once when we encounter the first file part
+                    if (!imagesRendered && allImages.length > 0) {
+                      imagesRendered = true;
+                      const imageData = allImages.map((img) => ({ src: img.src, alt: img.alt }));
+                      
+                      // Determine grid layout based on image count
+                      const gridClass = allImages.length === 1
+                        ? 'grid-cols-1'
+                        : allImages.length === 2
+                          ? 'grid-cols-2'
+                          : allImages.length === 3
+                            ? 'grid-cols-2 md:grid-cols-3'
+                            : 'grid-cols-2';
+
+                      elements.push(
+                        <div
+                          key={`${message.id}-images`}
+                          className={`grid gap-2 ${gridClass}`}
                         >
-                          {/* Generated images can be arbitrary URLs or data URIs, so we keep a plain img tag. */}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={imageSrc}
-                            alt={part.title || part.filename || 'Generated image'}
-                            className="h-auto w-full max-h-[512px] object-contain transition-transform duration-150 group-hover:scale-[1.01]"
-                            loading="lazy"
-                          />
-                        </button>
-                        <a
-                          href={imageSrc}
-                          download
-                          className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border bg-background/80 p-1.5 text-foreground shadow-sm opacity-0 transition-opacity duration-150 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
-                          aria-label="Download image"
-                        >
-                          <DownloadIcon className="size-4" />
-                        </a>
-                      </div>
-                    );
+                          {allImages.map((img, imgIndex) => (
+                            <div
+                              key={`${message.id}-img-${imgIndex}`}
+                              className="group relative overflow-hidden rounded-lg border bg-background"
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onPreviewImages({
+                                    images: imageData,
+                                    startIndex: imgIndex,
+                                  })
+                                }
+                                className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={img.src}
+                                  alt={img.alt}
+                                  className={cn(
+                                    'w-full object-cover transition-transform duration-150 group-hover:scale-[1.02]',
+                                    allImages.length === 1 ? 'max-h-[512px] object-contain' : 'aspect-square'
+                                  )}
+                                  loading="lazy"
+                                />
+                              </button>
+                              <a
+                                href={img.src}
+                                download
+                                className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border bg-background/80 p-1.5 text-foreground shadow-sm opacity-0 transition-opacity duration-150 hover:bg-background focus-visible:opacity-100 group-hover:opacity-100"
+                                aria-label="Download image"
+                              >
+                                <DownloadIcon className="size-4" />
+                              </a>
+                              {allImages.length > 1 && (
+                                <div className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 text-xs font-medium text-foreground">
+                                  {imgIndex + 1}/{allImages.length}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    break;
                   }
                   default: {
                     const isToolPart = typeof part.type === 'string' && part.type.startsWith('tool-');
@@ -989,8 +1043,9 @@ const MessageItem = React.memo(
                           ? 'output-available'
                           : part.errorText
                             ? 'output-error'
-                            : 'input-available'); const isToolStreaming =
-                              toolState === 'input-streaming' || toolState === 'input-available';
+                            : 'input-available');
+                      const isToolStreaming =
+                        toolState === 'input-streaming' || toolState === 'input-available';
                       const toolInput =
                         part.input ?? part.rawInput ?? part.args ?? null;
                       const toolOutput = part.output;
@@ -1000,7 +1055,7 @@ const MessageItem = React.memo(
                           ? JSON.stringify(toolOutput, null, 2)
                           : toolOutput;
                       const toolDisplayInfo = getToolDisplayInfo(toolName, toolState as ToolUIPart['state'], toolInput, toolOutput);
-                      return (
+                      elements.push(
                         <Tool
                           key={`${message.id}-${i}`}
                           defaultOpen={false}
@@ -1029,10 +1084,12 @@ const MessageItem = React.memo(
                         </Tool>
                       );
                     }
-                    return null;
+                    break;
                   }
                 }
               });
+
+              return elements;
             })()}
 
             {sources.length > 0 && (
@@ -1130,7 +1187,7 @@ const Chat = React.memo(function Chat({
   const copyTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastAssistantMessageRef = useRef<UIMessage | null>(null);
-  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
+  const [previewImages, setPreviewImages] = useState<{ images: Array<{ src: string; alt: string }>; currentIndex: number } | null>(null);
   const [supportsReasoning, setSupportsReasoning] = useState<boolean>(false);
   const [reasoningOn, setReasoningOn] = useLocalStorage<boolean>('chat_reasoning_on', false);
   const [webSearchOn, setWebSearchOn] = useLocalStorage<boolean>('chat_web_search_on', false);
@@ -1723,9 +1780,25 @@ const Chat = React.memo(function Chat({
     setReasoningOn(next);
   }, [reasoningOn, supportsReasoning, setReasoningOn]);
 
-  const handlePreviewImage = useCallback((payload: { src: string; alt: string }) => {
-    setPreviewImage(payload);
-  }, [setPreviewImage]);
+  const handlePreviewImages = useCallback((payload: { images: Array<{ src: string; alt: string }>; startIndex: number }) => {
+    setPreviewImages({ images: payload.images, currentIndex: payload.startIndex });
+  }, []);
+
+  const handlePreviewPrev = useCallback(() => {
+    setPreviewImages((prev) => {
+      if (!prev || prev.images.length <= 1) return prev;
+      const newIndex = prev.currentIndex === 0 ? prev.images.length - 1 : prev.currentIndex - 1;
+      return { ...prev, currentIndex: newIndex };
+    });
+  }, []);
+
+  const handlePreviewNext = useCallback(() => {
+    setPreviewImages((prev) => {
+      if (!prev || prev.images.length <= 1) return prev;
+      const newIndex = prev.currentIndex === prev.images.length - 1 ? 0 : prev.currentIndex + 1;
+      return { ...prev, currentIndex: newIndex };
+    });
+  }, []);
 
   const handleSignIn = () => {
     // Save draft before redirecting
@@ -2050,7 +2123,7 @@ const Chat = React.memo(function Chat({
             onRegenerate={handleRegenerateMessage}
             onCopy={handleCopyMessage}
             onDelete={isAuthenticated ? handleDeleteMessage : undefined}
-            onPreviewImage={handlePreviewImage}
+            onPreviewImages={handlePreviewImages}
             onStartEdit={isAuthenticated ? handleStartEdit : undefined}
             onCancelEdit={handleCancelEdit}
             onConfirmEdit={handleConfirmEdit}
@@ -2064,7 +2137,7 @@ const Chat = React.memo(function Chat({
       handleConfirmEdit,
       handleCopyMessage,
       handleDeleteMessage,
-      handlePreviewImage,
+      handlePreviewImages,
       handleRegenerateMessage,
       handleStartEdit,
       isAuthenticated,
@@ -2101,28 +2174,80 @@ const Chat = React.memo(function Chat({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) setPreviewImage(null); }}>
+      <Dialog open={!!previewImages} onOpenChange={(open) => { if (!open) setPreviewImages(null); }}>
         <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
-            <DialogTitle>Image preview</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Image preview</span>
+              {previewImages && previewImages.images.length > 1 && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  {previewImages.currentIndex + 1} / {previewImages.images.length}
+                </span>
+              )}
+            </DialogTitle>
           </DialogHeader>
-          {previewImage && (
+          {previewImages && (
             <div className="relative">
-              {/* Generated images can be arbitrary URLs or data URIs, so we keep a plain img tag. */}
+              {/* Navigation arrows */}
+              {previewImages.images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePreviewPrev}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-10 inline-flex items-center justify-center rounded-full border bg-background/90 p-2 text-foreground shadow-sm hover:bg-background transition-colors"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeftIcon className="size-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePreviewNext}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 inline-flex items-center justify-center rounded-full border bg-background/90 p-2 text-foreground shadow-sm hover:bg-background transition-colors"
+                    aria-label="Next image"
+                  >
+                    <ChevronRightIcon className="size-5" />
+                  </button>
+                </>
+              )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={previewImage.src}
-                alt={previewImage.alt}
+                src={previewImages.images[previewImages.currentIndex]?.src}
+                alt={previewImages.images[previewImages.currentIndex]?.alt}
                 className="mx-auto max-h-[70vh] w-full object-contain rounded-lg bg-muted"
               />
               <a
-                href={previewImage.src}
+                href={previewImages.images[previewImages.currentIndex]?.src}
                 download
                 className="absolute right-3 top-3 inline-flex items-center justify-center rounded-full border bg-background/90 p-2 text-foreground shadow-sm hover:bg-background"
                 aria-label="Download full image"
               >
                 <DownloadIcon className="size-4" />
               </a>
+              {/* Thumbnail strip for multiple images */}
+              {previewImages.images.length > 1 && (
+                <div className="flex justify-center gap-2 mt-4">
+                  {previewImages.images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setPreviewImages((prev) => prev ? { ...prev, currentIndex: idx } : null)}
+                      className={cn(
+                        'relative w-16 h-16 rounded-md overflow-hidden border-2 transition-all',
+                        idx === previewImages.currentIndex
+                          ? 'border-primary ring-2 ring-primary/20'
+                          : 'border-transparent opacity-60 hover:opacity-100'
+                      )}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img.src}
+                        alt={img.alt}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
