@@ -5,7 +5,8 @@
       "Bash(npx ai-elements@latest add:*)",
       "Bash(pnpm dlx:*)",
       "Bash(mkdir:*)",
-      "Bash(gh repo create:*)"
+      "Bash(gh repo create:*)",
+      "Bash(git revert:*)"
     ],
     "deny": [],
     "ask": []
