@@ -29,7 +29,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
-  useSidebar,
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
@@ -47,9 +46,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
-  const { state } = useSidebar();
   const pathname = usePathname();
-  const isExpanded = state === "expanded";
   const isAdmin = userRole === 'admin';
   const initial = userEmail ? userEmail[0].toUpperCase() : "U";
 

@@ -5,7 +5,6 @@ import {
   ChainOfThoughtHeader,
 } from './chain-of-thought';
 import { cn } from '@/lib/utils';
-import { BrainIcon, ChevronDownIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { createContext, memo, useContext, useEffect, useState } from 'react';
 import { Response } from './response';
@@ -109,7 +108,7 @@ export type ReasoningTriggerProps = ComponentProps<typeof ChainOfThoughtHeader>;
 
 export const ReasoningTrigger = memo(
   ({ className, children, ...props }: ReasoningTriggerProps) => {
-    const { isStreaming, isOpen, duration } = useReasoning();
+    const { isStreaming, duration } = useReasoning();
 
     return (
       <ChainOfThoughtHeader

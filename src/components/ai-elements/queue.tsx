@@ -9,6 +9,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon, PaperclipIcon } from "lucide-react";
+import Image from "next/image";
 import type { ComponentProps } from "react";
 
 export type QueueMessagePart = {
@@ -145,14 +146,17 @@ export const QueueItemAttachment = ({
   <div className={cn("mt-1 flex flex-wrap gap-2", className)} {...props} />
 );
 
-export type QueueItemImageProps = ComponentProps<"img">;
+export type QueueItemImageProps = ComponentProps<typeof Image> & {
+  alt?: string;
+};
 
 export const QueueItemImage = ({
   className,
+  alt = "",
   ...props
 }: QueueItemImageProps) => (
-  <img
-    alt=""
+  <Image
+    alt={alt}
     className={cn("h-8 w-8 rounded border object-cover", className)}
     height={32}
     width={32}

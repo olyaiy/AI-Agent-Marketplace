@@ -66,13 +66,6 @@ import {
   SourcesContent,
   Source,
 } from '@/components/ai-elements/source';
-import {
-  Tool,
-  ToolContent,
-  ToolHeader,
-  ToolInput,
-  ToolOutput,
-} from '@/components/ai-elements/tool';
 
 interface ChatProps {
   className?: string;
