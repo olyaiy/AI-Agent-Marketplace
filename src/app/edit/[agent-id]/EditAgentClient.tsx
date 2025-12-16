@@ -213,66 +213,79 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <label className="text-lg font-semibold text-foreground">System Prompt</label>
-                  <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                    Define how your agent behaves, responds, and interacts. This is the core personality and instruction set.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-1 bg-muted rounded-md text-xs text-muted-foreground font-medium">Markdown</span>
-                </div>
-              </div>
-
+              {/* System Prompt - Step 3 */}
               <div className="relative group">
-                {/* Editor container with visible borders */}
-                <div className="rounded-xl border-2 border-border bg-card overflow-hidden transition-all duration-200 group-focus-within:border-primary/50 group-focus-within:ring-4 group-focus-within:ring-primary/10 group-hover:border-border/80 shadow-sm">
-                  {/* Header bar */}
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/50 border-b border-border">
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-red-400/80"></div>
-                        <div className="w-3 h-3 rounded-full bg-yellow-400/80"></div>
-                        <div className="w-3 h-3 rounded-full bg-green-400/80"></div>
-                      </div>
-                      <span className="text-xs text-muted-foreground font-mono ml-2">system-prompt.md</span>
+                {/* Timeline node */}
+                <div className={`absolute -left-10 top-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${promptStats.chars > 0
+                    ? 'bg-primary shadow-lg shadow-primary/30 ring-4 ring-primary/10'
+                    : 'bg-muted border-2 border-border group-hover:border-primary/50 group-hover:bg-primary/5'
+                  }`}>
+                  {promptStats.chars > 0 ? (
+                    <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-base font-semibold text-foreground">System Prompt</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${promptStats.chars > 0 ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-primary/10 text-primary'
+                        }`}>
+                        {promptStats.chars > 0 ? `${promptStats.lines} lines` : 'Required'}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">Markdown</span>
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono">Core Instruction</span>
+                    <p className="text-sm text-muted-foreground mt-1">Define how your agent behaves, responds, and interacts</p>
                   </div>
 
-                  {/* Textarea */}
-                  <textarea
-                    name="systemPrompt"
-                    form={formId}
-                    defaultValue={initialSystemPrompt}
-                    onInput={(e) => {
-                      const value = e.currentTarget.value;
-                      onContextChange && onContextChange({ systemPrompt: value });
-                      setPromptStats({ chars: value.length, lines: value.split('\n').length });
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Tab') {
-                        e.preventDefault();
-                        const target = e.currentTarget;
-                        const start = target.selectionStart;
-                        const end = target.selectionEnd;
-                        const value = target.value;
-                        // Insert 2 spaces for indentation
-                        target.value = value.substring(0, start) + '  ' + value.substring(end);
-                        // Move cursor after the inserted spaces
-                        target.selectionStart = target.selectionEnd = start + 2;
-                        // Trigger the onInput handler manually
-                        const newValue = target.value;
-                        onContextChange && onContextChange({ systemPrompt: newValue });
-                        setPromptStats({ chars: newValue.length, lines: newValue.split('\n').length });
-                      }
-                    }}
-                    rows={14}
-                    placeholder="You are a helpful assistant specialized in...
+                  {/* Editor container */}
+                  <div className="rounded-xl border-2 border-border bg-card overflow-hidden transition-all duration-200 group-focus-within:border-primary/50 group-focus-within:ring-4 group-focus-within:ring-primary/10 shadow-sm">
+                    {/* Header bar */}
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-muted/50 border-b border-border">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-full bg-red-400/80"></div>
+                          <div className="w-3 h-3 rounded-full bg-yellow-400/80"></div>
+                          <div className="w-3 h-3 rounded-full bg-green-400/80"></div>
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono ml-2">system-prompt.md</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground font-mono">{promptStats.chars.toLocaleString()} chars</span>
+                    </div>
+
+                    {/* Textarea */}
+                    <textarea
+                      name="systemPrompt"
+                      form={formId}
+                      defaultValue={initialSystemPrompt}
+                      onInput={(e) => {
+                        const value = e.currentTarget.value;
+                        onContextChange && onContextChange({ systemPrompt: value });
+                        setPromptStats({ chars: value.length, lines: value.split('\n').length });
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Tab') {
+                          e.preventDefault();
+                          const target = e.currentTarget;
+                          const start = target.selectionStart;
+                          const end = target.selectionEnd;
+                          const value = target.value;
+                          target.value = value.substring(0, start) + '  ' + value.substring(end);
+                          target.selectionStart = target.selectionEnd = start + 2;
+                          const newValue = target.value;
+                          onContextChange && onContextChange({ systemPrompt: newValue });
+                          setPromptStats({ chars: newValue.length, lines: newValue.split('\n').length });
+                        }
+                      }}
+                      rows={14}
+                      placeholder="You are a helpful assistant specialized in...
 
 # Example structure:
 
@@ -286,18 +299,18 @@ Describe the communication style (friendly, professional, etc.)
 - List specific behaviors
 - Include any constraints
 - Define response format preferences"
-                    className="w-full bg-card border-0 p-4 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none text-sm leading-relaxed font-mono overflow-y-auto scrollbar-slick"
-                    style={{ minHeight: '320px', maxHeight: '500px' }}
-                  />
+                      className="w-full bg-card border-0 p-4 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none text-sm leading-relaxed font-mono overflow-y-auto scrollbar-slick"
+                      style={{ minHeight: '320px', maxHeight: '500px' }}
+                    />
 
-                  {/* Footer with character count */}
-                  <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">Tab</kbd> for indentation</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
-                      <span>{promptStats.lines} lines</span>
-                      <span>{promptStats.chars.toLocaleString()} chars</span>
+                    {/* Footer */}
+                    <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground">Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">Tab</kbd> for indentation</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
+                        <span>{promptStats.lines} lines</span>
+                      </div>
                     </div>
                   </div>
                 </div>
