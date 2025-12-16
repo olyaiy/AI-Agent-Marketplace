@@ -227,15 +227,9 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
       {/* Header with gradient */}
       <div className="p-4 border-b border-border/50 bg-gradient-to-b from-[#BE6254]/5 dark:from-[#BE6254]/10 to-transparent">
         <div className="flex items-start gap-3">
-          {model.providerSlug ? (
-            <div className="ring-2 ring-[#BE6254]/20 dark:ring-[#BE6254]/30 rounded-xl">
-              <ProviderAvatar providerSlug={model.providerSlug} size={44} />
-            </div>
-          ) : (
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#BE6254] to-[#a54e42] flex items-center justify-center shadow-lg shadow-[#BE6254]/20">
-              <Sparkles className="size-5 text-white" />
-            </div>
-          )}
+          <div className="ring-2 ring-[#BE6254]/20 dark:ring-[#BE6254]/30 rounded-xl overflow-hidden">
+            <ProviderAvatar providerSlug={model.providerSlug || model.id.split('/')[0]} size={44} />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold truncate text-foreground">
@@ -818,13 +812,8 @@ const ModelListItem = React.memo(function ModelListItem({
         isHovered && "bg-accent"
       )}
     >
-      {provider ? (
-        <ProviderAvatar providerSlug={provider} size={28} />
-      ) : (
-        <div className="size-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-          <Sparkles className="size-3.5 text-white" />
-        </div>
-      )}
+      {/* ProviderAvatar now handles fallback with letter/icon */}
+      <ProviderAvatar providerSlug={provider || model.id.split('/')[0]} size={28} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <ModelSelectorName className="text-[13px] font-medium truncate">
           {model.displayName}
