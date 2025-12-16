@@ -130,22 +130,41 @@ export const EditAgentClient = React.memo(function EditAgentClient({
             </div>
 
             {/* Timeline container */}
-            <div className="relative pl-8 space-y-8">
-              {/* Vertical accent line */}
-              <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-border rounded-full" />
+            <div className="relative pl-10 space-y-10">
+              {/* Vertical connector line */}
+              <div className="absolute left-[15px] top-4 bottom-4 w-px bg-border" />
+              {/* Animated progress overlay - fills based on selection */}
+              <div
+                className="absolute left-[15px] top-4 w-px bg-gradient-to-b from-primary to-primary/50 transition-all duration-500 ease-out rounded-full"
+                style={{ height: selectedModel ? '100%' : '0%' }}
+              />
 
               {/* Primary Model */}
-              <div className="relative">
-                {/* Timeline dot */}
-                <div className="absolute -left-8 top-0.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
-                  <span className="text-[10px] font-bold text-primary-foreground">1</span>
+              <div className="relative group">
+                {/* Timeline node */}
+                <div className={`absolute -left-10 top-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${selectedModel
+                  ? 'bg-primary shadow-lg shadow-primary/30 ring-4 ring-primary/10'
+                  : 'bg-muted border-2 border-border group-hover:border-primary/50 group-hover:bg-primary/5'
+                  }`}>
+                  {selectedModel ? (
+                    <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-base font-semibold text-foreground">Primary Model</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">Required</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${selectedModel ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-primary/10 text-primary'
+                        }`}>
+                        {selectedModel ? 'Selected' : 'Required'}
+                      </span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">The main AI brain that powers all conversations</p>
                   </div>
@@ -160,17 +179,29 @@ export const EditAgentClient = React.memo(function EditAgentClient({
               </div>
 
               {/* Secondary Models */}
-              <div className="relative">
-                {/* Timeline dot */}
-                <div className="absolute -left-8 top-0.5 w-6 h-6 rounded-full bg-muted border-2 border-border flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-muted-foreground">2</span>
+              <div className="relative group">
+                {/* Timeline node */}
+                <div className={`absolute -left-10 top-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${secondaryModels.length > 0
+                  ? 'bg-primary/80 shadow-md shadow-primary/20 ring-4 ring-primary/10'
+                  : 'bg-muted border-2 border-border group-hover:border-muted-foreground/30'
+                  }`}>
+                  {secondaryModels.length > 0 ? (
+                    <span className="text-xs font-bold text-primary-foreground">+{secondaryModels.length}</span>
+                  ) : (
+                    <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-base font-semibold text-foreground">Secondary Models</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">Optional</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${secondaryModels.length > 0 ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'
+                        }`}>
+                        {secondaryModels.length > 0 ? `${secondaryModels.length} added` : 'Optional'}
+                      </span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">Add alternative models for users to switch between</p>
                   </div>
@@ -275,32 +306,92 @@ Describe the communication style (friendly, professional, etc.)
           </div>
         ) : activeTab === "details" ? (
           <div className="space-y-8">
-            <div className="grid gap-6">
-              <div className="space-y-3">
-                <label className="block text-base font-semibold text-foreground">Tagline</label>
+            {/* Header */}
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-foreground">Agent Details</h3>
+              <p className="text-sm text-muted-foreground">Information displayed on your agent&apos;s public profile.</p>
+            </div>
+
+            {/* Tagline Section */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                  </svg>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-foreground">Tagline</label>
+                  <p className="text-xs text-muted-foreground">A short, catchy phrase shown in lists</p>
+                </div>
+              </div>
+              <div className="relative">
                 <input
                   name="tagline"
                   form={formId}
                   defaultValue={initialTagline}
                   onInput={(e) => onContextChange && onContextChange({ tagline: e.currentTarget.value })}
                   placeholder="e.g., Your personal coding assistant"
-                  className="w-full bg-muted/30 border-0 rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20 focus:bg-muted/50 transition-all"
+                  maxLength={100}
+                  className="w-full bg-card border-2 border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all"
                 />
-                <p className="text-sm text-muted-foreground">A short, catchy phrase shown in lists.</p>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">
+                  <span className="opacity-50">max 100</span>
+                </div>
               </div>
+            </div>
 
-              <div className="space-y-3">
-                <label className="block text-base font-semibold text-foreground">Description</label>
+            {/* Divider */}
+            <div className="h-px bg-border/50" />
+
+            {/* Description Section */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-foreground">Description</label>
+                  <p className="text-xs text-muted-foreground">Detailed explanation shown on your agent&apos;s profile page</p>
+                </div>
+              </div>
+              <div className="relative group">
                 <textarea
                   name="description"
                   form={formId}
                   defaultValue={initialDescription}
                   onInput={(e) => onContextChange && onContextChange({ description: e.currentTarget.value })}
                   rows={8}
-                  placeholder="Describe your agent&apos;s capabilities, use cases, and what makes it special..."
-                  className="w-full bg-muted/30 border-0 rounded-xl p-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20 focus:bg-muted/50 transition-all resize-none"
+                  placeholder="Describe your agent's capabilities, use cases, and what makes it special...
+
+For example:
+• What problems does it solve?
+• Who is it for?
+• What makes it unique?"
+                  className="w-full bg-card border-2 border-border rounded-xl p-4 text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all resize-none scrollbar-slick"
+                  style={{ minHeight: '200px' }}
                 />
-                <p className="text-sm text-muted-foreground md:w-3/4">Detailed explanation of what this agent does. This appears on the agent&apos;s profile page.</p>
+              </div>
+            </div>
+
+            {/* Tips Section */}
+            <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-foreground mb-1">Tips for a great profile</h4>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>• Keep your tagline concise and memorable</li>
+                    <li>• Highlight your agent&apos;s unique capabilities in the description</li>
+                    <li>• Use clear, simple language to explain what your agent does</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
