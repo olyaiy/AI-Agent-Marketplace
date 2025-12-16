@@ -29,12 +29,12 @@ export default async function Home({
   const pageParam =
     typeof resolvedSearchParams?.page === 'string' ? Number(resolvedSearchParams.page) : 1;
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
-  
+
   // Get current user session
   const headerList = await headers();
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
   const userId = session?.user?.id;
-  
+
   // Fetch user's agents if logged in
   const yourAgentsRaw = userId ? await getAgentsByCreator(userId) : [];
   const yourAgents = yourAgentsRaw.map((agent) => {
@@ -54,7 +54,7 @@ export default async function Home({
     pageSize: 12,
     excludeTags: curatedTags,
   });
-  
+
   return (
     // Main container with minimum full screen height and horizontal padding
     <main className="min-h-screen px-4 sm:px-2 md:px-4">
@@ -64,23 +64,23 @@ export default async function Home({
         <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex flex-col gap-2">
             {/* Main page title - hidden on mobile */}
-            <h1 className="hidden md:block text-3xl font-semibold text-gray-900">Agents</h1>
+            <h1 className="hidden md:block text-3xl font-semibold text-foreground">Agents</h1>
             {/* Subtitle describing the page purpose */}
-            <p className="text-gray-600">Discover and create your AI agents</p>
+            <p className="text-muted-foreground">Discover and create your AI agents</p>
           </div>
           {/* Search bar - full width on mobile, fixed width on desktop */}
           <AgentSearch className="w-full md:w-80" />
         </div>
-        
+
         {/* Filter Badges Section */}
         <FilterBadges />
-        
+
         {/* Hero Cards Section */}
         <HeroCards />
-        
+
         {/* Your Agents Carousel - only show if user has agents */}
         <YourAgentsCarousel agents={yourAgents} />
-        
+
         {/* Curated rows configured by admin */}
         <CuratedRows rows={curatedRows} currentUserId={userId} />
 
@@ -115,13 +115,13 @@ function CuratedRows({ rows, currentUserId }: { rows: Awaited<ReturnType<typeof 
                 {row.title}
               </Badge>
               {typeof row.maxItems === 'number' && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-muted-foreground">
                   Showing up to {row.maxItems} agents
                 </span>
               )}
             </div>
             {row.description && (
-              <p className="text-sm text-gray-600 mt-1">{row.description}</p>
+              <p className="text-sm text-muted-foreground mt-1">{row.description}</p>
             )}
           </div>
           <AgentGrid agents={row.agents} currentUserId={currentUserId} />
@@ -163,7 +163,7 @@ function PaginatedAgentsList({
         <Badge variant="secondary" className="text-sm font-medium">
           More Agents
         </Badge>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           {hasResults ? `Page ${page} of ${Math.max(totalPages, 1)}` : 'No agents found'}
         </p>
       </div>
@@ -206,17 +206,17 @@ function Pagination({
       <Link
         href={createHref(prevPage)}
         aria-disabled={page === 1}
-        className={`text-sm font-medium ${page === 1 ? 'text-gray-400 pointer-events-none' : 'text-blue-600 hover:text-blue-700'}`}
+        className={`text-sm font-medium ${page === 1 ? 'text-muted-foreground/50 pointer-events-none' : 'text-primary hover:text-primary/80'}`}
       >
         Previous
       </Link>
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-muted-foreground">
         Showing {start} - {end} of {total}
       </div>
       <Link
         href={createHref(nextPage)}
         aria-disabled={page === totalPages}
-        className={`text-sm font-medium ${page === totalPages ? 'text-gray-400 pointer-events-none' : 'text-blue-600 hover:text-blue-700'}`}
+        className={`text-sm font-medium ${page === totalPages ? 'text-muted-foreground/50 pointer-events-none' : 'text-primary hover:text-primary/80'}`}
       >
         Next
       </Link>

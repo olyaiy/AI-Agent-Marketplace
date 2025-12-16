@@ -185,7 +185,7 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
 
         {/* Drag Handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-300" />
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
         </div>
 
         {/* Compact Header - Horizontal Layout */}
@@ -203,8 +203,8 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                   className="relative rounded-2xl shadow-sm ring-1 ring-white"
                 />
               ) : (
-                <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 shadow-sm ring-1 ring-white flex items-center justify-center">
-                  <span className="text-xl font-semibold text-gray-400">{name.charAt(0)}</span>
+                <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-muted to-muted/80 shadow-sm ring-1 ring-border/20 flex items-center justify-center">
+                  <span className="text-xl font-semibold text-muted-foreground">{name.charAt(0)}</span>
                 </div>
               )}
             </div>
@@ -213,8 +213,8 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
             <div className="flex-1 min-w-0 pt-0.5">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-gray-900 truncate">{name}</h2>
-                  <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{effectiveTagline}</p>
+                  <h2 className="text-base font-semibold text-foreground truncate">{name}</h2>
+                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{effectiveTagline}</p>
                 </div>
 
                 {/* Action buttons - better visual hierarchy */}
@@ -232,7 +232,7 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                         dispatchAgentNewChat(agentTag);
                         setOpen(false);
                       }}
-                      className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-gradient-to-r from-gray-900 to-gray-800 text-white text-sm font-medium shadow-sm hover:from-gray-800 hover:to-gray-700 active:scale-[0.98] transition-all"
+                      className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
                     >
                       <Plus className="w-4 h-4" />
                       <span>New</span>
@@ -242,7 +242,7 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                     {canEdit && (
                       <Link
                         href={`/edit/${agentId}`}
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 active:scale-[0.98] transition-all"
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 active:scale-[0.98] transition-all"
                         aria-label="Edit agent"
                       >
                         <Pencil className="w-4 h-4" />
@@ -256,7 +256,7 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
               {(agentTag || visibilityLabel || approvalLabel) && (
                 <div className="flex items-center gap-1.5 flex-wrap mt-2">
                   {agentTag && (
-                    <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-2 py-0.5 rounded-md">{agentTag}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded-md border border-border">{agentTag}</span>
                   )}
                   {visibilityLabel && (
                     <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wide text-[9px] font-medium">
@@ -279,7 +279,7 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                           setCopied(false);
                         }
                       }}
-                      className="text-[10px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                      className="text-[10px] text-sidebar-primary hover:text-sidebar-primary/80 font-medium transition-colors"
                     >
                       {copied ? '✓ Copied' : 'Copy invite'}
                     </button>
@@ -293,34 +293,34 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
         {/* Scrollable content */}
         <div className="overflow-y-auto px-4 pb-8 max-h-[calc(85vh-120px)]">
           {/* Divider */}
-          <div className="border-t border-gray-100 mb-4" />
+          <div className="border-t border-border mb-4" />
 
           {/* Description Section - First, more prominent */}
           <div className="mb-4">
-            <p className="text-[13px] text-gray-600 leading-relaxed">
+            <p className="text-[13px] text-muted-foreground leading-relaxed">
               {effectiveDescription}
             </p>
             {publishStatus === 'rejected' && publishReviewNotes && (
-              <div className="flex items-start gap-2 mt-3 p-2.5 bg-red-50 rounded-lg border border-red-100">
-                <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex items-start gap-2 mt-3 p-2.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/50">
+                <svg className="w-4 h-4 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <p className="text-xs text-red-700">{publishReviewNotes}</p>
+                <p className="text-xs text-red-700 dark:text-red-300">{publishReviewNotes}</p>
               </div>
             )}
           </div>
 
           {/* Model Selection - Compact inline style */}
           {availableModels.length > 0 && (
-            <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <div className="bg-muted/30 rounded-xl p-3 border border-border/50">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-50 to-purple-100 flex items-center justify-center">
-                    <svg className="w-3.5 h-3.5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500/10 to-purple-500/10 flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <span className="text-xs font-medium text-gray-500">Model</span>
+                  <span className="text-xs font-medium text-muted-foreground">Model</span>
                 </div>
 
                 {availableModels.length === 1 ? (
@@ -335,7 +335,7 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
                     value={selectedValue}
                     onValueChange={(val) => applyModelSelection(val)}
                   >
-                    <SelectTrigger className="h-9 flex-1 min-w-0 rounded-lg border-gray-200 bg-white hover:bg-gray-50 transition-colors text-sm">
+                    <SelectTrigger className="h-9 flex-1 min-w-0 rounded-lg border-border bg-background hover:bg-muted transition-colors text-sm">
                       <SelectValue asChild>
                         <ModelLabel
                           label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}

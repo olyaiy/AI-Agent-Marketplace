@@ -121,9 +121,9 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Create Agent" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20 data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-950/20" isActive={isActive("/create")}>
+                  <SidebarMenuButton asChild tooltip="Create Agent" className="text-sidebar-primary hover:text-sidebar-primary hover:bg-sidebar-primary/10 data-[active=true]:bg-sidebar-primary/10" isActive={isActive("/create")}>
                     <Link href="/create">
-                      <Plus className="text-blue-600" />
+                      <Plus className="text-sidebar-primary" />
                       <span>Create Agent</span>
                     </Link>
                   </SidebarMenuButton>

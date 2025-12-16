@@ -27,14 +27,14 @@ export function YourAgentsCarousel({ agents }: YourAgentsCarouselProps) {
         <Badge variant="secondary" className="text-sm font-medium">
           Your Agents
         </Badge>
-        <Link 
-          href="/create" 
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+        <Link
+          href="/create"
+          className="text-sm text-sidebar-primary hover:text-sidebar-primary/80 font-medium"
         >
           Create New
         </Link>
       </div>
-      
+
       {/* Horizontally scrollable container */}
       <div className="overflow-x-auto -mx-4 px-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="flex gap-4 pb-2" style={{ minWidth: 'min-content' }}>
@@ -67,10 +67,10 @@ function AgentCardSmall({ tag, name, avatar, tagline, visibility }: AgentCardSma
 
   return (
     <div className="relative group flex-shrink-0" style={{ width: '220px' }}>
-      <Card className="h-36 overflow-hidden hover:shadow-md transition-all duration-200 hover:border-gray-900 bg-white p-3 relative">
+      <Card className="h-36 overflow-hidden hover:shadow-md transition-all duration-200 hover:border-foreground/20 bg-card p-3 relative">
         <div className="flex flex-col h-full justify-between">
           <div className="space-y-1">
-            <h3 className="font-semibold text-gray-900 text-sm truncate">
+            <h3 className="font-semibold text-card-foreground text-sm truncate">
               {name}
             </h3>
             {visibility && visibility !== 'public' && (
@@ -79,18 +79,18 @@ function AgentCardSmall({ tag, name, avatar, tagline, visibility }: AgentCardSma
               </Badge>
             )}
             {tagline && (
-              <p className="text-xs text-gray-600 line-clamp-2 leading-tight">
+              <p className="text-xs text-muted-foreground line-clamp-2 leading-tight">
                 {tagline}
               </p>
             )}
           </div>
           <div className="mt-auto">
-            <p className="text-xs text-gray-500 font-mono truncate">
+            <p className="text-xs text-muted-foreground font-mono truncate">
               {tag}
             </p>
           </div>
         </div>
-        
+
         {avatar && (
           <Image
             src={`/avatars/${avatar}`}
@@ -109,13 +109,13 @@ function AgentCardSmall({ tag, name, avatar, tagline, visibility }: AgentCardSma
       </Link>
 
       {/* Edit button in top right */}
-      <Link 
+      <Link
         href={`/edit/${agentId}`}
-        className="absolute top-2 right-2 z-10 p-1.5 text-gray-400 hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100"
+        className="absolute top-2 right-2 z-10 p-1.5 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="m18.5 2.5 a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="m18.5 2.5 a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
       </Link>
     </div>

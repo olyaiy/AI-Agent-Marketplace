@@ -20,8 +20,8 @@ export function AgentGrid({ agents, currentUserId }: AgentGridProps) {
   if (!agents.length) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 mb-4">No agents yet.</p>
-        <p className="text-sm text-gray-400">Create your first agent to get started.</p>
+        <p className="text-muted-foreground mb-4">No agents yet.</p>
+        <p className="text-sm text-muted-foreground/70">Create your first agent to get started.</p>
       </div>
     );
   }

@@ -168,7 +168,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
 
   return (
     <div className={cn(
-      "w-full bg-white/80 backdrop-blur-sm rounded-2xl border border-white/20 shadow-sm ring-1 ring-gray-200/50 transition-all duration-500",
+      "w-full bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 shadow-sm transition-all duration-500",
       variant === 'sidebar' ? 'h-full flex flex-col' : '',
     )}>
 
@@ -187,10 +187,10 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
                   alt="Agent Avatar"
                   width={64}
                   height={64}
-                  className="relative rounded-2xl bg-gray-50 object-cover ring-1 ring-gray-100/50"
+                  className="relative rounded-2xl bg-muted object-cover ring-1 ring-border/50"
                 />
               ) : (
-                <div className="relative w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center text-xl font-bold text-gray-400 select-none ring-1 ring-gray-100/50">
+                <div className="relative w-16 h-16 rounded-2xl bg-muted flex items-center justify-center text-xl font-bold text-muted-foreground select-none ring-1 ring-border/50">
                   {name.charAt(0)}
                 </div>
               )}
@@ -206,7 +206,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
             {canEdit && agentId && (
               <Link
                 href={`/edit/${agentId}`}
-                className="p-2 -mr-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all"
+                className="p-2 -mr-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-all"
                 aria-label="Edit agent"
               >
                 <Pencil className="w-4 h-4" />
@@ -216,18 +216,18 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
 
           <div className="space-y-2">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 tracking-tight leading-none mb-2">{name}</h2>
-              <p className="text-sm font-medium text-gray-500 leading-snug">{effectiveTagline}</p>
+              <h2 className="text-xl font-bold text-card-foreground tracking-tight leading-none mb-2">{name}</h2>
+              <p className="text-sm font-medium text-muted-foreground leading-snug">{effectiveTagline}</p>
             </div>
             {/* Badges */}
             <div className="flex flex-wrap gap-2 pt-1">
               {agentTag && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100/80 text-gray-500 text-[10px] font-mono border border-gray-100">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground text-[10px] font-mono border border-border">
                   {agentTag}
                 </span>
               )}
               {visibilityLabel && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50/50 text-blue-700 text-[10px] font-medium border border-blue-100/50">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-medium border border-amber-100 dark:border-amber-900/50">
                   {visibilityLabel}
                 </span>
               )}
@@ -250,30 +250,30 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
               event.preventDefault();
               dispatchAgentNewChat(agentTag);
             }}
-            className="group flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 text-white font-medium text-sm shadow-sm hover:bg-gray-800 active:scale-[0.98] transition-all"
+            className="group flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
           >
             <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
             <span>Start New Chat</span>
-            <kbd className="hidden lg:inline-flex items-center gap-0.5 ml-2 text-[10px] font-sans text-gray-400 opacity-50">
+            <kbd className="hidden lg:inline-flex items-center gap-0.5 ml-2 text-[10px] font-sans text-primary-foreground/50">
               <span>{isMac ? '⌘' : 'Ctrl'}</span>K
             </kbd>
           </Link>
         )}
 
         {/* Divider */}
-        <hr className="border-gray-100" />
+        <hr className="border-border" />
 
         {/* About Section */}
         <div className="space-y-4">
-          <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-widest pl-1">About</h3>
+          <h3 className="text-xs font-semibold text-card-foreground uppercase tracking-widest pl-1">About</h3>
 
           {publishStatus === 'rejected' && publishReviewNotes && (
-            <div className="p-3 bg-red-50 rounded-lg border border-red-100 text-xs text-red-800 leading-relaxed">
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/50 text-xs text-red-800 dark:text-red-400 leading-relaxed">
               <span className="font-bold">Note:</span> {publishReviewNotes}
             </div>
           )}
 
-          <div className="text-sm text-gray-600 leading-relaxed pl-1">
+          <div className="text-sm text-muted-foreground leading-relaxed pl-1">
             {effectiveDescription}
           </div>
         </div>
@@ -281,7 +281,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
         {/* Model Section */}
         {availableModels.length > 0 && (
           <div className="space-y-2 pt-2">
-            <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-widest pl-1 mb-1">Model</h3>
+            <h3 className="text-xs font-semibold text-card-foreground uppercase tracking-widest pl-1 mb-1">Model</h3>
             <Select
               value={selectedValue}
               onValueChange={(val) => {
@@ -289,7 +289,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
                 dispatchAgentModelChange(agentTag, val);
               }}
             >
-              <SelectTrigger className="w-full h-auto py-2 px-3 rounded-xl bg-gray-50 border-transparent hover:bg-gray-100 hover:border-gray-200 transition-all focus:ring-1 focus:ring-gray-900/10">
+              <SelectTrigger className="w-full h-auto py-2 px-3 rounded-xl bg-muted border-transparent hover:bg-muted/80 transition-all focus:ring-1 focus:ring-primary/10">
                 <SelectValue asChild>
                   <ModelLabel
                     label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
@@ -321,7 +321,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
                   setCopiedInvite(false);
                 }
               }}
-              className="w-full py-2.5 text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-all flex items-center justify-center gap-2 group"
+              className="w-full py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-all flex items-center justify-center gap-2 group"
             >
               <span>{copiedInvite ? 'Copied to clipboard' : 'Copy invite link'}</span>
             </button>
