@@ -617,35 +617,48 @@ export function OpenRouterModelSelect({
           <Button
             type="button"
             variant="outline"
-            className={cn("w-full justify-between cursor-pointer", {
-              "text-muted-foreground": !selectedModel && !loading,
-            })}
+            className={cn(
+              "w-full justify-between cursor-pointer h-11 px-3 border-2 hover:border-primary/30 hover:bg-muted/50 transition-all duration-200",
+              {
+                "text-muted-foreground border-dashed": !selectedModel && !loading,
+                "border-border": selectedModel || loading,
+              }
+            )}
             disabled={disabled || loading}
           >
-            <span className="flex items-center gap-2 truncate">
-              {loading && <Loader2 className="size-4 animate-spin" />}
+            <span className="flex items-center gap-3 truncate">
+              {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
               {!loading && selectedModel?.providerSlug ? (
-                <ProviderAvatar providerSlug={selectedModel.providerSlug} size={24} />
+                <div className="flex-shrink-0 ring-1 ring-border rounded-md overflow-hidden">
+                  <ProviderAvatar providerSlug={selectedModel.providerSlug} size={28} />
+                </div>
+              ) : !loading && !selectedModel ? (
+                <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                  <Brain className="size-4 text-muted-foreground" />
+                </div>
               ) : null}
               {!loading && selectedModel ? (
-                <span className="truncate">{selectedModel.displayName}</span>
+                <div className="flex flex-col items-start min-w-0">
+                  <span className="truncate text-sm font-medium">{selectedModel.displayName}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize">{selectedModel.providerSlug}</span>
+                </div>
               ) : (
                 !loading && (
-                  <span className="text-muted-foreground">{placeholder}</span>
+                  <span className="text-muted-foreground text-sm">{placeholder}</span>
                 )
               )}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {selectedModel?.isFeatured && (
                 <Badge
                   variant="secondary"
-                  className="hidden sm:inline-flex items-center gap-1 text-xs"
+                  className="hidden sm:inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary border-0"
                 >
-                  <Sparkles className="size-3" />
+                  <Sparkles className="size-2.5" />
                   Featured
                 </Badge>
               )}
-              <ChevronDown className="size-4" />
+              <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
             </div>
           </Button>
         </ModelSelectorTrigger>

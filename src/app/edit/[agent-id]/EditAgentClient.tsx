@@ -123,25 +123,64 @@ export const EditAgentClient = React.memo(function EditAgentClient({
       <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
         {activeTab === "behaviour" ? (
           <div className="space-y-8">
-            <div className="space-y-4 p-5 bg-muted/30 rounded-2xl border border-border/50">
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">Model Configuration</h3>
-                <p className="text-xs text-muted-foreground">Choose the brain behind your agent.</p>
+            {/* Model Configuration - Timeline Style (No Cards) */}
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-foreground">Model Configuration</h3>
+              <p className="text-sm text-muted-foreground">Choose the AI models that power your agent.</p>
+            </div>
+
+            {/* Timeline container */}
+            <div className="relative pl-8 space-y-8">
+              {/* Vertical accent line */}
+              <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-border rounded-full" />
+
+              {/* Primary Model */}
+              <div className="relative">
+                {/* Timeline dot */}
+                <div className="absolute -left-8 top-0.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
+                  <span className="text-[10px] font-bold text-primary-foreground">1</span>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-semibold text-foreground">Primary Model</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">Required</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">The main AI brain that powers all conversations</p>
+                  </div>
+                  <OpenRouterModelSelect
+                    value={selectedModel}
+                    onChange={(value) => setSelectedModel(value)}
+                    placeholder="Select a primary model..."
+                    width="100%"
+                    label=""
+                  />
+                </div>
               </div>
-              <OpenRouterModelSelect
-                value={selectedModel}
-                onChange={(value) => setSelectedModel(value)}
-                placeholder="Select a model..."
-                width="100%"
-                label=""
-              />
-              <div className="pt-2">
-                <SecondaryModelsInput
-                  value={secondaryModels}
-                  onChange={setSecondaryModels}
-                  includeHiddenInput={false}
-                  primaryModelId={selectedModel || undefined}
-                />
+
+              {/* Secondary Models */}
+              <div className="relative">
+                {/* Timeline dot */}
+                <div className="absolute -left-8 top-0.5 w-6 h-6 rounded-full bg-muted border-2 border-border flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-muted-foreground">2</span>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-semibold text-foreground">Secondary Models</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">Optional</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">Add alternative models for users to switch between</p>
+                  </div>
+                  <SecondaryModelsInput
+                    value={secondaryModels}
+                    onChange={setSecondaryModels}
+                    includeHiddenInput={false}
+                    primaryModelId={selectedModel || undefined}
+                  />
+                </div>
               </div>
             </div>
 
