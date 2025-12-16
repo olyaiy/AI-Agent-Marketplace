@@ -208,72 +208,80 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
 
   if (!model) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-6">
-        <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-          <Brain className="size-8 text-muted-foreground/50" />
+      <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-sidebar/50 dark:bg-sidebar/30">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#BE6254]/20 to-[#BE6254]/5 dark:from-[#BE6254]/30 dark:to-[#BE6254]/10 flex items-center justify-center mb-3 ring-1 ring-[#BE6254]/20">
+          <Brain className="size-7 text-[#BE6254]/60 dark:text-[#BE6254]/80" />
         </div>
-        <p className="text-sm text-muted-foreground">
-          Hover over a model to see details
+        <p className="text-sm text-muted-foreground font-medium">
+          Hover over a model
+        </p>
+        <p className="text-xs text-muted-foreground/70 mt-0.5">
+          to see details
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      {/* Header */}
-      <div className="p-4 border-b bg-gradient-to-b from-muted/30 to-transparent">
+    <div className="flex flex-col h-full overflow-y-auto bg-sidebar/50 dark:bg-sidebar/30">
+      {/* Header with gradient */}
+      <div className="p-4 border-b border-border/50 bg-gradient-to-b from-[#BE6254]/5 dark:from-[#BE6254]/10 to-transparent">
         <div className="flex items-start gap-3">
           {model.providerSlug ? (
-            <ProviderAvatar providerSlug={model.providerSlug} size={48} />
+            <div className="ring-2 ring-[#BE6254]/20 dark:ring-[#BE6254]/30 rounded-xl">
+              <ProviderAvatar providerSlug={model.providerSlug} size={44} />
+            </div>
           ) : (
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-              <Sparkles className="size-6 text-white" />
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#BE6254] to-[#a54e42] flex items-center justify-center shadow-lg shadow-[#BE6254]/20">
+              <Sparkles className="size-5 text-white" />
             </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold truncate">
+              <h3 className="text-sm font-semibold truncate text-foreground">
                 {model.displayName}
               </h3>
-              {model.isFeatured && (
-                <Badge variant="secondary" className="gap-1 text-[10px] shrink-0">
-                  <Sparkles className="size-2.5" />
-                  Featured
-                </Badge>
-              )}
             </div>
-            <p className="text-xs text-muted-foreground capitalize">
-              by {model.providerSlug || "Unknown Provider"}
+            <p className="text-xs text-muted-foreground capitalize mt-0.5">
+              {model.providerSlug || "Unknown Provider"}
             </p>
+            {model.isFeatured && (
+              <Badge
+                variant="outline"
+                className="mt-1.5 gap-1 text-[10px] border-[#BE6254]/30 text-[#BE6254] dark:border-[#BE6254]/50 dark:text-[#BE6254]"
+              >
+                <Sparkles className="size-2.5" />
+                Featured
+              </Badge>
+            )}
           </div>
         </div>
 
         {/* Model ID with copy */}
         <button
           onClick={handleCopyId}
-          className="mt-3 w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
+          className="mt-3 w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-background/50 dark:bg-background/30 hover:bg-background/80 dark:hover:bg-background/50 transition-colors group border border-border/50"
         >
-          <code className="text-xs text-muted-foreground truncate flex-1 text-left">
+          <code className="text-[11px] text-muted-foreground truncate flex-1 text-left font-mono">
             {model.id}
           </code>
           {copied ? (
             <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
           ) : (
-            <Copy className="size-3.5 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+            <Copy className="size-3.5 text-muted-foreground group-hover:text-[#BE6254] transition-colors shrink-0" />
           )}
         </button>
       </div>
 
       {/* Details */}
-      <div className="flex-1 p-4 space-y-4">
+      <div className="flex-1 p-4 space-y-3.5">
         {/* Description */}
         {model.description && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
               Description
             </p>
-            <p className="text-sm text-foreground leading-relaxed">
+            <p className="text-xs text-foreground/90 leading-relaxed">
               {model.description}
             </p>
           </div>
@@ -281,16 +289,17 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
 
         {/* Pricing */}
         <DetailRow icon={Coins} label="Pricing">
-          <div className="flex items-center gap-4">
-            <div>
-              <span className="text-muted-foreground text-xs">Input: </span>
-              <span className="font-medium">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground text-[10px]">In:</span>
+              <span className="font-semibold text-xs text-foreground">
                 {formatPricePerMillion(model.pricing.prompt)}
               </span>
             </div>
-            <div>
-              <span className="text-muted-foreground text-xs">Output: </span>
-              <span className="font-medium">
+            <div className="w-px h-3 bg-border" />
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground text-[10px]">Out:</span>
+              <span className="font-semibold text-xs text-foreground">
                 {formatPricePerMillion(model.pricing.completion)}
               </span>
             </div>
@@ -299,13 +308,17 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
 
         {/* Context Length */}
         <DetailRow icon={MessageSquare} label="Context Window">
-          {formatContextLengthFull(model.context_length)}
+          <span className={model.context_length ? "font-semibold" : "text-muted-foreground italic"}>
+            {model.context_length
+              ? formatContextLengthFull(model.context_length)
+              : "Not available"}
+          </span>
         </DetailRow>
 
         {/* Input Modalities */}
         {model.input_modalities.length > 0 && (
-          <DetailRow icon={FileText} label="Input Types">
-            <div className="flex flex-wrap gap-1.5 mt-1">
+          <DetailRow icon={FileText} label="Inputs">
+            <div className="flex flex-wrap gap-1 mt-0.5">
               {model.input_modalities.map((mod) => (
                 <ModalityBadge key={mod} modality={mod} />
               ))}
@@ -315,8 +328,8 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
 
         {/* Output Modalities */}
         {model.output_modalities.length > 0 && (
-          <DetailRow icon={Zap} label="Output Types">
-            <div className="flex flex-wrap gap-1.5 mt-1">
+          <DetailRow icon={Zap} label="Outputs">
+            <div className="flex flex-wrap gap-1 mt-0.5">
               {model.output_modalities.map((mod) => (
                 <ModalityBadge key={mod} modality={mod} />
               ))}
@@ -324,27 +337,22 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
           </DetailRow>
         )}
 
-        {/* Supported Parameters */}
+        {/* Capabilities */}
         {model.supported_parameters.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-              Supported Parameters
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Capabilities
             </p>
             <div className="flex flex-wrap gap-1">
-              {model.supported_parameters.slice(0, 10).map((param) => (
+              {model.supported_parameters.map((param) => (
                 <Badge
                   key={param}
-                  variant="outline"
-                  className="text-[10px] font-mono"
+                  variant="secondary"
+                  className="text-[10px] bg-[#BE6254]/10 dark:bg-[#BE6254]/20 text-[#BE6254] dark:text-[#BE6254] border-0"
                 >
-                  {param}
+                  {param === 'reasoning' ? '🧠 Reasoning' : param}
                 </Badge>
               ))}
-              {model.supported_parameters.length > 10 && (
-                <Badge variant="secondary" className="text-[10px]">
-                  +{model.supported_parameters.length - 10} more
-                </Badge>
-              )}
             </div>
           </div>
         )}

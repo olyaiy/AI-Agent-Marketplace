@@ -54,11 +54,11 @@ interface ModelsDevModel {
 
 const CACHE_TTL_SECONDS = 300; // 5 minutes for models.dev data
 
-// Cached fetch for models.dev API - maps model ID to reasoning support
-let modelsDevCache: Map<string, boolean> | null = null;
+// Cached full model data from models.dev
+let modelsDevCache: Map<string, ModelsDevModel> | null = null;
 let modelsDevCacheTime = 0;
 
-async function fetchModelsDevReasoningMap(): Promise<Map<string, boolean>> {
+async function fetchModelsDevData(): Promise<Map<string, ModelsDevModel>> {
     const now = Date.now();
     // Return cached if valid (5 minutes)
     if (modelsDevCache && now - modelsDevCacheTime < CACHE_TTL_SECONDS * 1000) {
@@ -71,32 +71,32 @@ async function fetchModelsDevReasoningMap(): Promise<Map<string, boolean>> {
         });
 
         if (!response.ok) {
-            console.warn('⚠️ Failed to fetch models.dev API, falling back to heuristic');
+            console.warn('⚠️ Failed to fetch models.dev API, falling back to defaults');
             return modelsDevCache || new Map();
         }
 
         const data: Record<string, ModelsDevProvider> = await response.json();
-        const reasoningMap = new Map<string, boolean>();
+        const modelMap = new Map<string, ModelsDevModel>();
 
-        // Build a map of all model IDs to their reasoning support
+        // Build a map of all model IDs to their full data
         for (const provider of Object.values(data)) {
             if (provider.models) {
                 for (const [modelKey, model] of Object.entries(provider.models)) {
                     // Store with various ID formats for flexible matching
                     const fullId = `${provider.id}/${modelKey}`;
-                    reasoningMap.set(fullId, model.reasoning);
-                    reasoningMap.set(modelKey, model.reasoning);
+                    modelMap.set(fullId, model);
+                    modelMap.set(modelKey, model);
                     if (model.id) {
-                        reasoningMap.set(model.id, model.reasoning);
+                        modelMap.set(model.id, model);
                     }
                 }
             }
         }
 
-        console.log(`✅ Loaded ${reasoningMap.size} models from models.dev with reasoning data`);
-        modelsDevCache = reasoningMap;
+        console.log(`✅ Loaded ${modelMap.size} models from models.dev with full data`);
+        modelsDevCache = modelMap;
         modelsDevCacheTime = now;
-        return reasoningMap;
+        return modelMap;
     } catch (error) {
         console.warn('⚠️ Error fetching models.dev:', error);
         return modelsDevCache || new Map();
@@ -109,31 +109,35 @@ async function fetchGatewayModels(
 ): Promise<FormattedModel[]> {
     const getCachedModels = unstable_cache(
         async () => {
-            // Fetch both Gateway models and models.dev reasoning data in parallel
-            const [availableModels, reasoningMap] = await Promise.all([
+            // Fetch both Gateway models and models.dev full data in parallel
+            const [availableModels, modelsDevData] = await Promise.all([
                 gateway.getAvailableModels(),
-                fetchModelsDevReasoningMap()
+                fetchModelsDevData()
             ]);
 
             // Transform to match our expected format
             const formattedModels: FormattedModel[] = availableModels.models.map((model) => {
-                // Try to find reasoning support from models.dev
-                const supportsReasoning = lookupReasoningSupport(model.id, reasoningMap);
+                // Try to find full model data from models.dev
+                const modelsDevModel = lookupModelsDevModel(model.id, modelsDevData);
 
                 return {
                     id: model.id,
                     name: model.name || model.id,
                     description: model.description || `${extractProvider(model.id)} model`,
-                    context_length: null, // Gateway doesn't expose this in the basic model info
+                    // Use models.dev context length if available
+                    context_length: modelsDevModel?.limit?.context ?? null,
                     created: Date.now(), // Placeholder - Gateway doesn't expose creation date
                     pricing: {
                         prompt: model.pricing?.input ? parseFloat(String(model.pricing.input)) : 0,
                         completion: model.pricing?.output ? parseFloat(String(model.pricing.output)) : 0,
                     },
-                    input_modalities: ["text"], // Default, Gateway doesn't expose this directly
-                    output_modalities: ["text"],
+                    // Use models.dev modalities if available, with fallbacks
+                    input_modalities: modelsDevModel?.modalities?.input ?? ["text"],
+                    output_modalities: modelsDevModel?.modalities?.output ?? ["text"],
                     // Use models.dev data for reasoning support, with fallback heuristic
-                    supported_parameters: supportsReasoning ? ['reasoning'] : [],
+                    supported_parameters: (modelsDevModel?.reasoning ?? inferReasoningSupportHeuristic(model.id))
+                        ? ['reasoning']
+                        : [],
                     default_parameters: undefined,
                 };
             });
@@ -150,35 +154,34 @@ async function fetchGatewayModels(
     return getCachedModels();
 }
 
-// Look up reasoning support from models.dev data with fallback heuristic
-function lookupReasoningSupport(modelId: string, reasoningMap: Map<string, boolean>): boolean {
+// Look up full model data from models.dev
+function lookupModelsDevModel(modelId: string, modelMap: Map<string, ModelsDevModel>): ModelsDevModel | undefined {
     const id = modelId.toLowerCase();
 
     // Try exact match first
-    if (reasoningMap.has(modelId)) {
-        return reasoningMap.get(modelId) ?? false;
+    if (modelMap.has(modelId)) {
+        return modelMap.get(modelId);
     }
 
     // Try without provider prefix (e.g., "anthropic/claude-haiku-4.5" -> "claude-haiku-4.5")
     const modelName = modelId.includes('/') ? modelId.split('/').slice(1).join('/') : modelId;
-    if (reasoningMap.has(modelName)) {
-        return reasoningMap.get(modelName) ?? false;
+    if (modelMap.has(modelName)) {
+        return modelMap.get(modelName);
     }
 
     // Try lowercase versions
-    if (reasoningMap.has(id)) {
-        return reasoningMap.get(id) ?? false;
+    if (modelMap.has(id)) {
+        return modelMap.get(id);
     }
 
     // Try partial matching for versioned models
-    for (const [key, value] of reasoningMap.entries()) {
+    for (const [key, value] of modelMap.entries()) {
         if (id.includes(key.toLowerCase()) || key.toLowerCase().includes(id)) {
             return value;
         }
     }
 
-    // Fallback heuristic for models not in models.dev
-    return inferReasoningSupportHeuristic(id);
+    return undefined;
 }
 
 // Fallback heuristic for when models.dev doesn't have the model
