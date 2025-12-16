@@ -102,8 +102,8 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-900">{label}</span>
-        <span className="text-xs text-gray-500">Optional</span>
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        <span className="text-xs text-muted-foreground">Optional</span>
       </div>
       <OpenRouterModelSelect
         value={pending}
@@ -139,14 +139,14 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
           </Badge>
         )}
         {!primaryModelId && !hasSecondary ? (
-          <span className="text-xs text-gray-500">No secondary models added.</span>
+          <span className="text-xs text-muted-foreground">No secondary models added.</span>
         ) : (
           secondaryIds.map((modelId) => (
             <Badge key={modelId} variant="outline" className="flex items-center gap-1 text-xs">
               <span className="max-w-[260px] truncate">{labels[modelId] || modelId}</span>
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded p-0.5 hover:bg-gray-100 cursor-pointer"
+                className="inline-flex items-center justify-center rounded p-0.5 hover:bg-muted cursor-pointer"
                 onClick={() => removeModel(modelId)}
                 aria-label={`Remove ${modelId}`}
               >

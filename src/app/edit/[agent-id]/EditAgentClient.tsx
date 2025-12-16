@@ -99,14 +99,14 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   return (
     <div className="space-y-8">
       {/* Modern minimal tabs */}
-      <div className="flex items-center gap-1 border-b border-gray-100 pb-1 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1 border-b border-border pb-1 overflow-x-auto no-scrollbar">
         {(["behaviour", "details", "knowledge", "publish", "preview"] as const).map((tab) => (
           <button
             key={tab}
             type="button"
             className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all cursor-pointer whitespace-nowrap ${activeTab === tab
-              ? 'bg-black text-white shadow-md shadow-gray-200'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
             onClick={() => setActiveTab(tab)}
           >
@@ -119,10 +119,10 @@ export const EditAgentClient = React.memo(function EditAgentClient({
       <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
         {activeTab === "behaviour" ? (
           <div className="space-y-8">
-            <div className="space-y-4 p-5 bg-gray-50/50 rounded-2xl border border-gray-100/50">
+            <div className="space-y-4 p-5 bg-muted/30 rounded-2xl border border-border/50">
               <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-gray-900">Model Configuration</h3>
-                <p className="text-xs text-gray-500">Choose the brain behind your agent.</p>
+                <h3 className="text-sm font-semibold text-foreground">Model Configuration</h3>
+                <p className="text-xs text-muted-foreground">Choose the brain behind your agent.</p>
               </div>
               <OpenRouterModelSelect
                 value={selectedModel}
@@ -143,10 +143,10 @@ export const EditAgentClient = React.memo(function EditAgentClient({
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-lg font-semibold text-gray-900">System Prompt</label>
-                <span className="text-xs text-gray-400 font-mono">Core Instruction</span>
+                <label className="text-lg font-semibold text-foreground">System Prompt</label>
+                <span className="text-xs text-muted-foreground font-mono">Core Instruction</span>
               </div>
-              <p className="text-sm text-gray-500 leading-relaxed max-w-2xl">
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
                 Define how your agent behaves, responds, and interacts. This is the core personality and instruction set.
               </p>
               <div className="relative group">
@@ -157,10 +157,10 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                   onInput={(e) => onContextChange && onContextChange({ systemPrompt: e.currentTarget.value })}
                   rows={12}
                   placeholder="You are a helpful assistant specialized in..."
-                  className="w-full bg-gray-50 border-0 rounded-xl p-5 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-black/5 focus:bg-white transition-all resize-none text-base leading-relaxed shadow-sm group-hover:bg-gray-50/80"
+                  className="w-full bg-muted/30 border-0 rounded-xl p-5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20 focus:bg-muted/50 transition-all resize-none text-base leading-relaxed shadow-sm group-hover:bg-muted/40"
                 />
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="p-1.5 bg-white rounded-md shadow-sm border border-gray-100 text-xs text-gray-400">Markdown supported</div>
+                  <div className="p-1.5 bg-card rounded-md shadow-sm border border-border text-xs text-muted-foreground">Markdown supported</div>
                 </div>
               </div>
             </div>
@@ -169,20 +169,20 @@ export const EditAgentClient = React.memo(function EditAgentClient({
           <div className="space-y-8">
             <div className="grid gap-6">
               <div className="space-y-3">
-                <label className="block text-base font-semibold text-gray-900">Tagline</label>
+                <label className="block text-base font-semibold text-foreground">Tagline</label>
                 <input
                   name="tagline"
                   form={formId}
                   defaultValue={initialTagline}
                   onInput={(e) => onContextChange && onContextChange({ tagline: e.currentTarget.value })}
                   placeholder="e.g., Your personal coding assistant"
-                  className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-black/5 focus:bg-white transition-all"
+                  className="w-full bg-muted/30 border-0 rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20 focus:bg-muted/50 transition-all"
                 />
-                <p className="text-sm text-gray-500">A short, catchy phrase shown in lists.</p>
+                <p className="text-sm text-muted-foreground">A short, catchy phrase shown in lists.</p>
               </div>
 
               <div className="space-y-3">
-                <label className="block text-base font-semibold text-gray-900">Description</label>
+                <label className="block text-base font-semibold text-foreground">Description</label>
                 <textarea
                   name="description"
                   form={formId}
@@ -190,30 +190,30 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                   onInput={(e) => onContextChange && onContextChange({ description: e.currentTarget.value })}
                   rows={8}
                   placeholder="Describe your agent&apos;s capabilities, use cases, and what makes it special..."
-                  className="w-full bg-gray-50 border-0 rounded-xl p-4 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-black/5 focus:bg-white transition-all resize-none"
+                  className="w-full bg-muted/30 border-0 rounded-xl p-4 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20 focus:bg-muted/50 transition-all resize-none"
                 />
-                <p className="text-sm text-gray-500 md:w-3/4">Detailed explanation of what this agent does. This appears on the agent&apos;s profile page.</p>
+                <p className="text-sm text-muted-foreground md:w-3/4">Detailed explanation of what this agent does. This appears on the agent&apos;s profile page.</p>
               </div>
             </div>
           </div>
         ) : activeTab === "knowledge" ? (
-          <div className="bg-gray-50/50 rounded-2xl border border-gray-100/50 p-1">
+          <div className="bg-muted/30 rounded-2xl border border-border/50 p-1">
             <KnowledgeManager agentTag={agentTag} />
           </div>
         ) : activeTab === "preview" ? (
-          <div className="h-[calc(100vh-300px)] min-h-[500px] bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+          <div className="h-[calc(100vh-300px)] min-h-[500px] bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
             {previewContent}
           </div>
         ) : (
           <div className="space-y-8 max-w-2xl">
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-100 space-y-4">
-              <h3 className="font-semibold text-gray-900">Current Status</h3>
+            <div className="p-5 bg-gradient-to-br from-muted/50 to-card rounded-2xl border border-border space-y-4">
+              <h3 className="font-semibold text-foreground">Current Status</h3>
               <div className="flex flex-wrap items-center gap-3">
                 <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium ${statusBadge.classes}`}>
                   {statusBadge.label}
                 </div>
                 {requestedDate && publishStatus === 'pending_review' && (
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     Requested {requestedDate.toLocaleDateString()}
                   </span>
                 )}
@@ -229,7 +229,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-lg font-semibold text-gray-900">Visibility Settings</label>
+                <label className="text-lg font-semibold text-foreground">Visibility Settings</label>
               </div>
 
               <div className="grid grid-cols-1 gap-3">
@@ -243,8 +243,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                     <label
                       key={opt.value}
                       className={`relative flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${visibility === opt.value
-                        ? 'border-black bg-gray-50'
-                        : 'border-transparent bg-white shadow-sm ring-1 ring-gray-100 hover:ring-gray-200 hover:bg-gray-50/50'
+                        ? 'border-foreground bg-muted'
+                        : 'border-transparent bg-card shadow-sm ring-1 ring-border hover:ring-border/80 hover:bg-muted/30'
                         }`}
                     >
                       <input
@@ -256,15 +256,15 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                         onChange={() => setVisibility(opt.value as typeof visibility)}
                         className="sr-only"
                       />
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${visibility === opt.value ? 'bg-black text-white' : 'bg-gray-100 text-gray-500'}`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${visibility === opt.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                         <Icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
-                        <span className={`block font-semibold text-sm ${visibility === opt.value ? 'text-gray-900' : 'text-gray-700'}`}>{opt.label}</span>
-                        <span className="text-xs text-gray-500">{opt.hint}</span>
+                        <span className={`block font-semibold text-sm ${visibility === opt.value ? 'text-foreground' : 'text-foreground/80'}`}>{opt.label}</span>
+                        <span className="text-xs text-muted-foreground">{opt.hint}</span>
                       </div>
                       {visibility === opt.value && (
-                        <div className="text-black">
+                        <div className="text-foreground">
                           <Check className="w-5 h-5" />
                         </div>
                       )}
@@ -304,7 +304,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
               )}
             </div>
 
-            <div className="pt-4 border-t border-gray-100">
+            <div className="pt-4 border-t border-border">
               {publishStatus === 'pending_review' ? (
                 <button
                   type="submit"

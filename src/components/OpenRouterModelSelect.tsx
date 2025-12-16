@@ -25,7 +25,21 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { deriveProviderSlug, getDisplayName } from "@/lib/model-display";
 import { ProviderAvatar } from "@/components/ProviderAvatar";
-import { Check, ChevronDown, Loader2, Sparkles } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Loader2,
+  Sparkles,
+  Coins,
+  MessageSquare,
+  Image as ImageIcon,
+  FileText,
+  Zap,
+  Copy,
+  CheckCircle2,
+  Brain,
+  type LucideIcon
+} from "lucide-react";
 
 type SlimModel = {
   id: string;
@@ -76,8 +90,14 @@ function formatPricePerMillion(price: number) {
 
 function formatContextLength(ctx: number | null) {
   if (!ctx) return null;
-  if (ctx >= 1_000_000) return `${(ctx / 1_000_000).toFixed(1)}M ctx`;
-  return `${Math.round(ctx / 1000)}k ctx`;
+  if (ctx >= 1_000_000) return `${(ctx / 1_000_000).toFixed(1)}M`;
+  return `${Math.round(ctx / 1000)}k`;
+}
+
+function formatContextLengthFull(ctx: number | null) {
+  if (!ctx) return "Unknown";
+  if (ctx >= 1_000_000) return `${(ctx / 1_000_000).toFixed(1)} million tokens`;
+  return `${ctx.toLocaleString()} tokens`;
 }
 
 function enhanceModels(raw: SlimModel[]): EnhancedModel[] {
@@ -128,6 +148,215 @@ async function loadModels(category?: string) {
   return enhanced;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Model Detail Panel Component
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DetailRow({
+  icon: Icon,
+  label,
+  children
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted/50 shrink-0">
+        <Icon className="size-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">
+          {label}
+        </p>
+        <div className="text-sm text-foreground">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function ModalityBadge({ modality }: { modality: string }) {
+  const getIcon = () => {
+    switch (modality.toLowerCase()) {
+      case "text":
+        return <FileText className="size-3" />;
+      case "image":
+        return <ImageIcon className="size-3" />;
+      default:
+        return <Zap className="size-3" />;
+    }
+  };
+
+  return (
+    <Badge variant="outline" className="gap-1 text-xs capitalize">
+      {getIcon()}
+      {modality}
+    </Badge>
+  );
+}
+
+function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyId = useCallback(() => {
+    if (!model) return;
+    navigator.clipboard.writeText(model.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [model]);
+
+  if (!model) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-6">
+        <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+          <Brain className="size-8 text-muted-foreground/50" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Hover over a model to see details
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full overflow-y-auto">
+      {/* Header */}
+      <div className="p-4 border-b bg-gradient-to-b from-muted/30 to-transparent">
+        <div className="flex items-start gap-3">
+          {model.providerSlug ? (
+            <ProviderAvatar providerSlug={model.providerSlug} size={48} />
+          ) : (
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+              <Sparkles className="size-6 text-white" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold truncate">
+                {model.displayName}
+              </h3>
+              {model.isFeatured && (
+                <Badge variant="secondary" className="gap-1 text-[10px] shrink-0">
+                  <Sparkles className="size-2.5" />
+                  Featured
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground capitalize">
+              by {model.providerSlug || "Unknown Provider"}
+            </p>
+          </div>
+        </div>
+
+        {/* Model ID with copy */}
+        <button
+          onClick={handleCopyId}
+          className="mt-3 w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
+        >
+          <code className="text-xs text-muted-foreground truncate flex-1 text-left">
+            {model.id}
+          </code>
+          {copied ? (
+            <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
+          ) : (
+            <Copy className="size-3.5 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+          )}
+        </button>
+      </div>
+
+      {/* Details */}
+      <div className="flex-1 p-4 space-y-4">
+        {/* Description */}
+        {model.description && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+              Description
+            </p>
+            <p className="text-sm text-foreground leading-relaxed">
+              {model.description}
+            </p>
+          </div>
+        )}
+
+        {/* Pricing */}
+        <DetailRow icon={Coins} label="Pricing">
+          <div className="flex items-center gap-4">
+            <div>
+              <span className="text-muted-foreground text-xs">Input: </span>
+              <span className="font-medium">
+                {formatPricePerMillion(model.pricing.prompt)}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Output: </span>
+              <span className="font-medium">
+                {formatPricePerMillion(model.pricing.completion)}
+              </span>
+            </div>
+          </div>
+        </DetailRow>
+
+        {/* Context Length */}
+        <DetailRow icon={MessageSquare} label="Context Window">
+          {formatContextLengthFull(model.context_length)}
+        </DetailRow>
+
+        {/* Input Modalities */}
+        {model.input_modalities.length > 0 && (
+          <DetailRow icon={FileText} label="Input Types">
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {model.input_modalities.map((mod) => (
+                <ModalityBadge key={mod} modality={mod} />
+              ))}
+            </div>
+          </DetailRow>
+        )}
+
+        {/* Output Modalities */}
+        {model.output_modalities.length > 0 && (
+          <DetailRow icon={Zap} label="Output Types">
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {model.output_modalities.map((mod) => (
+                <ModalityBadge key={mod} modality={mod} />
+              ))}
+            </div>
+          </DetailRow>
+        )}
+
+        {/* Supported Parameters */}
+        {model.supported_parameters.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+              Supported Parameters
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {model.supported_parameters.slice(0, 10).map((param) => (
+                <Badge
+                  key={param}
+                  variant="outline"
+                  className="text-[10px] font-mono"
+                >
+                  {param}
+                </Badge>
+              ))}
+              {model.supported_parameters.length > 10 && (
+                <Badge variant="secondary" className="text-[10px]">
+                  +{model.supported_parameters.length - 10} more
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface OpenRouterModelSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -169,6 +398,7 @@ export function OpenRouterModelSelect({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_RESULTS);
+  const [hoveredModel, setHoveredModel] = useState<EnhancedModel | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const deferredQuery = useDeferredValue(query);
   const hasQuery = deferredQuery.trim().length > 0;
@@ -218,6 +448,16 @@ export function OpenRouterModelSelect({
     () => models.find((m) => m.id === value),
     [models, value]
   );
+
+  // Set initial hovered model to selected model when dialog opens
+  useEffect(() => {
+    if (open && selectedModel && !hoveredModel) {
+      setHoveredModel(selectedModel);
+    }
+    if (!open) {
+      setHoveredModel(null);
+    }
+  }, [open, selectedModel, hoveredModel]);
 
   const filteredFeatured = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -344,11 +584,15 @@ export function OpenRouterModelSelect({
     setQuery("");
   }, [onChange]);
 
+  const handleModelHover = useCallback((model: EnhancedModel) => {
+    setHoveredModel(model);
+  }, []);
+
   return (
     <div className="space-y-2" style={{ width: widthStyle }}>
       {label ? (
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-900">{label}</span>
+          <span className="text-sm font-medium text-foreground">{label}</span>
           {selectedModel?.providerSlug ? (
             <Badge variant="secondary" className="text-xs capitalize">
               {selectedModel.providerSlug}
@@ -410,97 +654,118 @@ export function OpenRouterModelSelect({
               value={query}
               onValueChange={setQuery}
             />
-            <ModelSelectorList ref={listRef} onScroll={handleListScroll}>
-              {loading ? (
-                <div className="py-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  <span>Loading models…</span>
-                </div>
-              ) : error ? (
-                <ModelSelectorEmpty>
-                  <div className="flex flex-col items-center gap-2">
-                    <span>{error}</span>
-                    <Button size="sm" variant="outline" onClick={retry}>
-                      Retry
-                    </Button>
-                  </div>
-                </ModelSelectorEmpty>
-              ) : (
-                <>
-                  {prioritizedModels.length > 0 && (
-                    <ModelSelectorGroup heading={prioritizedLabel}>
-                      {prioritizedModels.map((model) => (
-                        <ModelListItem
-                          key={model.id}
-                          model={model}
-                          onSelect={handleSelect}
-                          isSelected={model.id === value}
-                          isInSelection={selectionSet.has(model.id)}
-                          isPrimary={primaryId === model.id}
-                          primaryLabel={primaryLabel}
-                        />
-                      ))}
-                    </ModelSelectorGroup>
-                  )}
-                  {featuredToShow.length > 0 && (
-                    <ModelSelectorGroup heading="Featured">
-                      {featuredToShow.map((model) => (
-                        <ModelListItem
-                          key={model.id}
-                          model={model}
-                          onSelect={handleSelect}
-                          isSelected={model.id === value}
-                          isInSelection={selectionSet.has(model.id)}
-                          isPrimary={primaryId === model.id}
-                          primaryLabel={primaryLabel}
-                        />
-                      ))}
-                    </ModelSelectorGroup>
-                  )}
-
-                  {remainingToShow.length > 0 ? (
-                    <ModelSelectorGroup
-                      heading={hasQuery ? "Results" : "All models"}
-                    >
-                      {visibleRemaining.map((model) => (
-                        <ModelListItem
-                          key={model.id}
-                          model={model}
-                          onSelect={handleSelect}
-                          isSelected={model.id === value}
-                          isInSelection={selectionSet.has(model.id)}
-                          isPrimary={primaryId === model.id}
-                          primaryLabel={primaryLabel}
-                        />
-                      ))}
-                      {hasMoreRemaining && (
-                        <div className="px-2 py-2 text-[11px] text-muted-foreground">
-                          Scroll to load more ({visibleRemaining.length} of{" "}
-                          {remainingToShow.length})
-                        </div>
-                      )}
-                    </ModelSelectorGroup>
-                  ) : !hasResults ? (
-                    <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-                  ) : null}
-
-                  {value && (
+            {/* Two-column layout */}
+            <div className="flex flex-col md:flex-row h-[60vh] sm:h-[65vh] md:h-[70vh] max-h-[600px]">
+              {/* Left column - Model list */}
+              <div className="w-full md:w-1/2 min-w-0 md:border-r">
+                <ModelSelectorList
+                  ref={listRef}
+                  onScroll={handleListScroll}
+                  className="h-full max-h-full"
+                >
+                  {loading ? (
+                    <div className="py-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>Loading models…</span>
+                    </div>
+                  ) : error ? (
+                    <ModelSelectorEmpty>
+                      <div className="flex flex-col items-center gap-2">
+                        <span>{error}</span>
+                        <Button size="sm" variant="outline" onClick={retry}>
+                          Retry
+                        </Button>
+                      </div>
+                    </ModelSelectorEmpty>
+                  ) : (
                     <>
-                      <ModelSelectorSeparator />
-                      <ModelSelectorGroup heading="Actions">
-                        <ModelSelectorItem
-                          value="__clear__"
-                          onSelect={handleClear}
-                          className="cursor-pointer"
+                      {prioritizedModels.length > 0 && (
+                        <ModelSelectorGroup heading={prioritizedLabel}>
+                          {prioritizedModels.map((model) => (
+                            <ModelListItem
+                              key={model.id}
+                              model={model}
+                              onSelect={handleSelect}
+                              onHover={handleModelHover}
+                              isSelected={model.id === value}
+                              isInSelection={selectionSet.has(model.id)}
+                              isPrimary={primaryId === model.id}
+                              primaryLabel={primaryLabel}
+                              isHovered={hoveredModel?.id === model.id}
+                            />
+                          ))}
+                        </ModelSelectorGroup>
+                      )}
+                      {featuredToShow.length > 0 && (
+                        <ModelSelectorGroup heading="Featured">
+                          {featuredToShow.map((model) => (
+                            <ModelListItem
+                              key={model.id}
+                              model={model}
+                              onSelect={handleSelect}
+                              onHover={handleModelHover}
+                              isSelected={model.id === value}
+                              isInSelection={selectionSet.has(model.id)}
+                              isPrimary={primaryId === model.id}
+                              primaryLabel={primaryLabel}
+                              isHovered={hoveredModel?.id === model.id}
+                            />
+                          ))}
+                        </ModelSelectorGroup>
+                      )}
+
+                      {remainingToShow.length > 0 ? (
+                        <ModelSelectorGroup
+                          heading={hasQuery ? "Results" : "All models"}
                         >
-                          Clear selection
-                        </ModelSelectorItem>
-                      </ModelSelectorGroup>
+                          {visibleRemaining.map((model) => (
+                            <ModelListItem
+                              key={model.id}
+                              model={model}
+                              onSelect={handleSelect}
+                              onHover={handleModelHover}
+                              isSelected={model.id === value}
+                              isInSelection={selectionSet.has(model.id)}
+                              isPrimary={primaryId === model.id}
+                              primaryLabel={primaryLabel}
+                              isHovered={hoveredModel?.id === model.id}
+                            />
+                          ))}
+                          {hasMoreRemaining && (
+                            <div className="px-2 py-2 text-[11px] text-muted-foreground">
+                              Scroll to load more ({visibleRemaining.length} of{" "}
+                              {remainingToShow.length})
+                            </div>
+                          )}
+                        </ModelSelectorGroup>
+                      ) : !hasResults ? (
+                        <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+                      ) : null}
+
+                      {value && (
+                        <>
+                          <ModelSelectorSeparator />
+                          <ModelSelectorGroup heading="Actions">
+                            <ModelSelectorItem
+                              value="__clear__"
+                              onSelect={handleClear}
+                              className="cursor-pointer"
+                            >
+                              Clear selection
+                            </ModelSelectorItem>
+                          </ModelSelectorGroup>
+                        </>
+                      )}
                     </>
                   )}
-                </>
-              )}
-            </ModelSelectorList>
+                </ModelSelectorList>
+              </div>
+
+              {/* Right column - Model details */}
+              <div className="hidden md:flex md:flex-col md:w-1/2 bg-muted/10">
+                <ModelDetailPanel model={hoveredModel} />
+              </div>
+            </div>
           </ModelSelectorContent>
         )}
       </SelectorRoot>
@@ -508,59 +773,76 @@ export function OpenRouterModelSelect({
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Model List Item Component
+// ─────────────────────────────────────────────────────────────────────────────
+
 const ModelListItem = React.memo(function ModelListItem({
   model,
   onSelect,
+  onHover,
   isSelected,
   isPrimary,
   primaryLabel,
   isInSelection,
+  isHovered,
 }: {
   model: EnhancedModel;
   onSelect: (id: string) => void;
+  onHover: (model: EnhancedModel) => void;
   isSelected: boolean;
   isPrimary?: boolean;
   primaryLabel?: string;
   isInSelection?: boolean;
+  isHovered?: boolean;
 }) {
   const provider = model.providerSlug;
   const priceIn = formatPricePerMillion(model.pricing.prompt);
   const contextLabel = formatContextLength(model.context_length);
 
   return (
-    <ModelSelectorItem value={model.id} onSelect={() => onSelect(model.id)} className="cursor-pointer">
-      {provider ? (
-        <ProviderAvatar providerSlug={provider} size={24} />
-      ) : (
-        <Sparkles className="size-4 text-yellow-500" />
+    <ModelSelectorItem
+      value={model.id}
+      onSelect={() => onSelect(model.id)}
+      onMouseEnter={() => onHover(model)}
+      className={cn(
+        "cursor-pointer transition-colors py-2.5",
+        isHovered && "bg-accent"
       )}
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <ModelSelectorName className="text-sm font-medium">
+    >
+      {provider ? (
+        <ProviderAvatar providerSlug={provider} size={28} />
+      ) : (
+        <div className="size-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+          <Sparkles className="size-3.5 text-white" />
+        </div>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <ModelSelectorName className="text-[13px] font-medium truncate">
           {model.displayName}
         </ModelSelectorName>
-        <p className="text-xs text-muted-foreground line-clamp-1">
-          {model.description || model.id}
-        </p>
+        <span className="text-[10px] text-muted-foreground capitalize truncate">
+          {provider || model.id.split('/')[0]}
+        </span>
       </div>
-      <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground shrink-0">
         {isPrimary ? (
-          <Badge variant="outline" className="hidden sm:inline-flex gap-1 text-[11px]">
-            <Sparkles className="size-3 text-amber-500" />
-            {primaryLabel}
+          <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0">
+            <Sparkles className="size-2.5 text-amber-500" />
+            Primary
           </Badge>
         ) : isInSelection && (
-          <Badge variant="secondary" className="hidden sm:inline-flex gap-1">
-            <Check className="size-3" />
-            Added
+          <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0">
+            <Check className="size-2.5" />
           </Badge>
         )}
 
         {contextLabel && (
-          <span className="hidden sm:inline whitespace-nowrap">
+          <span className="hidden lg:inline whitespace-nowrap text-[11px] tabular-nums">
             {contextLabel}
           </span>
         )}
-        <span>{priceIn}</span>
+        <span className="text-[11px] font-medium tabular-nums">{priceIn}</span>
         {isSelected && <Check className="size-4 text-primary" />}
       </div>
     </ModelSelectorItem>
@@ -571,4 +853,6 @@ const ModelListItem = React.memo(function ModelListItem({
     prev.isSelected === next.isSelected &&
     prev.isInSelection === next.isInSelection &&
     prev.isPrimary === next.isPrimary &&
-    prev.primaryLabel === next.primaryLabel);
+    prev.primaryLabel === next.primaryLabel &&
+    prev.isHovered === next.isHovered);
+

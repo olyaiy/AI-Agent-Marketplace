@@ -108,7 +108,7 @@ export function CreateAgentClient({ avatars }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-screen-2xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 min-h-screen">
 
@@ -117,8 +117,8 @@ export function CreateAgentClient({ avatars }: Props) {
             <form onSubmit={onSubmit} className="flex flex-col h-full">
 
               {/* Sticky Header */}
-              <div className="sticky top-0 z-30 flex items-center justify-between py-4 bg-white/80 backdrop-blur-md mb-8 lg:static lg:bg-transparent lg:p-0 lg:mb-10">
-                <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+              <div className="sticky top-0 z-30 flex items-center justify-between py-4 bg-background/80 backdrop-blur-md mb-8 lg:static lg:bg-transparent lg:p-0 lg:mb-10">
+                <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
                 </Link>
@@ -126,7 +126,7 @@ export function CreateAgentClient({ avatars }: Props) {
                 <button
                   type="submit"
                   disabled={isSubmitting || !name}
-                  className="inline-flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-gray-800 transition-all shadow-lg shadow-gray-200/50 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-full text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98]"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>{isSubmitting ? 'Creating...' : 'Create Agent'}</span>
@@ -137,12 +137,12 @@ export function CreateAgentClient({ avatars }: Props) {
               <div className="mb-12 group">
                 <div className="flex items-start gap-6">
                   <div className="flex-shrink-0 relative">
-                    <div className="absolute -inset-2 bg-gradient-to-br from-gray-100 to-gray-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
+                    <div className="absolute -inset-2 bg-gradient-to-br from-muted to-muted/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
                     <AvatarPicker
                       avatars={avatars}
                       value={selectedAvatar}
                       onChange={setSelectedAvatar}
-                      className="rounded-full w-28 h-28 border-gray-100 shadow-sm"
+                      className="rounded-full w-28 h-28 border-border shadow-sm"
                     />
                   </div>
 
@@ -159,13 +159,13 @@ export function CreateAgentClient({ avatars }: Props) {
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Name your agent"
                         rows={1}
-                        className="col-start-1 row-start-1 w-full text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 bg-transparent border-none p-0 placeholder-gray-300 focus:ring-0 focus:outline-none focus:placeholder-gray-200 transition-colors resize-none overflow-hidden leading-tight"
+                        className="col-start-1 row-start-1 w-full text-2xl md:text-3xl lg:text-4xl font-bold text-foreground bg-transparent border-none p-0 placeholder-muted-foreground/50 focus:ring-0 focus:outline-none focus:placeholder-muted-foreground/30 transition-colors resize-none overflow-hidden leading-tight"
                         autoComplete="off"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') e.preventDefault();
                         }}
                       />
-                      <div className="absolute bottom-0 left-0 w-12 h-0.5 bg-gray-100 group-focus-within:bg-black group-focus-within:w-24 transition-all duration-500" />
+                      <div className="absolute bottom-0 left-0 w-12 h-0.5 bg-muted group-focus-within:bg-foreground group-focus-within:w-24 transition-all duration-500" />
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -176,7 +176,7 @@ export function CreateAgentClient({ avatars }: Props) {
                           setIsTagEdited(true);
                         }}
                         placeholder="@tag"
-                        className="text-sm font-mono text-gray-500 bg-transparent border-none p-0 focus:ring-0 placeholder-gray-300 w-full max-w-[200px]"
+                        className="text-sm font-mono text-muted-foreground bg-transparent border-none p-0 focus:ring-0 placeholder-muted-foreground/50 w-full max-w-[200px]"
                       />
                     </div>
                   </div>
@@ -188,10 +188,10 @@ export function CreateAgentClient({ avatars }: Props) {
 
                 {/* Model Selection */}
                 <div className="space-y-4">
-                  <div className="p-6 bg-gray-50/50 rounded-3xl border border-gray-100/50 space-y-6">
+                  <div className="p-6 bg-muted/30 rounded-3xl border border-border/50 space-y-6">
                     <div className="space-y-1">
-                      <label className="text-sm font-semibold text-gray-900">Intelligence Model</label>
-                      <p className="text-xs text-gray-500">Select the AI model that powers your agent&apos;s responses.</p>
+                      <label className="text-sm font-semibold text-foreground">Intelligence Model</label>
+                      <p className="text-xs text-muted-foreground">Select the AI model that powers your agent&apos;s responses.</p>
                     </div>
 
                     <OpenRouterModelSelect
@@ -201,7 +201,7 @@ export function CreateAgentClient({ avatars }: Props) {
                       width="100%"
                     />
 
-                    <div className="pt-2 border-t border-gray-100 dashed">
+                    <div className="pt-2 border-t border-border dashed">
                       <SecondaryModelsInput
                         value={secondaryModels}
                         onChange={setSecondaryModels}
@@ -214,28 +214,28 @@ export function CreateAgentClient({ avatars }: Props) {
                 {/* System Prompt */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-gray-900">System Prompt</label>
-                    <span className="text-xs text-gray-400">Markdown supported</span>
+                    <label className="text-sm font-semibold text-foreground">System Prompt</label>
+                    <span className="text-xs text-muted-foreground">Markdown supported</span>
                   </div>
                   <textarea
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     placeholder="You are a helpful assistant who loves..."
                     rows={12}
-                    className="w-full p-5 bg-gray-50 border-0 rounded-2xl text-base text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-black/5 transition-all resize-none leading-relaxed"
+                    className="w-full p-5 bg-muted/30 border-0 rounded-2xl text-base text-foreground placeholder-muted-foreground focus:bg-muted/50 focus:ring-2 focus:ring-ring/20 transition-all resize-none leading-relaxed"
                   />
                 </div>
 
                 {/* Visibility */}
                 <div className="space-y-4">
-                  <label className="text-sm font-semibold text-gray-900">Visibility</label>
+                  <label className="text-sm font-semibold text-foreground">Visibility</label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {visibilityOptions.map((opt) => (
                       <label
                         key={opt.value}
                         className={`relative flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${visibility === opt.value
-                          ? 'border-gray-900 bg-gray-50'
-                          : 'border-transparent bg-gray-50/50 hover:bg-gray-100 text-gray-500'
+                          ? 'border-foreground bg-muted'
+                          : 'border-transparent bg-muted/30 hover:bg-muted/50 text-muted-foreground'
                           }`}
                       >
                         <input
@@ -246,19 +246,19 @@ export function CreateAgentClient({ avatars }: Props) {
                           onChange={() => setVisibility(opt.value)}
                           className="sr-only"
                         />
-                        <div className={`p-3 rounded-full ${visibility === opt.value ? 'bg-white shadow-sm ring-1 ring-gray-200 text-gray-900' : 'bg-gray-100 text-gray-400'}`}>
+                        <div className={`p-3 rounded-full ${visibility === opt.value ? 'bg-background shadow-sm ring-1 ring-border text-foreground' : 'bg-muted text-muted-foreground'}`}>
                           <opt.icon className="w-5 h-5" />
                         </div>
                         <div className="text-center">
-                          <span className={`block text-sm font-bold ${visibility === opt.value ? 'text-gray-900' : 'text-gray-500'}`}>
+                          <span className={`block text-sm font-bold ${visibility === opt.value ? 'text-foreground' : 'text-muted-foreground'}`}>
                             {opt.label}
                           </span>
-                          <span className="text-[10px] uppercase tracking-wide font-medium text-gray-400 mt-1 block">
+                          <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground mt-1 block">
                             {opt.hint}
                           </span>
                         </div>
                         {visibility === opt.value && (
-                          <div className="absolute top-3 right-3 text-black">
+                          <div className="absolute top-3 right-3 text-foreground">
                             <Check className="w-4 h-4" />
                           </div>
                         )}
@@ -274,13 +274,13 @@ export function CreateAgentClient({ avatars }: Props) {
           </div>
 
           {/* Right Preview Pane (Desktop Only) */}
-          <div className="hidden lg:block lg:col-span-5 xl:col-span-6 bg-gray-50/50 border-l border-gray-100 relative">
+          <div className="hidden lg:block lg:col-span-5 xl:col-span-6 bg-muted/30 border-l border-border relative">
             <div className="sticky top-0 h-screen p-8 xl:p-12 flex flex-col">
-              <div className="flex items-center gap-2 mb-6 text-gray-400 text-sm font-medium uppercase tracking-wider pl-2">
+              <div className="flex items-center gap-2 mb-6 text-muted-foreground text-sm font-medium uppercase tracking-wider pl-2">
                 <Eye className="w-4 h-4" />
                 <span>Live Preview</span>
               </div>
-              <div className="flex-1 bg-white rounded-3xl shadow-2xl shadow-gray-200/50 overflow-hidden ring-1 ring-black/5 border border-gray-100">
+              <div className="flex-1 bg-card rounded-3xl shadow-2xl shadow-black/10 overflow-hidden ring-1 ring-border border border-border">
                 <Chat
                   className="h-full"
                   getChatContext={getChatContext}
@@ -290,7 +290,7 @@ export function CreateAgentClient({ avatars }: Props) {
                 />
               </div>
               {/* Device decorative elements */}
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-32 h-1 bg-gray-200 rounded-full opacity-50 pointer-events-none" />
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-32 h-1 bg-muted-foreground/20 rounded-full opacity-50 pointer-events-none" />
             </div>
           </div>
 

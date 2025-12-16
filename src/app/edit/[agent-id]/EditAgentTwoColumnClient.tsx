@@ -88,8 +88,8 @@ function LeftForm({
         <input type="hidden" name="id" value={id} form="agent-form" />
 
         {/* Floating Action Bar (Mobile Sticky / Desktop Inline) */}
-        <div className="sticky top-0 z-30 flex items-center justify-between py-4 bg-white/80 backdrop-blur-md mb-8 lg:static lg:bg-transparent lg:p-0 lg:mb-10">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+        <div className="sticky top-0 z-30 flex items-center justify-between py-4 bg-background/80 backdrop-blur-md mb-8 lg:static lg:bg-transparent lg:p-0 lg:mb-10">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
             <span>Back</span>
           </Link>
@@ -100,7 +100,7 @@ function LeftForm({
                 <button
                   form="agent-form"
                   formAction={onDelete}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
+                  className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-all"
                   title="Delete Agent"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -108,7 +108,7 @@ function LeftForm({
                 <button
                   type="submit"
                   form="agent-form"
-                  className="inline-flex items-center gap-2 bg-black text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-all shadow-lg shadow-gray-200/50"
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2 rounded-full text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
                 >
                   <Save className="w-4 h-4" />
                   <span>Save Changes</span>
@@ -122,7 +122,7 @@ function LeftForm({
         <div className="mb-12 group">
           <div className="flex items-start gap-6">
             <div className="flex-shrink-0 relative">
-              <div className="absolute -inset-2 bg-gradient-to-br from-gray-100 to-gray-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
+              <div className="absolute -inset-2 bg-gradient-to-br from-muted to-muted/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               <EditAvatarClient avatars={avatars} initialAvatar={initialAvatar} />
             </div>
 
@@ -141,17 +141,17 @@ function LeftForm({
                   onChange={(e) => setNameValue(e.target.value)}
                   placeholder="Name your agent"
                   rows={1}
-                  className="col-start-1 row-start-1 w-full text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 bg-transparent border-none p-0 placeholder-gray-300 focus:ring-0 focus:outline-none focus:placeholder-gray-200 transition-colors resize-none overflow-hidden leading-tight"
+                  className="col-start-1 row-start-1 w-full text-2xl md:text-3xl lg:text-4xl font-bold text-foreground bg-transparent border-none p-0 placeholder-muted-foreground/50 focus:ring-0 focus:outline-none focus:placeholder-muted-foreground/30 transition-colors resize-none overflow-hidden leading-tight"
                   autoComplete="off"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') e.preventDefault();
                   }}
                 />
-                <div className="absolute bottom-0 left-0 w-12 h-0.5 bg-gray-100 group-focus-within:bg-black group-focus-within:w-24 transition-all duration-500" />
+                <div className="absolute bottom-0 left-0 w-12 h-0.5 bg-muted group-focus-within:bg-foreground group-focus-within:w-24 transition-all duration-500" />
               </div>
 
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-md bg-gray-100 text-gray-500 font-mono text-xs tracking-tight truncate max-w-full">
+                <span className="px-2.5 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-xs tracking-tight truncate max-w-full">
                   {tag}
                 </span>
                 {publishStatus === 'approved' && (
@@ -238,7 +238,7 @@ function TwoColumn(props: Props) {
   );
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-screen-xl">
         <div className="min-h-screen p-6 lg:p-12 xl:p-16 flex flex-col">
           <LeftForm

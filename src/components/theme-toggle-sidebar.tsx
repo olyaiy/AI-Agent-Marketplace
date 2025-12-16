@@ -71,7 +71,7 @@ export function ThemeToggleSidebar() {
             <Moon className="size-4" />
           </motion.div>
         </div>
-        <span className="transition-colors duration-200">
+        <span className="transition-colors duration-200 group-data-[collapsible=icon]:hidden">
           {isDark ? "Dark Mode" : "Light Mode"}
         </span>
       </SidebarMenuButton>
