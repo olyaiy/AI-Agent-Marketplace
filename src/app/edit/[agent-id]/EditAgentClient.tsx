@@ -54,6 +54,10 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish" | "preview">("behaviour");
   const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>(initialVisibility);
   const [copied, setCopied] = React.useState(false);
+  const [promptStats, setPromptStats] = React.useState(() => {
+    const text = initialSystemPrompt || '';
+    return { chars: text.length, lines: text.split('\n').length };
+  });
 
   React.useEffect(() => {
     if (onChange) onChange(selectedModel || undefined);
@@ -141,26 +145,91 @@ export const EditAgentClient = React.memo(function EditAgentClient({
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-lg font-semibold text-foreground">System Prompt</label>
-                <span className="text-xs text-muted-foreground font-mono">Core Instruction</span>
+                <div className="space-y-1">
+                  <label className="text-lg font-semibold text-foreground">System Prompt</label>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                    Define how your agent behaves, responds, and interacts. This is the core personality and instruction set.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 bg-muted rounded-md text-xs text-muted-foreground font-medium">Markdown</span>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                Define how your agent behaves, responds, and interacts. This is the core personality and instruction set.
-              </p>
+
               <div className="relative group">
-                <textarea
-                  name="systemPrompt"
-                  form={formId}
-                  defaultValue={initialSystemPrompt}
-                  onInput={(e) => onContextChange && onContextChange({ systemPrompt: e.currentTarget.value })}
-                  rows={12}
-                  placeholder="You are a helpful assistant specialized in..."
-                  className="w-full bg-muted/30 border-0 rounded-xl p-5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20 focus:bg-muted/50 transition-all resize-none text-base leading-relaxed shadow-sm group-hover:bg-muted/40"
-                />
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="p-1.5 bg-card rounded-md shadow-sm border border-border text-xs text-muted-foreground">Markdown supported</div>
+                {/* Editor container with visible borders */}
+                <div className="rounded-xl border-2 border-border bg-card overflow-hidden transition-all duration-200 group-focus-within:border-primary/50 group-focus-within:ring-4 group-focus-within:ring-primary/10 group-hover:border-border/80 shadow-sm">
+                  {/* Header bar */}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/50 border-b border-border">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-red-400/80"></div>
+                        <div className="w-3 h-3 rounded-full bg-yellow-400/80"></div>
+                        <div className="w-3 h-3 rounded-full bg-green-400/80"></div>
+                      </div>
+                      <span className="text-xs text-muted-foreground font-mono ml-2">system-prompt.md</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-mono">Core Instruction</span>
+                  </div>
+
+                  {/* Textarea */}
+                  <textarea
+                    name="systemPrompt"
+                    form={formId}
+                    defaultValue={initialSystemPrompt}
+                    onInput={(e) => {
+                      const value = e.currentTarget.value;
+                      onContextChange && onContextChange({ systemPrompt: value });
+                      setPromptStats({ chars: value.length, lines: value.split('\n').length });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const target = e.currentTarget;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const value = target.value;
+                        // Insert 2 spaces for indentation
+                        target.value = value.substring(0, start) + '  ' + value.substring(end);
+                        // Move cursor after the inserted spaces
+                        target.selectionStart = target.selectionEnd = start + 2;
+                        // Trigger the onInput handler manually
+                        const newValue = target.value;
+                        onContextChange && onContextChange({ systemPrompt: newValue });
+                        setPromptStats({ chars: newValue.length, lines: newValue.split('\n').length });
+                      }
+                    }}
+                    rows={14}
+                    placeholder="You are a helpful assistant specialized in...
+
+# Example structure:
+
+## Role
+Define the assistant's primary role and expertise.
+
+## Tone
+Describe the communication style (friendly, professional, etc.)
+
+## Guidelines
+- List specific behaviors
+- Include any constraints
+- Define response format preferences"
+                    className="w-full bg-card border-0 p-4 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none text-sm leading-relaxed font-mono overflow-y-auto scrollbar-slick"
+                    style={{ minHeight: '320px', maxHeight: '500px' }}
+                  />
+
+                  {/* Footer with character count */}
+                  <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground">Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">Tab</kbd> for indentation</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
+                      <span>{promptStats.lines} lines</span>
+                      <span>{promptStats.chars.toLocaleString()} chars</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
