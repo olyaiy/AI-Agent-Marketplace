@@ -49,7 +49,7 @@ export function FilterBadges({ className = '' }: FilterBadgesProps) {
             <Badge
               key={category.name}
               variant="secondary"
-              className="bg-orange-50 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800/50 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 whitespace-nowrap"
+              className="bg-stone-100 dark:bg-stone-900 text-stone-600 dark:text-stone-400 border border-stone-200/80 dark:border-stone-700 hover:bg-stone-200/80 dark:hover:bg-stone-800 transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 whitespace-nowrap"
             >
               <IconComponent size={14} />
               {category.name}
