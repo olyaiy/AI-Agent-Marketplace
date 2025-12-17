@@ -1,6 +1,6 @@
 import Chat from '@/components/Chat';
-import AgentInfoSidebar from '@/components/AgentInfoSidebar';
 import { AgentInfoSheet } from '@/components/AgentInfoSheet';
+import { AgentHeaderBar } from '@/components/AgentHeaderBar';
 import { getAgentForViewer } from '@/actions/agents';
 import { notFound } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
@@ -95,7 +95,7 @@ export default async function ConversationPage({ params, searchParams }: { param
   const initialModel = (modelParam && modelOptions.includes(modelParam)) ? modelParam : found.model || persistedModel || modelOptions[0];
 
   return (
-    <div className="relative md:max-h-[calc(100vh-200px)]">
+    <div className="relative ">
       {/* Mobile Layout - uses fixed positioning to avoid layout scroll conflicts */}
       <div className="md:hidden fixed inset-0 flex flex-col bg-background">
         {/* Header at top */}
@@ -132,22 +132,15 @@ export default async function ConversationPage({ params, searchParams }: { param
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden md:flex h-dvh  gap-4  max-h-[calc(100vh-100px)]">
-        <div className=" flex-1 max-w-[75%]">
-          <Chat
-            className="mx-auto"
-            systemPrompt={combinedSystem}
-            model={initialModel}
-            modelOptions={modelOptions}
-            avatarUrl={avatarUrl}
-            isAuthenticated={true}
-            agentTag={found.tag}
-            initialConversationId={conversationId}
-            initialMessages={initialMessages as unknown[]}
-          />
-        </div>
-        <div className="w-[25%] min-w-[280px] flex-shrink-0">
-          <AgentInfoSidebar
+      <div className="hidden md:block ">
+        {/* 
+          Agent Header Bar - "Breaks out" of the layout padding using negative margins.
+          The layout has md:p-6 (1.5rem/24px padding).
+          We use -mx-6 to span full width, and -mt-4 to reach the top.
+          The header itself has pl-12 to accommodate the absolute sidebar trigger.
+        */}
+        <div className="-mt-4 -mx-6 rounded-t-xl overflow-hidden">
+          <AgentHeaderBar
             name={found.name}
             avatarUrl={avatarUrl}
             tagline={found.tagline}
@@ -160,6 +153,21 @@ export default async function ConversationPage({ params, searchParams }: { param
             inviteCode={canEdit ? found.inviteCode || undefined : undefined}
             publishStatus={found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined}
             publishReviewNotes={found.publishReviewNotes || undefined}
+          />
+        </div>
+
+        {/* Chat area - full width */}
+        <div className="h-[calc(100vh-100px)]">
+          <Chat
+            className="mx-auto h-full max-w-3xl"
+            systemPrompt={combinedSystem}
+            model={initialModel}
+            modelOptions={modelOptions}
+            avatarUrl={avatarUrl}
+            isAuthenticated={true}
+            agentTag={found.tag}
+            initialConversationId={conversationId}
+            initialMessages={initialMessages as unknown[]}
           />
         </div>
       </div>

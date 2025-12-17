@@ -51,7 +51,7 @@ export default async function RootLayout({
               />
 
               {/* Desktop Sidebar Trigger - only visible on desktop */}
-              <div className="hidden md:block sticky top-2 left-2 z-50">
+              <div className="hidden md:block absolute top-2 left-2 z-50">
                 <SidebarTrigger className="bg-transparent" />
               </div>
 
