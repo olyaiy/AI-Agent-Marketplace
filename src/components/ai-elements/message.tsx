@@ -39,9 +39,14 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      'flex flex-col gap-2 overflow-hidden rounded-lg px-3 py-2 md:px-4 md:py-3 text-[15px] md:text-base',
+      'flex flex-col gap-2 overflow-hidden text-[15px] md:text-base',
+      // User message styling - sleek pill bubble
       'group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground',
-      ' group-[.is-assistant]:text-foreground',
+      'group-[.is-user]:rounded-3xl',
+      'group-[.is-user]:px-4 group-[.is-user]:py-2',
+      // Assistant message styling
+      'group-[.is-assistant]:text-foreground',
+      'group-[.is-assistant]:rounded-lg group-[.is-assistant]:px-1 group-[.is-assistant]:py-2',
       className
     )}
     {...props}
