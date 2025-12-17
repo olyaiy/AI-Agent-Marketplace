@@ -162,7 +162,7 @@ export const Response = memo(
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hidden group-[.is-user]:inline text-sky-600 dark:text-accent hover:underline underline-offset-2 font-medium"
+                    className="hidden group-[.is-user]:inline text-sky-600 dark:text-[#8f2f1a] hover:underline underline-offset-2 font-medium"
                   >
                     {linkText}
                   </a>

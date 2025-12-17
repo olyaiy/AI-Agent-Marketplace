@@ -1228,7 +1228,7 @@ const MessageItem = React.memo(
               return elements;
             })()}
 
-            {sources.length > 0 && (
+            {sources.length > 0 && !isStreamingActive && (
               <Sources className="mt-2 border-t pt-2">
                 <SourcesTrigger sources={sources} />
                 <SourcesContent>
