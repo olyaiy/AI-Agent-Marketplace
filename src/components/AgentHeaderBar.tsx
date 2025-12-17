@@ -3,9 +3,9 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Plus, ChevronDown } from 'lucide-react';
 import { AgentInfoDialog } from '@/components/AgentInfoDialog';
+import { dispatchAgentNewChat } from '@/lib/agent-events';
 import { cn } from '@/lib/utils';
 
 interface AgentHeaderBarProps {
@@ -40,8 +40,14 @@ export function AgentHeaderBar({
     className,
 }: AgentHeaderBarProps) {
     const [dialogOpen, setDialogOpen] = React.useState(false);
-    const router = useRouter();
+    const [isMac, setIsMac] = React.useState(false);
     const agentId = agentTag ? agentTag.replace('@', '') : null;
+
+    React.useEffect(() => {
+        if (typeof navigator !== 'undefined') {
+            setIsMac(/Mac|iPod|iPhone|iPad/.test(navigator.platform));
+        }
+    }, []);
 
     return (
         <>
@@ -87,19 +93,23 @@ export function AgentHeaderBar({
                 {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* New Chat Button - client-side navigation to agent page */}
+                {/* New Chat Button - dispatches event for instant reset */}
                 {agentId && (
                     <Link
                         href={`/agent/${agentId}`}
+                        prefetch={false}
                         onClick={(event) => {
                             if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
                             event.preventDefault();
-                            router.push(`/agent/${agentId}`);
+                            dispatchAgentNewChat(agentTag);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 active:scale-[0.98] transition-all flex-shrink-0 shadow-sm"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 active:scale-[0.98] transition-all flex-shrink-0 shadow-sm"
                     >
                         <Plus className="w-3.5 h-3.5" />
                         <span>New</span>
+                        <kbd className="hidden sm:inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary-foreground/20 text-primary-foreground/80">
+                            {isMac ? '⌘' : 'Ctrl'}K
+                        </kbd>
                     </Link>
                 )}
             </div>

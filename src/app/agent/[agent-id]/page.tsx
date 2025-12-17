@@ -1,6 +1,6 @@
 import Chat from '@/components/Chat';
 import { AgentInfoSheet } from '@/components/AgentInfoSheet';
-import { AgentIntroHero } from '@/components/AgentIntroHero';
+import { AgentChatLayout } from '@/components/AgentChatLayout';
 import { getAgentForViewer } from '@/actions/agents';
 import { notFound } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
@@ -140,23 +140,35 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
         </div>
       </div>
 
-      {/* Desktop Layout - Full width centered, no sidebar */}
-      <div className="hidden md:flex h-dvh max-h-[calc(100vh-100px)] justify-center">
-        <div className="w-full max-w-3xl">
-          <Chat
-            className="mx-auto"
-            systemPrompt={combinedSystem}
-            knowledgeText={combinedSystem}
-            model={initialModel}
-            modelOptions={modelOptions}
-            avatarUrl={avatarUrl}
-            isAuthenticated={isAuthenticated}
-            agentTag={found.tag}
-            showModelSelectorInPrompt
-            agentHeroProps={heroProps}
-          />
-        </div>
-      </div>
+      {/* Desktop Layout - Unified component for reactive header visibility */}
+      <AgentChatLayout
+        initialHasMessages={false}
+        headerBarProps={{
+          name: found.name,
+          avatarUrl,
+          tagline: found.tagline,
+          description: found.description,
+          agentTag: found.tag,
+          canEdit,
+          modelOptions,
+          activeModel: initialModel,
+          visibility: found.visibility as 'public' | 'invite_only' | 'private',
+          inviteCode: canEdit ? found.inviteCode || undefined : undefined,
+          publishStatus: found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined,
+          publishReviewNotes: found.publishReviewNotes || undefined,
+        }}
+        chatProps={{
+          systemPrompt: combinedSystem,
+          knowledgeText: combinedSystem,
+          model: initialModel,
+          modelOptions,
+          avatarUrl,
+          isAuthenticated,
+          agentTag: found.tag,
+          showModelSelectorInPrompt: true,
+          agentHeroProps: heroProps,
+        }}
+      />
     </main>
   );
 }

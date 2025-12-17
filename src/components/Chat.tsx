@@ -57,7 +57,7 @@ import {
 } from '@/lib/conversations-cache';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent, dispatchAgentModelChange } from '@/lib/agent-events';
+import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent, dispatchAgentModelChange, dispatchAgentMessagesChange } from '@/lib/agent-events';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
 import { ProviderAvatar } from '@/components/ProviderAvatar';
 import {
@@ -1586,6 +1586,17 @@ const Chat = React.memo(function Chat({
       });
     }
   }, [messages]);
+
+  // Dispatch event when messages change between 0 and 1+ (for layout reactivity)
+  const prevHasMessagesRef = React.useRef<boolean | null>(null);
+  useEffect(() => {
+    const hasMessages = messages.length > 0;
+    // Only dispatch if the value actually changed (and not on first mount with same value)
+    if (prevHasMessagesRef.current !== null && prevHasMessagesRef.current !== hasMessages) {
+      dispatchAgentMessagesChange(agentTag, hasMessages);
+    }
+    prevHasMessagesRef.current = hasMessages;
+  }, [messages.length, agentTag]);
 
   // Detect reasoning capability for the current model
   useEffect(() => {

@@ -1,6 +1,6 @@
 import Chat from '@/components/Chat';
 import { AgentInfoSheet } from '@/components/AgentInfoSheet';
-import { AgentHeaderBar } from '@/components/AgentHeaderBar';
+import { AgentChatLayout } from '@/components/AgentChatLayout';
 import { getAgentForViewer } from '@/actions/agents';
 import { notFound } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
@@ -145,47 +145,35 @@ export default async function ConversationPage({ params, searchParams }: { param
         </div>
       </div>
 
-      {/* Desktop Layout */}
-      <div className="hidden md:block ">
-        {/* 
-          Agent Header Bar - "Breaks out" of the layout padding using negative margins.
-          The layout has md:p-6 (1.5rem/24px padding).
-          We use -mx-6 to span full width, and -mt-4 to reach the top.
-          The header itself has pl-12 to accommodate the absolute sidebar trigger.
-        */}
-        <div className="-mt-4 -mx-6 rounded-t-xl overflow-hidden">
-          <AgentHeaderBar
-            name={found.name}
-            avatarUrl={avatarUrl}
-            tagline={found.tagline}
-            description={found.description}
-            agentTag={found.tag}
-            canEdit={canEdit}
-            modelOptions={modelOptions}
-            activeModel={initialModel}
-            visibility={found.visibility as 'public' | 'invite_only' | 'private'}
-            inviteCode={canEdit ? found.inviteCode || undefined : undefined}
-            publishStatus={found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined}
-            publishReviewNotes={found.publishReviewNotes || undefined}
-          />
-        </div>
-
-        {/* Chat area - full width */}
-        <div className="h-[calc(100vh-100px)]">
-          <Chat
-            className="mx-auto h-full max-w-3xl"
-            systemPrompt={combinedSystem}
-            model={initialModel}
-            modelOptions={modelOptions}
-            avatarUrl={avatarUrl}
-            isAuthenticated={true}
-            agentTag={found.tag}
-            initialConversationId={conversationId}
-            initialMessages={initialMessages as unknown[]}
-            agentHeroProps={heroProps}
-          />
-        </div>
-      </div>
+      {/* Desktop Layout - Client component for reactive header visibility */}
+      <AgentChatLayout
+        initialHasMessages={initialMessages.length > 0}
+        headerBarProps={{
+          name: found.name,
+          avatarUrl,
+          tagline: found.tagline,
+          description: found.description,
+          agentTag: found.tag,
+          canEdit,
+          modelOptions,
+          activeModel: initialModel,
+          visibility: found.visibility as 'public' | 'invite_only' | 'private',
+          inviteCode: canEdit ? found.inviteCode || undefined : undefined,
+          publishStatus: found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined,
+          publishReviewNotes: found.publishReviewNotes || undefined,
+        }}
+        chatProps={{
+          systemPrompt: combinedSystem,
+          model: initialModel,
+          modelOptions,
+          avatarUrl,
+          isAuthenticated: true,
+          agentTag: found.tag,
+          initialConversationId: conversationId,
+          initialMessages: initialMessages as unknown[],
+          agentHeroProps: heroProps,
+        }}
+      />
     </div>
   );
 }

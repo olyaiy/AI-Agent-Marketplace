@@ -3,10 +3,9 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Plus, Pencil, Copy, Check, Settings } from 'lucide-react';
+import { Plus, Copy, Check, Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { dispatchAgentModelChange } from '@/lib/agent-events';
+import { dispatchAgentModelChange, dispatchAgentNewChat } from '@/lib/agent-events';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
 import { ProviderAvatar } from '@/components/ProviderAvatar';
@@ -78,7 +77,6 @@ export function AgentInfoDialog({
     }, [publishStatus]);
 
     const agentId = agentTag ? agentTag.replace('@', '') : null;
-    const router = useRouter();
 
     const inviteUrl = React.useMemo(() => {
         if (!inviteCode || visibility !== 'invite_only' || !agentTag) return '';
@@ -137,7 +135,6 @@ export function AgentInfoDialog({
         }
     }, [activeModel, applyModelSelection, availableModels, selectedModel]);
 
-    // Metadata fetching logic (abbreviated)
     React.useEffect(() => {
         const missing = availableModels.filter((id) => !modelMeta[id]);
         if (missing.length === 0) return;
@@ -253,11 +250,12 @@ export function AgentInfoDialog({
                     {agentId && (
                         <Link
                             href={`/agent/${agentId}`}
+                            prefetch={false}
                             onClick={(event) => {
                                 if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
                                 event.preventDefault();
+                                dispatchAgentNewChat(agentTag);
                                 onOpenChange(false);
-                                router.push(`/agent/${agentId}`);
                             }}
                             className="flex w-full items-center justify-center gap-2 h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all shadow-sm"
                         >
