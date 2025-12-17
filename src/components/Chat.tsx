@@ -1024,12 +1024,12 @@ const MessageItem = React.memo(
                             const isFirstReasoning = thinkingGroup.steps.findIndex(s => s.type === 'reasoning') === stepIndex;
 
                             if (isFirstReasoning) {
-                              // First reasoning: use step for the bar, but no icon/label (header already shows "Thinking...")
+                              // First reasoning: show with brain icon
                               return (
                                 <ChainOfThoughtStep
                                   key={`step-${step.index}`}
-                                  icon={null}
-                                  label=""
+                                  icon={BrainIcon}
+                                  label="Thinking..."
                                   status={stepStatus}
                                 >
                                   <div className="text-xs text-muted-foreground mt-1">

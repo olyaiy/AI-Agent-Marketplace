@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  BrainIcon,
   ChevronDownIcon,
   DotIcon,
+  LightbulbIcon,
   type LucideIcon,
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
@@ -149,7 +149,7 @@ export const ChainOfThoughtHeader = memo(
           )}
           {...props}
         >
-          <BrainIcon className={cn(
+          <LightbulbIcon className={cn(
             "size-3.5 transition-transform duration-200",
             isStreaming && "animate-pulse"
           )} />
@@ -270,7 +270,7 @@ export const ChainOfThoughtContent = memo(
       <Collapsible open={isOpen}>
         <CollapsibleContent
           className={cn(
-            "mt-2 space-y-3",
+            "mt-2 pb-2 space-y-3",
             "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
             isStreaming && "animate-shimmer",
             className
