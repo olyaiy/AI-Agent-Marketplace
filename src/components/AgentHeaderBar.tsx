@@ -58,10 +58,13 @@ export function AgentHeaderBar({
       */}
             <div
                 className={cn(
-                    "sticky top-0 z-40 w-full h-12 flex items-center bg-background/80 backdrop-blur-sm border-b border-border/50 pl-12 pr-4 transition-all  ",
+                    "sticky top-0 z-40 w-full h-12 flex items-center bg-background/20 backdrop-blur-xl pl-12 pr-4 transition-all relative after:absolute after:bottom-0 after:left-4 after:right-4 after:h-px after:bg-border/50",
                     className
                 )}
             >
+                {/* Vertical divider to separate from sidebar toggle */}
+                <div className="h-8 w-px bg-border/50 mr-2" />
+
                 {/* Agent Info - Clickable to open dialog */}
                 <button
                     type="button"
@@ -103,7 +106,7 @@ export function AgentHeaderBar({
                             event.preventDefault();
                             dispatchAgentNewChat(agentTag);
                         }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 active:scale-[0.98] transition-all flex-shrink-0 shadow-sm"
+                        className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 active:scale-[0.98] transition-all flex-shrink-0 shadow-sm"
                     >
                         <Plus className="w-3.5 h-3.5" />
                         <span>New</span>
