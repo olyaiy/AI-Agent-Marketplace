@@ -3,9 +3,9 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus, ChevronDown } from 'lucide-react';
 import { AgentInfoDialog } from '@/components/AgentInfoDialog';
-import { dispatchAgentNewChat } from '@/lib/agent-events';
 import { cn } from '@/lib/utils';
 
 interface AgentHeaderBarProps {
@@ -40,6 +40,7 @@ export function AgentHeaderBar({
     className,
 }: AgentHeaderBarProps) {
     const [dialogOpen, setDialogOpen] = React.useState(false);
+    const router = useRouter();
     const agentId = agentTag ? agentTag.replace('@', '') : null;
 
     return (
@@ -86,15 +87,14 @@ export function AgentHeaderBar({
                 {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* New Chat Button */}
+                {/* New Chat Button - client-side navigation to agent page */}
                 {agentId && (
                     <Link
                         href={`/agent/${agentId}`}
-                        prefetch={false}
                         onClick={(event) => {
                             if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
                             event.preventDefault();
-                            dispatchAgentNewChat(agentTag);
+                            router.push(`/agent/${agentId}`);
                         }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 active:scale-[0.98] transition-all flex-shrink-0 shadow-sm"
                     >

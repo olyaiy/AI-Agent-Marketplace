@@ -94,6 +94,19 @@ export default async function ConversationPage({ params, searchParams }: { param
   const persistedModel = convo[0].modelId && modelOptions.includes(convo[0].modelId) ? convo[0].modelId : undefined;
   const initialModel = (modelParam && modelOptions.includes(modelParam)) ? modelParam : found.model || persistedModel || modelOptions[0];
 
+  // Agent hero props - enables hero to show when chat is reset
+  const heroProps = {
+    name: found.name,
+    avatarUrl,
+    tagline: found.tagline,
+    description: found.description,
+    agentTag: found.tag,
+    canEdit,
+    visibility: found.visibility as 'public' | 'invite_only' | 'private',
+    publishStatus: found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined,
+    publishReviewNotes: found.publishReviewNotes || undefined,
+  };
+
   return (
     <div className="relative ">
       {/* Mobile Layout - uses fixed positioning to avoid layout scroll conflicts */}
@@ -127,6 +140,7 @@ export default async function ConversationPage({ params, searchParams }: { param
             agentTag={found.tag}
             initialConversationId={conversationId}
             initialMessages={initialMessages as unknown[]}
+            agentHeroProps={heroProps}
           />
         </div>
       </div>
@@ -168,6 +182,7 @@ export default async function ConversationPage({ params, searchParams }: { param
             agentTag={found.tag}
             initialConversationId={conversationId}
             initialMessages={initialMessages as unknown[]}
+            agentHeroProps={heroProps}
           />
         </div>
       </div>
