@@ -92,7 +92,7 @@ export const Reasoning = memo(
         value={{ isStreaming, isOpen: isOpen ?? false, setIsOpen: handleOpenChange, duration: duration ?? 0 }}
       >
         <ChainOfThought
-          className={cn('mb-4', className)}
+          className={className}
           open={isOpen}
           onOpenChange={handleOpenChange}
           {...props}

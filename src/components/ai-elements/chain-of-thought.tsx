@@ -102,7 +102,7 @@ export const ChainOfThought = memo(
     return (
       <ChainOfThoughtContext.Provider value={chainOfThoughtContext}>
         <div
-          className={cn("not-prose max-w-prose space-y-4 mb-4", className)}
+          className={cn("not-prose max-w-prose space-y-3 [&:not(:first-child)]:mt-3", className)}
           {...props}
         >
           {children}
