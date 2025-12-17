@@ -156,16 +156,30 @@ export const Response = memo(
               const title = source?.title || linkText;
 
               return (
-                <InlineCitation>
-                  <InlineCitationCard>
-                    <InlineCitationCardTrigger sources={[url]} />
-                    <InlineCitationCardBody>
-                      <div className="p-4 w-[300px]">
-                        <InlineCitationSource title={title} url={url} />
-                      </div>
-                    </InlineCitationCardBody>
-                  </InlineCitationCard>
-                </InlineCitation>
+                <>
+                  {/* User message link - full styled link with accent color */}
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden group-[.is-user]:inline text-sky-600 dark:text-accent hover:underline underline-offset-2 font-medium"
+                  >
+                    {linkText}
+                  </a>
+                  {/* Assistant message link - pill citation badge */}
+                  <span className="group-[.is-user]:hidden">
+                    <InlineCitation>
+                      <InlineCitationCard>
+                        <InlineCitationCardTrigger sources={[url]} />
+                        <InlineCitationCardBody>
+                          <div className="p-4 w-[300px]">
+                            <InlineCitationSource title={title} url={url} />
+                          </div>
+                        </InlineCitationCardBody>
+                      </InlineCitationCard>
+                    </InlineCitation>
+                  </span>
+                </>
               );
             },
             blockquote: ({ className, ...props }) => (

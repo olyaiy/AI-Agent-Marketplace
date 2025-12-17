@@ -76,7 +76,11 @@ export const InlineCitationCardTrigger = ({
       <Badge
         variant="outline"
         className={cn(
-          'ml-1 inline-flex h-5 items-center rounded-full px-1.5 py-0 align-text-bottom text-[10px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer transition-colors',
+          'ml-1 inline-flex h-5 items-center rounded-full px-1.5 py-0 align-text-bottom text-[10px] font-normal cursor-pointer transition-colors',
+          // Default styling for assistant messages
+          'text-muted-foreground hover:bg-accent hover:text-foreground',
+          // Inverted styling for user messages (inside .is-user parent)
+          'group-[.is-user]:bg-primary-foreground/20 group-[.is-user]:text-primary-foreground group-[.is-user]:border-primary-foreground/30 group-[.is-user]:hover:bg-primary-foreground/30',
           className
         )}
         {...props}
