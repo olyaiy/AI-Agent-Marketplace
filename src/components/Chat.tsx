@@ -2254,7 +2254,7 @@ const Chat = React.memo(function Chat({
   const renderConversationItem = useCallback(
     (message: BasicUIMessage) =>
       message.id === '__pending_assistant__' ? (
-        <div className="px-2 md:px-4">
+        <div className="px-2 md:px-4 ">
           <Message from="assistant">
             <MessageContent>
               <MessageLoading />
@@ -2262,7 +2262,7 @@ const Chat = React.memo(function Chat({
           </Message>
         </div>
       ) : (
-        <div className="px-2 md:px-4">
+        <div className="px-2 md:px-4 pb-8">
           <MessageItem
             message={message}
             status={status}

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import useSWR from "swr";
-import { MoreVertical, Pencil, Trash2, ArrowRight } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, ArrowRight, ChevronDown } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -12,6 +12,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -30,17 +33,36 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   updateConversationTitleOptimistically,
   removeConversationOptimistically,
   revalidateConversations,
 } from "@/lib/conversations-cache";
+import { cn } from "@/lib/utils";
 
 export interface ConversationItem {
   id: string;
   agentId: string;
+  agentTag: string;
   dateIso: string;
   title?: string | null;
+  agentName: string;
+  agentAvatar: string | null;
+}
+
+interface AgentGroup {
+  agentId: string;
+  agentTag: string;
+  agentName: string;
+  agentAvatar: string | null;
+  conversations: ConversationItem[];
+  lastActivityDate: string;
 }
 
 const fetcher = async (url: string): Promise<ConversationItem[]> => {
@@ -64,22 +86,46 @@ export function RecentConversationsClient() {
     }
   );
 
-  // Don't render section if:
-  // - Loading is complete
-  // - No error occurred
-  // - And there are no conversations (genuinely empty, not an error)
-  if (!isLoading && !error && (!conversations || conversations.length === 0)) {
+  // Group conversations by agent, limit to 3 agents with 3 chats each
+  const agentGroups = useMemo<AgentGroup[]>(() => {
+    if (!conversations || conversations.length === 0) return [];
+
+    const groupMap = new Map<string, AgentGroup>();
+
+    for (const conv of conversations) {
+      const existing = groupMap.get(conv.agentId);
+      if (existing) {
+        // Only add up to 3 conversations per agent
+        if (existing.conversations.length < 3) {
+          existing.conversations.push(conv);
+        }
+      } else {
+        groupMap.set(conv.agentId, {
+          agentId: conv.agentId,
+          agentTag: conv.agentTag,
+          agentName: conv.agentName,
+          agentAvatar: conv.agentAvatar,
+          conversations: [conv],
+          lastActivityDate: conv.dateIso,
+        });
+      }
+    }
+
+    // Return top 3 agents (already ordered by most recent activity from API)
+    return Array.from(groupMap.values()).slice(0, 3);
+  }, [conversations]);
+
+  // Don't render section if empty
+  if (!isLoading && !error && agentGroups.length === 0) {
     return null;
   }
 
-  // Don't render if there's any error (including auth errors)
-  // User will see conversations appear when they're available
+  // Don't render if there's any error
   if (error) {
     return null;
   }
 
-  const displayedConversations = conversations?.slice(0, 5) || [];
-  const hasMoreConversations = (conversations?.length || 0) > 5;
+  const hasMoreConversations = (conversations?.length || 0) > 9;
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
@@ -91,19 +137,23 @@ export function RecentConversationsClient() {
             Array.from({ length: 3 }).map((_, i) => (
               <SidebarMenuItem key={`skeleton-${i}`}>
                 <div className="px-2 py-1.5 flex items-center gap-2">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-3 w-20 ml-auto" />
+                  <Skeleton className="h-5 w-5 rounded-full" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <div className="pl-6 space-y-1">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
                 </div>
               </SidebarMenuItem>
             ))
           ) : (
             <>
-              {/* Display first 5 conversations */}
-              {displayedConversations.map((conversation) => (
-                <ConversationMenuItem key={conversation.id} conversation={conversation} />
+              {/* Display agent groups */}
+              {agentGroups.map((group) => (
+                <AgentGroupSection key={group.agentId} group={group} />
               ))}
-              
-              {/* View all button if there are more than 5 */}
+
+              {/* View all button */}
               {hasMoreConversations && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
@@ -122,7 +172,50 @@ export function RecentConversationsClient() {
   );
 }
 
-function ConversationMenuItem({ conversation }: { conversation: ConversationItem }) {
+function AgentGroupSection({ group }: { group: AgentGroup }) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group/collapsible">
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton className="w-full justify-between pr-2">
+            <Link
+              href={`/agent/${group.agentId}`}
+              className="flex items-center gap-2 flex-1 min-w-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Avatar className="h-5 w-5 shrink-0">
+                {group.agentAvatar ? (
+                  <AvatarImage src={group.agentAvatar} alt={group.agentName} />
+                ) : null}
+                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                  {group.agentName.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate text-sm font-medium">{group.agentName}</span>
+            </Link>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                isOpen && "rotate-180"
+              )}
+            />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {group.conversations.map((conversation) => (
+              <ConversationSubItem key={conversation.id} conversation={conversation} />
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  );
+}
+
+function ConversationSubItem({ conversation }: { conversation: ConversationItem }) {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState(conversation.title || '');
@@ -145,11 +238,9 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
     const trimmedTitle = newTitle.trim();
 
     try {
-      // Optimistically update the UI
       await updateConversationTitleOptimistically(conversation.id, trimmedTitle);
       setRenameDialogOpen(false);
 
-      // Send to server
       const res = await fetch(`/api/conversations/${conversation.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
@@ -157,14 +248,11 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
       });
 
       if (!res.ok) {
-        // Rollback on error
         await revalidateConversations();
       } else {
-        // Revalidate to ensure sync
         await revalidateConversations();
       }
     } catch {
-      // Rollback on error
       await revalidateConversations();
     } finally {
       setIsRenaming(false);
@@ -175,29 +263,23 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
     setIsDeleting(true);
 
     try {
-      // Optimistically remove from UI
       await removeConversationOptimistically(conversation.id);
       setDeleteDialogOpen(false);
 
-      // Send delete request
       const res = await fetch(`/api/conversations/${conversation.id}`, {
         method: 'DELETE',
       });
 
       if (!res.ok) {
-        // Rollback on error
         await revalidateConversations();
       } else {
-        // Revalidate to ensure sync
         await revalidateConversations();
-        
-        // If user is viewing this conversation, redirect to home
+
         if (isCurrentConversation) {
           router.push('/');
         }
       }
     } catch {
-      // Rollback on error
       await revalidateConversations();
     } finally {
       setIsDeleting(false);
@@ -206,21 +288,21 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
 
   return (
     <>
-      <SidebarMenuItem className="group/item">
+      <SidebarMenuSubItem className="group/item">
         <div className="flex items-center w-full gap-1">
-          <SidebarMenuButton asChild className="flex-1">
+          <SidebarMenuSubButton asChild className="flex-1">
             <Link href={href}>
               <span className="text-xs truncate">{displayText}</span>
             </Link>
-          </SidebarMenuButton>
-          
+          </SidebarMenuSubButton>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="opacity-0 group-hover/item:opacity-100 h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-opacity"
+                className="opacity-0 group-hover/item:opacity-100 h-6 w-6 flex items-center justify-center rounded-md hover:bg-accent transition-opacity shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
-                <MoreVertical className="h-4 w-4" />
+                <MoreVertical className="h-3 w-3" />
                 <span className="sr-only">More options</span>
               </button>
             </DropdownMenuTrigger>
@@ -248,7 +330,7 @@ function ConversationMenuItem({ conversation }: { conversation: ConversationItem
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </SidebarMenuItem>
+      </SidebarMenuSubItem>
 
       {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>

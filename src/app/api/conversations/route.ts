@@ -32,20 +32,26 @@ export async function GET(req: Request) {
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,
       lastMessageAt: conversation.lastMessageAt,
+      agentName: agent.name,
+      agentAvatar: agent.avatar,
     })
     .from(conversation)
+    .leftJoin(agent, sql`${conversation.agentTag} = ${agent.tag}`)
     .where(sql`${conversation.userId} = ${session.user.id}`)
     .orderBy(sql`COALESCE(${conversation.lastMessageAt}, ${conversation.updatedAt}, ${conversation.createdAt}) DESC`)
-    .limit(10);
+    .limit(15);
 
   const items = rows.map((r) => {
     const date = (r.lastMessageAt as unknown as string) || (r.updatedAt as unknown as string) || (r.createdAt as unknown as string);
     const agentId = r.agentTag?.startsWith("@") ? r.agentTag.slice(1) : (r.agentTag as unknown as string);
-    return { 
-      id: r.id, 
-      agentId, 
+    return {
+      id: r.id,
+      agentId,
+      agentTag: r.agentTag,
       dateIso: new Date(date).toISOString(),
       title: r.title || null,
+      agentName: r.agentName || agentId,
+      agentAvatar: r.agentAvatar || null,
     };
   });
 
@@ -57,6 +63,7 @@ export async function GET(req: Request) {
     },
   });
 }
+
 
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
