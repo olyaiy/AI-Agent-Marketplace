@@ -2406,7 +2406,7 @@ const Chat = React.memo(function Chat({
       {hasMessages ? (
         <>
           {/* Scrollable conversation area */}
-          <div className="flex-1 overflow-hidden pb-32 md:pb-0">
+          <div className="flex-1 overflow-hidden pb-30 md:pb-0">
             <Conversation
               className="h-full"
               items={conversationItems}

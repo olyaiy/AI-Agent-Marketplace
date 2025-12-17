@@ -484,13 +484,43 @@ export async function POST(req: Request) {
       console.log('='.repeat(80) + '\n');
     },
     onFinish: async (result) => {
-      // Log the full usage object to see what's available
-      console.log('Full usage object:', JSON.stringify(result.usage, null, 2));
-      const resultWithMetadata = result as { experimental_providerMetadata?: unknown };
-      console.log('Provider metadata:', JSON.stringify(resultWithMetadata.experimental_providerMetadata, null, 2));
+      // Extract provider metadata for cost info
+      const resultWithMetadata = result as {
+        providerMetadata?: {
+          gateway?: {
+            cost?: string;
+            marketCost?: string;
+            generationId?: string;
+          };
+        };
+      };
+
+      // Get usage data
+      const usage = normalizeUsage(result.usage);
+
+      // Get gateway cost data
+      const gatewayData = resultWithMetadata.providerMetadata?.gateway;
+      const cost = gatewayData?.cost ? parseFloat(gatewayData.cost) : null;
+
+      // Log cost and token breakdown
+      console.log('\n💰 GENERATION COST');
+      console.log('─'.repeat(40));
+      if (cost !== null) {
+        console.log(`   Total Cost:      $${cost.toFixed(6)} USD`);
+      } else {
+        console.log('   Total Cost:      N/A');
+      }
+      console.log(`   Input Tokens:    ${usage.inputTokens.toLocaleString()}`);
+      console.log(`   Output Tokens:   ${usage.outputTokens.toLocaleString()}`);
+      console.log(`   Cached Tokens:   ${usage.cachedInputTokens.toLocaleString()}`);
+      console.log(`   Reasoning Tokens: ${usage.reasoningTokens.toLocaleString()}`);
+      console.log(`   Total Tokens:    ${usage.totalTokens.toLocaleString()}`);
+      if (gatewayData?.generationId) {
+        console.log(`   Generation ID:   ${gatewayData.generationId}`);
+      }
+      console.log('─'.repeat(40) + '\n');
 
       try {
-        const usage = normalizeUsage(result.usage);
         const hasUsage = Object.values(usage).some((value) => value > 0);
         if (hasUsage && ensuredConversationId) {
           const now = new Date();
