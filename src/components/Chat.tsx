@@ -2468,7 +2468,7 @@ const Chat = React.memo(function Chat({
           </div>
         </>
       ) : (
-        <div className="flex flex-col items-center justify-start h-full md:px-0 pt-8 md:pt-[25%]">
+        <div className="flex flex-col items-center h-full md:px-0 justify-between md:justify-start pt-0 md:pt-[25%]">
           {/* Agent Hero - displayed only when no messages and props are provided */}
           {agentHeroProps && (
             <AgentIntroHero
@@ -2484,7 +2484,7 @@ const Chat = React.memo(function Chat({
               modelOptions={modelChoices}
               currentModel={currentModel}
               onModelChange={handleInlineModelChange}
-              className="mb-2"
+              className="mb-2 md:mb-2 flex-1 md:flex-none flex items-center md:items-start"
             />
           )}
           <PromptInputForm
@@ -2504,7 +2504,7 @@ const Chat = React.memo(function Chat({
             modelChoices={modelChoices}
             currentModel={currentModel}
             onModelChange={handleInlineModelChange}
-            className="w-full max-w-2xl"
+            className="w-full max-w-2xl pb-4 md:pb-0"
           />
         </div>
       )}
