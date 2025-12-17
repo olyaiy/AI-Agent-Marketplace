@@ -184,14 +184,7 @@ export function AgentIntroHero({
                     </div>
                 )}
 
-                {/* Status badges - subtle */}
-                {(visibilityLabel || approvalLabel) && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {visibilityLabel && <span>{visibilityLabel}</span>}
-                        {visibilityLabel && approvalLabel && <span>·</span>}
-                        {approvalLabel && <span className={approvalLabel.tone}>{approvalLabel.text}</span>}
-                    </div>
-                )}
+
 
                 {/* Rejection notes */}
                 {publishStatus === 'rejected' && publishReviewNotes && (
@@ -243,13 +236,7 @@ export function AgentIntroHero({
 
                         {/* Bottom row: status + model picker */}
                         <div className="flex items-center gap-3 flex-wrap">
-                            {/* Status badges - subtle inline */}
-                            {(visibilityLabel || approvalLabel) && (
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    {visibilityLabel && <span className="px-2 py-0.5 rounded-full bg-muted">{visibilityLabel}</span>}
-                                    {approvalLabel && <span className={cn('px-2 py-0.5 rounded-full bg-muted', approvalLabel.tone)}>{approvalLabel.text}</span>}
-                                </div>
-                            )}
+
 
                             {/* Model Picker - Desktop */}
                             {showModelPicker && (

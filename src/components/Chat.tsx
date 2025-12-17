@@ -2468,7 +2468,7 @@ const Chat = React.memo(function Chat({
           </div>
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full md:px-0">
+        <div className="flex flex-col items-center justify-start h-full md:px-0 pt-8 md:pt-[25%]">
           {/* Agent Hero - displayed only when no messages and props are provided */}
           {agentHeroProps && (
             <AgentIntroHero
