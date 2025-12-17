@@ -40,13 +40,16 @@ export const MessageContent = ({
   <div
     className={cn(
       'flex flex-col gap-2 overflow-hidden text-[15px] md:text-base',
-      // User message styling - sleek pill bubble
-      'group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground',
-      'group-[.is-user]:rounded-3xl',
-      'group-[.is-user]:px-4 group-[.is-user]:py-2',
+      // User message styling - glassmorphism bubble
+      'group-[.is-user]:bg-primary/85 group-[.is-user]:backdrop-blur-sm',
+      'group-[.is-user]:text-primary-foreground',
+      'group-[.is-user]:rounded-2xl group-[.is-user]:rounded-br-sm',
+      'group-[.is-user]:px-4 group-[.is-user]:py-2.5',
+      'group-[.is-user]:border group-[.is-user]:border-primary-foreground/10',
+      'group-[.is-user]:shadow-lg group-[.is-user]:shadow-primary/25',
       // Assistant message styling
       'group-[.is-assistant]:text-foreground',
-      'group-[.is-assistant]:rounded-lg group-[.is-assistant]:px-1 group-[.is-assistant]:py-2',
+      'group-[.is-assistant]:px-2 group-[.is-assistant]:py-2',
       className
     )}
     {...props}
