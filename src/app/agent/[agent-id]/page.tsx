@@ -1,12 +1,49 @@
 import Chat from '@/components/Chat';
-import AgentInfoSidebar from '@/components/AgentInfoSidebar';
 import { AgentInfoSheet } from '@/components/AgentInfoSheet';
+import { AgentIntroHero } from '@/components/AgentIntroHero';
 import { getAgentForViewer } from '@/actions/agents';
 import { notFound } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getKnowledgeByAgent } from '@/actions/knowledge';
 import { buildKnowledgeSystemText } from '@/lib/knowledge';
+import type { Metadata } from 'next';
+
+// Generate dynamic metadata for SEO
+export async function generateMetadata({ params }: { params: Promise<{ 'agent-id': string }> }): Promise<Metadata> {
+  const { 'agent-id': id } = await params;
+  const tag = `@${id}`;
+
+  const { agent } = await getAgentForViewer({
+    tag,
+    userId: undefined,
+    userRole: undefined,
+    inviteCode: null,
+  });
+
+  if (!agent) {
+    return { title: 'Agent Not Found' };
+  }
+
+  const title = agent.name;
+  const description = agent.tagline || agent.description || `Chat with ${agent.name}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      ...(agent.avatar && { images: [{ url: `/avatars/${agent.avatar}` }] }),
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  };
+}
 
 export default async function AgentPage({ params, searchParams }: { params: Promise<{ 'agent-id': string }>; searchParams?: Promise<{ invite?: string; model?: string }> }) {
   const { 'agent-id': id } = await params;
@@ -52,6 +89,19 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
   const modelOptions = Array.from(new Set([found.model, ...(Array.isArray(found.secondaryModels) ? found.secondaryModels : [])].filter(Boolean)));
   const initialModel = modelParam && modelOptions.includes(modelParam) ? modelParam : found.model;
 
+  // Agent hero props for both mobile and desktop
+  const heroProps = {
+    name: found.name,
+    avatarUrl,
+    tagline: found.tagline,
+    description: found.description,
+    agentTag: found.tag,
+    canEdit,
+    visibility: found.visibility as 'public' | 'invite_only' | 'private',
+    publishStatus: found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined,
+    publishReviewNotes: found.publishReviewNotes || undefined,
+  };
+
   return (
     <main className="h-full">
       {/* Mobile Layout - uses fixed positioning to avoid layout scroll conflicts */}
@@ -73,7 +123,7 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             publishReviewNotes={found.publishReviewNotes || undefined}
           />
         </div>
-        {/* Chat area */}
+        {/* Chat area with hero integrated */}
         <div className="flex-1 min-h-0 overflow-hidden px-2">
           <Chat
             className="mx-auto h-full"
@@ -84,13 +134,15 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
             agentTag={found.tag}
+            showModelSelectorInPrompt
+            agentHeroProps={heroProps}
           />
         </div>
       </div>
 
-      {/* Desktop Layout */}
-      <div className="hidden md:flex h-dvh  gap-4  max-h-[calc(100vh-100px)]">
-        <div className="flex-1 max-w-[75%]">
+      {/* Desktop Layout - Full width centered, no sidebar */}
+      <div className="hidden md:flex h-dvh max-h-[calc(100vh-100px)] justify-center">
+        <div className="w-full max-w-3xl">
           <Chat
             className="mx-auto"
             systemPrompt={combinedSystem}
@@ -100,22 +152,8 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
             agentTag={found.tag}
-          />
-        </div>
-        <div className="w-[25%] min-w-[280px] flex-shrink-0">
-          <AgentInfoSidebar
-            name={found.name}
-            avatarUrl={avatarUrl}
-            tagline={found.tagline}
-            description={found.description}
-            agentTag={found.tag}
-            canEdit={canEdit}
-            modelOptions={modelOptions}
-            activeModel={initialModel}
-            visibility={found.visibility as 'public' | 'invite_only' | 'private'}
-            inviteCode={canEdit ? found.inviteCode || undefined : undefined}
-            publishStatus={found.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected' | undefined}
-            publishReviewNotes={found.publishReviewNotes || undefined}
+            showModelSelectorInPrompt
+            agentHeroProps={heroProps}
           />
         </div>
       </div>

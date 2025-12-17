@@ -66,6 +66,24 @@ import {
   SourcesContent,
   Source,
 } from '@/components/ai-elements/source';
+import { AgentIntroHero } from '@/components/AgentIntroHero';
+
+// Props for the AgentIntroHero component when displayed in empty state
+interface AgentHeroProps {
+  name: string;
+  avatarUrl?: string;
+  tagline?: string | null;
+  description?: string | null;
+  agentTag?: string;
+  canEdit?: boolean;
+  visibility?: 'public' | 'invite_only' | 'private';
+  publishStatus?: 'draft' | 'pending_review' | 'approved' | 'rejected';
+  publishReviewNotes?: string | null;
+  // Model picker props (will be populated by Chat component)
+  modelOptions?: string[];
+  currentModel?: string;
+  onModelChange?: (modelId: string) => void;
+}
 
 interface ChatProps {
   className?: string;
@@ -81,6 +99,8 @@ interface ChatProps {
   // Optional knowledge text to persist as a system message at conversation creation time
   knowledgeText?: string;
   showModelSelectorInPrompt?: boolean;
+  // Optional props for displaying the AgentIntroHero in empty state (no messages)
+  agentHeroProps?: AgentHeroProps;
 }
 
 type UsageSnapshot = {
@@ -1321,6 +1341,7 @@ const Chat = React.memo(function Chat({
   initialConversationId,
   initialMessages,
   showModelSelectorInPrompt = false,
+  agentHeroProps,
 }: ChatProps) {
   const [text, setText] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -2448,6 +2469,24 @@ const Chat = React.memo(function Chat({
         </>
       ) : (
         <div className="flex flex-col items-center justify-center h-full md:px-0">
+          {/* Agent Hero - displayed only when no messages and props are provided */}
+          {agentHeroProps && (
+            <AgentIntroHero
+              name={agentHeroProps.name}
+              avatarUrl={agentHeroProps.avatarUrl}
+              tagline={agentHeroProps.tagline}
+              description={agentHeroProps.description}
+              agentTag={agentHeroProps.agentTag}
+              canEdit={agentHeroProps.canEdit}
+              visibility={agentHeroProps.visibility}
+              publishStatus={agentHeroProps.publishStatus}
+              publishReviewNotes={agentHeroProps.publishReviewNotes}
+              modelOptions={modelChoices}
+              currentModel={currentModel}
+              onModelChange={handleInlineModelChange}
+              className="mb-0"
+            />
+          )}
           <PromptInputForm
             onSubmit={handleSubmit}
             onChangeText={setText}
@@ -2461,7 +2500,7 @@ const Chat = React.memo(function Chat({
             supportsReasoning={supportsReasoning}
             reasoningOn={reasoningOn}
             onToggleReasoning={handleToggleReasoning}
-            showModelSelectorInPrompt={showModelSelectorInPrompt}
+            showModelSelectorInPrompt={false}
             modelChoices={modelChoices}
             currentModel={currentModel}
             onModelChange={handleInlineModelChange}
