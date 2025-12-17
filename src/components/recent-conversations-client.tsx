@@ -185,9 +185,9 @@ function AgentGroupSection({ group }: { group: AgentGroup }) {
               className="flex items-center gap-2 flex-1 min-w-0"
               onClick={(e) => e.stopPropagation()}
             >
-              <Avatar className="h-5 w-5 shrink-0">
+              <Avatar className="h-6 w-6 shrink-0">
                 {group.agentAvatar ? (
-                  <AvatarImage src={group.agentAvatar} alt={group.agentName} />
+                  <AvatarImage src={`/avatars/${group.agentAvatar}`} alt={group.agentName} className="object-cover" />
                 ) : null}
                 <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                   {group.agentName.slice(0, 2).toUpperCase()}

@@ -165,7 +165,7 @@ export function AppSidebar({ userEmail, userRole }: AppSidebarProps) {
       </SidebarContent>
 
       {/* User Footer */}
-      <SidebarFooter>
+      <SidebarFooter className="border-t border-border/40">
         <SidebarMenu>
           <SidebarMenuItem>
             {userEmail ? (

@@ -1784,8 +1784,11 @@ const Chat = React.memo(function Chat({
           void addConversationOptimistically({
             id: newId,
             agentId,
+            agentTag,
             dateIso: new Date().toISOString(),
             title: conversationTitle,
+            agentName: agentId, // Will be updated on next revalidation
+            agentAvatar: null,
           });
         } catch { /* ignore */ }
 
