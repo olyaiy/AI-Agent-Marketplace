@@ -46,7 +46,7 @@ export const MessageContent = ({
       'group-[.is-user]:rounded-2xl group-[.is-user]:rounded-br-sm',
       'group-[.is-user]:px-4 group-[.is-user]:py-2.5',
       'group-[.is-user]:border group-[.is-user]:border-primary-foreground/10',
-      'group-[.is-user]:shadow-lg group-[.is-user]:shadow-primary/25',
+      'group-[.is-user]:shadow-lg group-[.is-user]:shadow-primary/25 group-[.is-user]:dark:shadow-md group-[.is-user]:dark:shadow-primary/10',
       // Assistant message styling
       'group-[.is-assistant]:text-foreground',
       'group-[.is-assistant]:px-2 group-[.is-assistant]:py-2',
