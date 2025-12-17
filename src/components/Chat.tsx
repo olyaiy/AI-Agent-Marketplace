@@ -2484,7 +2484,7 @@ const Chat = React.memo(function Chat({
               modelOptions={modelChoices}
               currentModel={currentModel}
               onModelChange={handleInlineModelChange}
-              className="mb-0"
+              className="mb-2"
             />
           )}
           <PromptInputForm

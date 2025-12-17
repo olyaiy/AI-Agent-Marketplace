@@ -108,7 +108,7 @@ export function AgentIntroHero({
             )}
 
             {/* Mobile Layout - Stacked centered */}
-            <div className="md:hidden flex flex-col items-center text-center px-4 pt-4 pb-0">
+            <div className="md:hidden flex flex-col items-center text-center px-4 pt-6 pb-0 ">
                 {/* Edit button - top right (mobile) */}
                 {canEdit && agentId && (
                     <Link
@@ -121,39 +121,39 @@ export function AgentIntroHero({
                 )}
 
                 {/* Avatar - Full size */}
-                <div className="mb-3">
+                <div className="mb-4">
                     {avatarUrl ? (
                         <Image
                             src={avatarUrl}
                             alt={`${name} avatar`}
-                            width={100}
-                            height={100}
+                            width={110}
+                            height={110}
                             className="rounded-2xl object-contain"
                             priority
                         />
                     ) : (
-                        <div className="w-[100px] h-[100px] rounded-2xl bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center">
-                            <span className="text-3xl font-bold text-muted-foreground/70">
+                        <div className="w-[110px] h-[110px] rounded-2xl bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center">
+                            <span className="text-4xl font-bold text-muted-foreground/70">
                                 {name.charAt(0)}
                             </span>
                         </div>
                     )}
                 </div>
 
-                {/* Name */}
-                <h1 className="text-xl font-semibold text-foreground mb-1">{name}</h1>
+                {/* Name - larger for readability */}
+                <h1 className="text-2xl font-semibold text-foreground mb-2 tracking-tight">{name}</h1>
 
-                {/* Tagline */}
-                <p className="text-sm text-muted-foreground mb-2">{effectiveTagline}</p>
+                {/* Tagline - larger and clearer */}
+                <p className="text-base text-muted-foreground mb-3 leading-relaxed">{effectiveTagline}</p>
 
-                {/* Description - Full */}
-                <p className="text-sm text-muted-foreground/70 mb-3 max-w-sm leading-relaxed">
+                {/* Description - improved readability */}
+                <p className="text-[15px] text-muted-foreground/80 mb-4 max-w-md leading-relaxed">
                     {effectiveDescription}
                 </p>
 
-                {/* Model Picker - Mobile (smaller) */}
+                {/* Model Picker - Mobile */}
                 {showModelPicker && (
-                    <div className="w-full max-w-[240px] mb-2">
+                    <div className="w-full max-w-[240px] mb-3">
                         {availableModels.length === 1 ? (
                             <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
                                 <ProviderAvatar providerSlug={selectedMeta?.providerSlug || null} size={14} />
@@ -202,22 +202,22 @@ export function AgentIntroHero({
             </div>
 
             {/* Desktop Layout - Clean horizontal */}
-            <div className="hidden md:block px-4 pt-6 pb-0">
-                <div className="flex items-start gap-6">
+            <div className="hidden md:block px-4 pt-8 pb-0  ">
+                <div className="flex items-start gap-8 ">
                     {/* Left: Full Avatar */}
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0  mb-0 p-2 hover:scale-101 transition-transform duration-200 cursor-pointer z-[1] ">
                         {avatarUrl ? (
                             <Image
                                 src={avatarUrl}
                                 alt={`${name} avatar`}
-                                width={120}
-                                height={120}
-                                className="w-[120px] h-auto rounded-2xl object-contain"
+                                width={130}
+                                height={130}
+                                className="w-[150px] h-auto rounded-2xl object-contain -mb-4"
                                 priority
                             />
                         ) : (
-                            <div className="w-[120px] h-[120px] rounded-2xl bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center">
-                                <span className="text-4xl font-bold text-muted-foreground/70">
+                            <div className="w-[130px] h-[130px] rounded-2xl bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center">
+                                <span className="text-5xl font-bold text-muted-foreground/70">
                                     {name.charAt(0)}
                                 </span>
                             </div>
@@ -225,19 +225,19 @@ export function AgentIntroHero({
                     </div>
 
                     {/* Right: Info */}
-                    <div className="flex-1 min-w-0">
-                        {/* Name row */}
-                        <h1 className="text-2xl font-semibold text-foreground mb-1">
+                    <div className="flex-1 min-w-0 pt-1 pb-4">
+                        {/* Name - larger and bolder */}
+                        <h1 className="text-3xl font-semibold text-foreground  tracking-tight">
                             {name}
                         </h1>
 
-                        {/* Tagline */}
-                        <p className="text-base text-muted-foreground mb-2">
+                        {/* Tagline - more prominent */}
+                        <p className="text-lg text-muted-foreground mb-3 leading-relaxed">
                             {effectiveTagline}
                         </p>
 
-                        {/* Description - Full */}
-                        <p className="text-sm text-muted-foreground/70 mb-3 leading-relaxed">
+                        {/* Description - better readability with larger text and line height */}
+                        <p className="text-[15px] text-muted-foreground/80 mb-5 leading-[1.7]">
                             {effectiveDescription}
                         </p>
 
@@ -251,7 +251,7 @@ export function AgentIntroHero({
                                 </div>
                             )}
 
-                            {/* Model Picker - Desktop (smaller) */}
+                            {/* Model Picker - Desktop */}
                             {showModelPicker && (
                                 <div className="flex items-center">
                                     {availableModels.length === 1 ? (
