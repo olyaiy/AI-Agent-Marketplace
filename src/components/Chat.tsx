@@ -913,44 +913,59 @@ const MessageItem = React.memo(
 
     // Render edit mode for user messages
     if (isEditing && message.role === 'user') {
+      // Auto-size textarea effect
+      const autoSizeTextarea = () => {
+        if (editTextareaRef.current) {
+          editTextareaRef.current.style.height = 'auto';
+          editTextareaRef.current.style.height = `${Math.min(editTextareaRef.current.scrollHeight, 400)}px`;
+        }
+      };
+
       return (
-        <div className="group/message">
-          <Message from={message.role}>
-            <MessageContent className="p-0 bg-transparent">
-              <div className="flex flex-col gap-2 w-full min-w-[280px] max-w-md p-2 md:p-0">
-                <textarea
-                  ref={editTextareaRef}
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  onKeyDown={handleEditKeyDown}
-                  className="w-full min-h-[80px] p-3 text-sm rounded-lg border bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="Edit your message..."
-                />
-                <div className="flex items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={onCancelEdit}
-                    className="text-muted-foreground"
-                  >
-                    <XIcon className="size-4 mr-1" />
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    onClick={() => editText.trim() && onConfirmEdit?.(message.id, editText.trim())}
-                    disabled={!editText.trim()}
-                  >
-                    <SendIcon className="size-4 mr-1" />
-                    Edit & Re-send
-                  </Button>
-                </div>
-              </div>
-            </MessageContent>
-          </Message>
+        <div className="group/message flex w-full justify-end py-0">
+          <div className="flex flex-col gap-2 w-full max-w-[600px]">
+            <textarea
+              ref={(el) => {
+                (editTextareaRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                if (el) {
+                  el.style.height = 'auto';
+                  el.style.height = `${Math.min(el.scrollHeight, 400)}px`;
+                }
+              }}
+              value={editText}
+              onChange={(e) => {
+                setEditText(e.target.value);
+                // Auto-resize on content change
+                e.target.style.height = 'auto';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 400)}px`;
+              }}
+              onKeyDown={handleEditKeyDown}
+              className="w-full min-h-[60px] max-h-[400px] p-4 text-[15px] md:text-base rounded-2xl rounded-br-sm border-2 border-primary/30 bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 overflow-y-auto shadow-sm"
+              placeholder="Edit your message..."
+            />
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onCancelEdit}
+                className="text-muted-foreground"
+              >
+                <XIcon className="size-4 mr-1" />
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={() => editText.trim() && onConfirmEdit?.(message.id, editText.trim())}
+                disabled={!editText.trim()}
+              >
+                <SendIcon className="size-4 mr-1" />
+                Edit & Re-send
+              </Button>
+            </div>
+          </div>
         </div>
       );
     }
