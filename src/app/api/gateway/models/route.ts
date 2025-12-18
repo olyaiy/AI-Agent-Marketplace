@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gateway } from "@ai-sdk/gateway";
 import { unstable_cache } from "next/cache";
+import { GATEWAY_PROVIDER_SET } from "@/lib/gateway-providers";
 
 // Types for our formatted model response (matching OpenRouter format for compatibility)
 interface FormattedModel {
@@ -14,6 +15,9 @@ interface FormattedModel {
     output_modalities: string[];
     supported_parameters: string[];
     default_parameters?: Record<string, string | number | boolean | null>;
+    provider?: string | null;
+    providers?: string[];
+    default_provider?: string | null;
 }
 
 // Models.dev API response structure
@@ -52,17 +56,32 @@ interface ModelsDevModel {
     open_weights?: boolean;
 }
 
+type ModelsDevEntry = {
+    model: ModelsDevModel;
+    providerId: string;
+    modelKey: string;
+    fullId: string;
+    baseName: string;
+};
+
 const CACHE_TTL_SECONDS = 300; // 5 minutes for models.dev data
 
 // Cached full model data from models.dev
-let modelsDevCache: Map<string, ModelsDevModel> | null = null;
+let modelsDevCache: Map<string, ModelsDevEntry> | null = null;
+let modelsDevProvidersCache: Map<string, Set<string>> | null = null;
 let modelsDevCacheTime = 0;
 
-async function fetchModelsDevData(): Promise<Map<string, ModelsDevModel>> {
+function normalizeBaseName(id: string): string {
+    const trimmed = id.trim();
+    const withoutProvider = trimmed.includes('/') ? trimmed.split('/').slice(1).join('/') : trimmed;
+    return withoutProvider.toLowerCase();
+}
+
+async function fetchModelsDevData(): Promise<{ modelMap: Map<string, ModelsDevEntry>; baseProviders: Map<string, Set<string>>; }> {
     const now = Date.now();
     // Return cached if valid (5 minutes)
     if (modelsDevCache && now - modelsDevCacheTime < CACHE_TTL_SECONDS * 1000) {
-        return modelsDevCache;
+        return { modelMap: modelsDevCache, baseProviders: modelsDevProvidersCache || new Map() };
     }
 
     try {
@@ -72,22 +91,43 @@ async function fetchModelsDevData(): Promise<Map<string, ModelsDevModel>> {
 
         if (!response.ok) {
             console.warn('⚠️ Failed to fetch models.dev API, falling back to defaults');
-            return modelsDevCache || new Map();
+            return { modelMap: modelsDevCache || new Map(), baseProviders: modelsDevProvidersCache || new Map() };
         }
 
         const data: Record<string, ModelsDevProvider> = await response.json();
-        const modelMap = new Map<string, ModelsDevModel>();
+        const modelMap = new Map<string, ModelsDevEntry>();
+        const baseProviders = new Map<string, Set<string>>();
 
-        // Build a map of all model IDs to their full data
+        // Build a map of all model IDs to their full data + provider ids, and track providers per base model name
         for (const provider of Object.values(data)) {
             if (provider.models) {
                 for (const [modelKey, model] of Object.entries(provider.models)) {
-                    // Store with various ID formats for flexible matching
                     const fullId = `${provider.id}/${modelKey}`;
-                    modelMap.set(fullId, model);
-                    modelMap.set(modelKey, model);
+                    const baseNames = [
+                        normalizeBaseName(fullId),
+                        normalizeBaseName(modelKey),
+                        model.id ? normalizeBaseName(model.id) : null,
+                    ].filter(Boolean) as string[];
+
+                    baseNames.forEach((bn) => {
+                        const set = baseProviders.get(bn) || new Set<string>();
+                        set.add(provider.id);
+                        baseProviders.set(bn, set);
+                    });
+
+                    const entry: ModelsDevEntry = {
+                        model,
+                        providerId: provider.id,
+                        modelKey,
+                        fullId,
+                        baseName: baseNames[0] || normalizeBaseName(fullId),
+                    };
+
+                    // Store with various ID formats for flexible matching
+                    modelMap.set(fullId, entry);
+                    modelMap.set(modelKey, entry);
                     if (model.id) {
-                        modelMap.set(model.id, model);
+                        modelMap.set(model.id, entry);
                     }
                 }
             }
@@ -95,11 +135,12 @@ async function fetchModelsDevData(): Promise<Map<string, ModelsDevModel>> {
 
         console.log(`✅ Loaded ${modelMap.size} models from models.dev with full data`);
         modelsDevCache = modelMap;
+        modelsDevProvidersCache = baseProviders;
         modelsDevCacheTime = now;
-        return modelMap;
+        return { modelMap, baseProviders };
     } catch (error) {
         console.warn('⚠️ Error fetching models.dev:', error);
-        return modelsDevCache || new Map();
+        return { modelMap: modelsDevCache || new Map(), baseProviders: modelsDevProvidersCache || new Map() };
     }
 }
 
@@ -114,11 +155,21 @@ async function fetchGatewayModels(
                 gateway.getAvailableModels(),
                 fetchModelsDevData()
             ]);
+            const modelsDevMap = modelsDevData.modelMap;
+            const modelsDevProviders = modelsDevData.baseProviders;
 
             // Transform to match our expected format
             const formattedModels: FormattedModel[] = availableModels.models.map((model) => {
                 // Try to find full model data from models.dev
-                const modelsDevModel = lookupModelsDevModel(model.id, modelsDevData);
+                const modelsDevEntry = lookupModelsDevModel(model.id, modelsDevMap);
+                const modelsDevModel = modelsDevEntry?.model;
+                const providerSlugRaw = (model.specification as { provider?: string } | undefined)?.provider || extractProvider(model.id);
+                const providerSlug = providerSlugRaw ? providerSlugRaw.toLowerCase() : null;
+                const baseName = normalizeBaseName(model.id);
+                const providersSet = modelsDevProviders.get(baseName) || new Set<string>();
+                if (providerSlug) providersSet.add(providerSlug.toLowerCase());
+                const providers = Array.from(providersSet).filter((p) => GATEWAY_PROVIDER_SET.has(p));
+                const defaultProvider = providerSlug && GATEWAY_PROVIDER_SET.has(providerSlug) ? providerSlug : (providers[0] || null);
 
                 return {
                     id: model.id,
@@ -139,6 +190,9 @@ async function fetchGatewayModels(
                         ? ['reasoning']
                         : [],
                     default_parameters: undefined,
+                    provider: defaultProvider,
+                    providers,
+                    default_provider: defaultProvider,
                 };
             });
 
@@ -155,7 +209,7 @@ async function fetchGatewayModels(
 }
 
 // Look up full model data from models.dev
-function lookupModelsDevModel(modelId: string, modelMap: Map<string, ModelsDevModel>): ModelsDevModel | undefined {
+function lookupModelsDevModel(modelId: string, modelMap: Map<string, ModelsDevEntry>): ModelsDevEntry | undefined {
     const id = modelId.toLowerCase();
 
     // Try exact match first

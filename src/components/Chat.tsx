@@ -1363,6 +1363,7 @@ const Chat = React.memo(function Chat({
   const [supportsReasoning, setSupportsReasoning] = useState<boolean>(false);
   const [reasoningOn, setReasoningOn] = useLocalStorage<boolean>('chat_reasoning_on', false);
   const [webSearchOn, setWebSearchOn] = useLocalStorage<boolean>('chat_web_search_on', false);
+  const [providerOverride, setProviderOverride] = useState<string | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [contextUsage, setContextUsage] = useState<UsageSnapshot | null>(null);
@@ -1412,6 +1413,7 @@ const Chat = React.memo(function Chat({
       setCurrentModel(detail.modelId);
       setContextModelId(detail.modelId);
       setContextMaxTokens(guessMaxTokens(detail.modelId));
+      setProviderOverride(detail.providerId ?? null);
     };
     window.addEventListener(AGENT_MODEL_CHANGE_EVENT, handler as EventListener);
     return () => {
@@ -1441,7 +1443,8 @@ const Chat = React.memo(function Chat({
     setCurrentModel(modelId);
     setContextModelId(modelId);
     setContextMaxTokens(guessMaxTokens(modelId));
-    dispatchAgentModelChange(agentTag, modelId);
+    setProviderOverride(null);
+    dispatchAgentModelChange(agentTag, modelId, null);
   }, [agentTag, guessMaxTokens]);
 
   const renderContextControl = useCallback(() => {
@@ -1715,6 +1718,7 @@ const Chat = React.memo(function Chat({
     setContextUsage(null);
     setContextModelId(model);
     setContextMaxTokens(undefined);
+    setProviderOverride(null);
     if (copyTimeoutRef.current) {
       window.clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = null;
@@ -1897,6 +1901,7 @@ const Chat = React.memo(function Chat({
           agentTag,
           reasoningEnabled: supportsReasoning ? reasoningOn : false,
           webSearchEnabled: webSearchOn,
+          provider: providerOverride || undefined,
         },
       }
     );

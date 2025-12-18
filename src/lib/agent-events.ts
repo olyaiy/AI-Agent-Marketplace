@@ -14,7 +14,7 @@ export interface AgentMessagesChangeEventDetail {
 }
 
 export type AgentNewChatEvent = CustomEvent<AgentNewChatEventDetail>;
-export type AgentModelChangeEvent = CustomEvent<{ agentTag?: string | null; modelId: string }>;
+export type AgentModelChangeEvent = CustomEvent<{ agentTag?: string | null; modelId: string; providerId?: string | null }>;
 export type AgentMessagesChangeEvent = CustomEvent<AgentMessagesChangeEventDetail>;
 
 export function dispatchAgentNewChat(agentTag?: string | null) {
@@ -25,12 +25,16 @@ export function dispatchAgentNewChat(agentTag?: string | null) {
   window.dispatchEvent(event);
 }
 
-export function dispatchAgentModelChange(agentTag: string | undefined | null, modelId: string) {
+export function dispatchAgentModelChange(agentTag: string | undefined | null, modelId: string, providerId?: string | null) {
   if (typeof window === 'undefined') return;
   const event: AgentModelChangeEvent = new CustomEvent(AGENT_MODEL_CHANGE_EVENT, {
-    detail: { agentTag, modelId },
+    detail: { agentTag, modelId, providerId: providerId ?? null },
   });
   window.dispatchEvent(event);
+}
+
+export function dispatchAgentModelAndProviderChange(agentTag: string | undefined | null, modelId: string, providerId?: string | null) {
+  dispatchAgentModelChange(agentTag, modelId, providerId);
 }
 
 export function dispatchAgentMessagesChange(agentTag: string | undefined | null, hasMessages: boolean) {

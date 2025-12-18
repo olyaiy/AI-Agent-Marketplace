@@ -169,6 +169,13 @@
       "when": 1766023550229,
       "tag": "0023_previous_gamma_corps",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1766081883169,
+      "tag": "0024_perpetual_rogue",
+      "breakpoints": true
     }
   ]
 }

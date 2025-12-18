@@ -19,6 +19,7 @@ interface Props {
   initialSystemPrompt?: string;
   initialModel?: string;
   initialSecondaryModels?: string[];
+  initialProviderOptions?: Record<string, { order?: string[]; only?: string[] }>;
   initialAvatar?: string;
   initialTagline?: string;
   initialDescription?: string;
@@ -78,6 +79,7 @@ function LeftForm({
   publishReviewNotes,
   publishRequestedAt,
   previewNode,
+  initialProviderOptions,
 }: LeftFormProps) {
   const [nameValue, setNameValue] = React.useState(initialName);
 
@@ -179,6 +181,7 @@ function LeftForm({
             initialDescription={initialDescription}
             initialVisibility={initialVisibility}
             inviteCode={inviteCode}
+            initialProviderOptions={initialProviderOptions}
             onChange={(value) => {
               sendContextRef.current.model = value;
               onModelPreviewChange(value);

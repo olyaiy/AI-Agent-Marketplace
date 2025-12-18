@@ -13,11 +13,13 @@ interface Props {
   placeholder?: string;
   includeHiddenInput?: boolean;
   primaryModelId?: string;
+  providerSelections?: Record<string, string | null>;
+  onProviderChange?: (modelId: string, provider: string | null) => void;
 }
 
 const labelCache = new Map<string, string>();
 
-export function SecondaryModelsInput({ value, onChange, label = "Secondary models", placeholder = "Search models to add...", includeHiddenInput = true, primaryModelId }: Props) {
+export function SecondaryModelsInput({ value, onChange, label = "Secondary models", placeholder = "Search models to add...", includeHiddenInput = true, primaryModelId, providerSelections, onProviderChange }: Props) {
   const [pending, setPending] = React.useState<string>("");
   const [labels, setLabels] = React.useState<Record<string, string>>({});
   const inflight = React.useRef<Set<string>>(new Set());
@@ -47,8 +49,9 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
     (modelId: string) => {
       const next = value.filter((m) => m !== modelId);
       onChange(next);
+      if (onProviderChange) onProviderChange(modelId, null);
     },
-    [onChange, value]
+    [onChange, value, onProviderChange]
   );
 
   // Fetch human-friendly names for selected ids so badges mirror primary select display
@@ -126,6 +129,8 @@ export function SecondaryModelsInput({ value, onChange, label = "Secondary model
         keepOpenOnSelect
         primaryId={primaryModelId}
         primaryLabel="Primary model"
+        providerSelections={providerSelections}
+        onProviderChange={onProviderChange}
       />
       <div className="flex flex-wrap gap-2">
         {primaryModelId && (

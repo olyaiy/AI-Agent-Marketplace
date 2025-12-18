@@ -15,6 +15,7 @@ interface Props {
   initialDescription?: string;
   initialVisibility?: 'public' | 'invite_only' | 'private';
   inviteCode?: string;
+  initialProviderOptions?: Record<string, { order?: string[]; only?: string[] }>;
   onChange?: (model: string | undefined) => void;
   onContextChange?: (update: { model?: string; systemPrompt?: string; tagline?: string; description?: string }) => void;
   onTabChange?: (tab: "behaviour" | "details" | "knowledge" | "publish" | "preview") => void;
@@ -41,6 +42,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   onContextChange,
   onTabChange,
   onSecondaryModelsChange,
+  initialProviderOptions,
   publishStatus = 'draft',
   publishReviewNotes,
   publishRequestedAt,
@@ -49,8 +51,21 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   previewContent,
   formId,
 }: Props) {
+  const resolvedFormId = formId || 'agent-form';
   const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
   const [secondaryModels, setSecondaryModels] = React.useState<string[]>(initialSecondaryModels || []);
+  const [providerSelections, setProviderSelections] = React.useState<Record<string, string | null>>(() => {
+    const incoming = initialProviderOptions || {};
+    const next: Record<string, string | null> = {};
+    Object.entries(incoming).forEach(([modelId, cfg]) => {
+      const preferred = (cfg?.order && cfg.order[0]) || (cfg?.only && cfg.only[0]);
+      const clean = typeof preferred === 'string' ? preferred.trim().toLowerCase() : '';
+      if (clean.length > 0) {
+        next[modelId] = clean;
+      }
+    });
+    return next;
+  });
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish" | "preview">("behaviour");
   const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>(initialVisibility);
   const [copied, setCopied] = React.useState(false);
@@ -71,6 +86,37 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   React.useEffect(() => {
     if (onSecondaryModelsChange) onSecondaryModelsChange(secondaryModels);
   }, [secondaryModels, onSecondaryModelsChange]);
+
+  const handleProviderChange = React.useCallback((modelId: string, provider: string | null) => {
+    if (!modelId) return;
+    setProviderSelections((prev) => {
+      const next = { ...prev };
+      if (!provider) {
+        delete next[modelId];
+      } else {
+        next[modelId] = provider;
+      }
+      return next;
+    });
+  }, []);
+
+  const activeModelIds = React.useMemo(() => {
+    const set = new Set<string>();
+    if (selectedModel) set.add(selectedModel);
+    secondaryModels.filter(Boolean).forEach((m) => set.add(m));
+    return set;
+  }, [secondaryModels, selectedModel]);
+
+  const providerOptionsMap = React.useMemo(() => {
+    const map: Record<string, { order: string[]; only: string[] }> = {};
+    Object.entries(providerSelections).forEach(([modelId, provider]) => {
+      if (!activeModelIds.has(modelId)) return;
+      const clean = typeof provider === 'string' ? provider.trim().toLowerCase() : '';
+      if (!clean) return;
+      map[modelId] = { order: [clean], only: [clean] };
+    });
+    return map;
+  }, [activeModelIds, providerSelections]);
 
   const inviteUrl = React.useMemo(() => {
     if (visibility !== 'invite_only') return '';
@@ -174,6 +220,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                     placeholder="Select a primary model..."
                     width="100%"
                     label=""
+                    providerSelections={providerSelections}
+                    onProviderChange={handleProviderChange}
                   />
                 </div>
               </div>
@@ -210,6 +258,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                     onChange={setSecondaryModels}
                     includeHiddenInput={false}
                     primaryModelId={selectedModel || undefined}
+                    providerSelections={providerSelections}
+                    onProviderChange={handleProviderChange}
                   />
                 </div>
               </div>
@@ -263,7 +313,7 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                     {/* Textarea */}
                     <textarea
                       name="systemPrompt"
-                      form={formId}
+                      form={resolvedFormId}
                       defaultValue={initialSystemPrompt}
                       onInput={(e) => {
                         const value = e.currentTarget.value;
@@ -341,7 +391,7 @@ Describe the communication style (friendly, professional, etc.)
               <div className="relative">
                 <input
                   name="tagline"
-                  form={formId}
+                  form={resolvedFormId}
                   defaultValue={initialTagline}
                   onInput={(e) => onContextChange && onContextChange({ tagline: e.currentTarget.value })}
                   placeholder="e.g., Your personal coding assistant"
@@ -373,7 +423,7 @@ Describe the communication style (friendly, professional, etc.)
               <div className="relative group">
                 <textarea
                   name="description"
-                  form={formId}
+                  form={resolvedFormId}
                   defaultValue={initialDescription}
                   onInput={(e) => onContextChange && onContextChange({ description: e.currentTarget.value })}
                   rows={8}
@@ -462,7 +512,7 @@ For example:
                       <input
                         type="radio"
                         name="visibility-choice"
-                        form={formId}
+                        form={resolvedFormId}
                         value={opt.value}
                         checked={visibility === opt.value}
                         onChange={() => setVisibility(opt.value as typeof visibility)}
@@ -520,7 +570,7 @@ For example:
               {publishStatus === 'pending_review' ? (
                 <button
                   type="submit"
-                  form={formId}
+                  form={resolvedFormId}
                   formAction={onWithdrawPublic}
                   className="px-5 py-2.5 rounded-full text-sm font-medium border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors"
                 >
@@ -534,7 +584,7 @@ For example:
               ) : (
                 <button
                   type="submit"
-                  form={formId}
+                  form={resolvedFormId}
                   formAction={onRequestPublic}
                   className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm ${visibility === 'public'
                     ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200'
@@ -549,9 +599,10 @@ For example:
           </div>
         )}
       </div>
-      <input type="hidden" name="model" value={selectedModel || ""} form={formId} />
-      <input type="hidden" name="secondaryModels" value={JSON.stringify(secondaryModels || [])} form={formId} />
-      <input type="hidden" name="visibility" value={visibility} form={formId} />
+      <input type="hidden" name="model" value={selectedModel || ""} form={resolvedFormId} />
+      <input type="hidden" name="secondaryModels" value={JSON.stringify(secondaryModels || [])} form={resolvedFormId} />
+      <input type="hidden" name="providerOptions" value={JSON.stringify(providerOptionsMap)} form={resolvedFormId} />
+      <input type="hidden" name="visibility" value={visibility} form={resolvedFormId} />
     </div>
   );
 });

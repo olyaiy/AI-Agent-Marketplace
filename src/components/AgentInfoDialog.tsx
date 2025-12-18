@@ -105,7 +105,8 @@ export function AgentInfoDialog({
         [modelOptions]
     );
     const [selectedModel, setSelectedModel] = React.useState<string | undefined>(() => activeModel || availableModels[0]);
-    const [modelMeta, setModelMeta] = React.useState<Record<string, { label: string; providerSlug: string | null }>>({});
+    const [modelMeta, setModelMeta] = React.useState<Record<string, { label: string; providerSlug: string | null; providers?: string[]; defaultProvider?: string | null }>>({});
+    const [selectedProvider, setSelectedProvider] = React.useState<string | null>(null);
 
     const replaceModelParam = React.useCallback((modelId: string | undefined) => {
         if (typeof window === 'undefined' || !modelId) return;
@@ -119,8 +120,9 @@ export function AgentInfoDialog({
 
     const applyModelSelection = React.useCallback((modelId: string, emitEvent = true) => {
         setSelectedModel(modelId);
+        setSelectedProvider(null);
         replaceModelParam(modelId);
-        if (emitEvent) dispatchAgentModelChange(agentTag, modelId);
+        if (emitEvent) dispatchAgentModelChange(agentTag, modelId, null);
     }, [agentTag, replaceModelParam]);
 
     React.useEffect(() => {
@@ -146,14 +148,16 @@ export function AgentInfoDialog({
                 const res = await fetch(url.toString(), { signal: controller.signal });
                 if (!res.ok) throw new Error('failed');
                 const json = await res.json();
-                const items: Array<{ id: string; name: string }> = json?.data ?? [];
-                const nextUpdates: Record<string, { label: string; providerSlug: string | null }> = {};
+                const items: Array<{ id: string; name: string; providers?: string[]; default_provider?: string | null }> = json?.data ?? [];
+                const nextUpdates: Record<string, { label: string; providerSlug: string | null; providers?: string[]; defaultProvider?: string | null }> = {};
                 missing.forEach((id) => {
                     const hit = items.find((m) => m.id === id);
                     const modelName = hit?.name;
                     nextUpdates[id] = {
                         label: getDisplayName(modelName, id),
                         providerSlug: deriveProviderSlug(modelName, id),
+                        providers: hit?.providers,
+                        defaultProvider: hit?.default_provider ?? deriveProviderSlug(modelName, id),
                     };
                 });
                 setModelMeta((prev) => ({ ...prev, ...nextUpdates }));
@@ -164,6 +168,8 @@ export function AgentInfoDialog({
                         next[id] = {
                             label: getDisplayName(undefined, id),
                             providerSlug: deriveProviderSlug(undefined, id),
+                            providers: [],
+                            defaultProvider: deriveProviderSlug(undefined, id),
                         };
                     });
                     return next;
@@ -180,6 +186,8 @@ export function AgentInfoDialog({
                 id,
                 label: meta?.label || getDisplayName(undefined, id),
                 providerSlug: meta?.providerSlug || deriveProviderSlug(meta?.label, id),
+                providers: meta?.providers || [],
+                defaultProvider: meta?.defaultProvider || meta?.providerSlug || deriveProviderSlug(meta?.label, id),
             };
         }),
         [availableModels, modelMeta]
@@ -190,6 +198,16 @@ export function AgentInfoDialog({
         () => modelsWithMeta.find((m) => m.id === selectedValue),
         [modelsWithMeta, selectedValue]
     );
+    const providerOptionsForSelected = React.useMemo(() => {
+        const set = new Set<string>();
+        if (selectedMeta?.providers) selectedMeta.providers.forEach((p) => set.add((p || '').toLowerCase()));
+        if (selectedMeta?.providerSlug) set.add((selectedMeta.providerSlug || '').toLowerCase());
+        return Array.from(set).filter(Boolean);
+    }, [selectedMeta]);
+
+    React.useEffect(() => {
+        setSelectedProvider(null);
+    }, [selectedValue]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -282,8 +300,7 @@ export function AgentInfoDialog({
                             <Select
                                 value={selectedValue}
                                 onValueChange={(val) => {
-                                    setSelectedModel(val);
-                                    dispatchAgentModelChange(agentTag, val);
+                                    applyModelSelection(val);
                                 }}
                             >
                                 <SelectTrigger className="w-full h-10 px-3 rounded-lg bg-background border hover:bg-muted/40 transition-colors shadow-sm">
@@ -302,6 +319,38 @@ export function AgentInfoDialog({
                                     ))}
                                 </SelectContent>
                             </Select>
+
+                            {providerOptionsForSelected.length > 0 && (
+                                <div className="pt-1">
+                                    <Select
+                                        value={selectedProvider || "__auto__"}
+                                        onValueChange={(val) => {
+                                            const provider = val === "__auto__" ? null : val;
+                                            setSelectedProvider(provider);
+                                            dispatchAgentModelChange(agentTag, selectedValue, provider);
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-full h-10 px-3 rounded-lg bg-background border hover:bg-muted/40 transition-colors shadow-sm">
+                                            <SelectValue placeholder="Auto (gateway default)">
+                                                <div className="flex items-center gap-2">
+                                                    <ProviderAvatar providerSlug={selectedProvider || selectedMeta?.providerSlug || null} size={18} />
+                                                    <span className="text-sm truncate capitalize">
+                                                        {selectedProvider || selectedMeta?.defaultProvider || 'Auto'}
+                                                    </span>
+                                                </div>
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__auto__">Auto (gateway default)</SelectItem>
+                                            {providerOptionsForSelected.map((provider) => (
+                                                <SelectItem key={provider} value={provider} className="capitalize">
+                                                    {provider}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

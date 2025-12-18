@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { tavilyReadPageTool, tavilySearchTool } from '@/lib/tavily';
 import { applyCreditDelta } from '@/lib/billing/credit-store';
 import { priceGatewayCostOrNull } from '@/lib/billing/pricing';
+import { GATEWAY_PROVIDER_SET } from '@/lib/gateway-providers';
 
 type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
@@ -57,6 +58,7 @@ const requestSchema = z
     agentTag: z.string().optional(),
     reasoningEnabled: booleanish,
     webSearchEnabled: booleanish,
+    provider: z.string().optional(),
   })
   .passthrough();
 
@@ -206,6 +208,7 @@ export async function POST(req: Request) {
     agentTag,
     reasoningEnabled: bodyReasoningEnabled,
     webSearchEnabled: bodyWebSearchEnabled,
+    provider: bodyProvider,
   } = parsedBody;
 
   if (messages.length === 0) {
@@ -247,11 +250,11 @@ export async function POST(req: Request) {
     }
   }
 
-  let agentRecord: { model: string; secondaryModels: string[] } | null = null;
+  let agentRecord: { model: string; secondaryModels: string[]; providerOptions?: Record<string, { order?: string[]; only?: string[] }> } | null = null;
   if (effectiveAgentTag) {
     try {
       const rows = await db
-        .select({ model: agent.model, secondaryModels: agent.secondaryModels })
+        .select({ model: agent.model, secondaryModels: agent.secondaryModels, providerOptions: agent.providerOptions })
         .from(agent)
         .where(eq(agent.tag, effectiveAgentTag))
         .limit(1);
@@ -278,6 +281,13 @@ export async function POST(req: Request) {
   if (allowedModels.length > 0 && !allowedModels.includes(modelId)) {
     modelId = allowedModels[0];
   }
+
+  const providerOverride = (() => {
+    if (!bodyProvider || typeof bodyProvider !== 'string') return null;
+    const cleaned = bodyProvider.trim().toLowerCase();
+    if (!cleaned || !GATEWAY_PROVIDER_SET.has(cleaned)) return null;
+    return cleaned;
+  })();
 
   const conversationTitle = extractTitleFromMessages(messages as UIMessage[]);
   const resolvedAgentTag = effectiveAgentTag || 'unknown';
@@ -359,6 +369,29 @@ export async function POST(req: Request) {
   // Build provider-specific options for reasoning
   // Gateway uses native provider options instead of unified openrouter options
   const providerOptions: Record<string, Record<string, JsonValue>> = {};
+
+  // Agent-level provider preferences (gateway order/only)
+  const providerPref = agentRecord?.providerOptions?.[modelId];
+  if (providerPref && typeof providerPref === 'object') {
+    const gatewayPref: { order?: string[]; only?: string[] } = {};
+    if (Array.isArray(providerPref.order) && providerPref.order.length > 0) {
+      gatewayPref.order = providerPref.order;
+    }
+    if (Array.isArray(providerPref.only) && providerPref.only.length > 0) {
+      gatewayPref.only = providerPref.only;
+    }
+    if (gatewayPref.order?.length || gatewayPref.only?.length) {
+      providerOptions.gateway = gatewayPref as Record<string, JsonValue>;
+    }
+  }
+
+  // Per-request override from client (ephemeral)
+  if (providerOverride) {
+    providerOptions.gateway = {
+      order: [providerOverride],
+      only: [providerOverride],
+    } as Record<string, JsonValue>;
+  }
 
   if (reasoningEnabled) {
     if (isAnthropicModel) {

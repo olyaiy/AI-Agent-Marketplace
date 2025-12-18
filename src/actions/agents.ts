@@ -10,6 +10,7 @@ import { auth } from '@/lib/auth';
 
 type AgentVisibility = 'public' | 'invite_only' | 'private';
 export type PublishStatus = 'draft' | 'pending_review' | 'approved' | 'rejected';
+export type ProviderOptionsMap = Record<string, { order?: string[]; only?: string[] }>;
 
 const allowedVisibilities: AgentVisibility[] = ['public', 'invite_only', 'private'];
 
@@ -19,6 +20,7 @@ export interface CreateAgentInput {
   systemPrompt: string;
   model?: string;
   secondaryModels?: string[];
+  providerOptions?: ProviderOptionsMap;
   avatar?: string; // filename in /public/avatar
   tagline?: string;
   description?: string;
@@ -54,6 +56,52 @@ function normalizeModelIds(list?: string[] | null): string[] {
   return out;
 }
 
+function normalizeModelIdValue(input?: string | null): string | null {
+  if (!input || typeof input !== 'string') return null;
+  let raw = input.trim();
+  if (!raw) return null;
+  raw = raw.replace(/\s+/g, '');
+  raw = raw.replace(':', '/');
+  const slashIndex = raw.indexOf('/');
+  if (slashIndex <= 0 || slashIndex === raw.length - 1) return null;
+  return raw;
+}
+
+function sanitizeProviderSlug(slug?: string | null): string | null {
+  if (!slug || typeof slug !== 'string') return null;
+  const cleaned = slug.trim().toLowerCase();
+  if (!cleaned) return null;
+  // Allow alphanumerics and dashes (matches Vercel Gateway provider slugs)
+  if (!/^[a-z0-9-]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
+function normalizeProviderOptions(map?: ProviderOptionsMap | null): ProviderOptionsMap {
+  if (!map || typeof map !== 'object') return {};
+  const out: ProviderOptionsMap = {};
+  const entries = Object.entries(map).slice(0, 16);
+
+  for (const [rawModelId, cfg] of entries) {
+    const modelId = normalizeModelIdValue(rawModelId);
+    if (!modelId || !cfg || typeof cfg !== 'object') continue;
+
+    const order = Array.isArray(cfg.order)
+      ? Array.from(new Set(cfg.order.map((p) => sanitizeProviderSlug(p)).filter(Boolean) as string[])).slice(0, 4)
+      : [];
+    const only = Array.isArray(cfg.only)
+      ? Array.from(new Set(cfg.only.map((p) => sanitizeProviderSlug(p)).filter(Boolean) as string[])).slice(0, 4)
+      : [];
+
+    if (order.length === 0 && only.length === 0) continue;
+    const normalized: { order?: string[]; only?: string[] } = {};
+    if (order.length > 0) normalized.order = order;
+    if (only.length > 0) normalized.only = only;
+    out[modelId] = normalized;
+  }
+
+  return out;
+}
+
 function isApprovedPublic(row: { visibility: string | null; publishStatus?: string | null }) {
   return row.visibility === 'public' && row.publishStatus === 'approved';
 }
@@ -64,7 +112,7 @@ async function getSessionFromHeaders() {
 }
 
 export async function createAgent(input: CreateAgentInput) {
-  const { tag, name, systemPrompt, model, secondaryModels, avatar, tagline, description } = input;
+  const { tag, name, systemPrompt, model, secondaryModels, providerOptions, avatar, tagline, description } = input;
   if (!tag || !name || !systemPrompt) return { ok: false, error: 'Missing fields' };
 
   const session = await getSessionFromHeaders();
@@ -79,6 +127,7 @@ export async function createAgent(input: CreateAgentInput) {
     model?: string;
     secondaryModels?: string[];
     avatar?: string;
+    providerOptions?: ProviderOptionsMap;
     tagline?: string | null;
     description?: string | null;
     creatorId?: string | null;
@@ -132,6 +181,10 @@ export async function createAgent(input: CreateAgentInput) {
   const normalizedSecondary = normalizeModelIds(secondaryModels);
   if (normalizedSecondary.length > 0) {
     values.secondaryModels = normalizedSecondary;
+  }
+  const normalizedProviderOptions = normalizeProviderOptions(providerOptions);
+  if (Object.keys(normalizedProviderOptions).length > 0) {
+    values.providerOptions = normalizedProviderOptions;
   }
   if (typeof avatar === 'string' && avatar.trim().length > 0) {
     values.avatar = avatar.trim();
@@ -209,6 +262,7 @@ export interface UpdateAgentInput {
   systemPrompt?: string;
   model?: string;
   secondaryModels?: string[];
+  providerOptions?: ProviderOptionsMap;
   avatar?: string;
   tagline?: string | null;
   description?: string | null;
@@ -220,7 +274,7 @@ export interface UpdateAgentInput {
 }
 
 export async function updateAgent(input: UpdateAgentInput) {
-  const { tag, name, systemPrompt, model, secondaryModels, avatar, tagline, description, actorId, actorRole } = input;
+  const { tag, name, systemPrompt, model, secondaryModels, providerOptions, avatar, tagline, description, actorId, actorRole } = input;
   if (!tag) return { ok: false, error: 'Missing tag' };
 
   const currentRows = await db
@@ -323,6 +377,7 @@ export async function updateAgent(input: UpdateAgentInput) {
     model?: string;
     secondaryModels?: string[];
     avatar?: string | null;
+    providerOptions?: ProviderOptionsMap;
     tagline?: string | null;
     description?: string | null;
     visibility?: AgentVisibility;
@@ -341,6 +396,9 @@ export async function updateAgent(input: UpdateAgentInput) {
   if (typeof model === 'string' && model.trim().length > 0) values.model = model.trim();
   if (Array.isArray(secondaryModels)) {
     values.secondaryModels = normalizeModelIds(secondaryModels);
+  }
+  if (providerOptions !== undefined) {
+    values.providerOptions = normalizeProviderOptions(providerOptions);
   }
   if (typeof avatar === 'string') values.avatar = avatar.trim().length > 0 ? avatar.trim() : null;
   if (typeof tagline === 'string' || tagline === null) values.tagline = tagline && tagline.trim ? (tagline.trim().length > 0 ? tagline.trim() : null) : tagline;

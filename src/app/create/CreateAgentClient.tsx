@@ -35,6 +35,7 @@ export function CreateAgentClient({ avatars }: Props) {
   const [systemPrompt, setSystemPrompt] = React.useState("");
   const [selectedModelId, setSelectedModelId] = React.useState<string>("");
   const [secondaryModels, setSecondaryModels] = React.useState<string[]>([]);
+  const [providerSelections, setProviderSelections] = React.useState<Record<string, string | null>>({});
   const [selectedAvatar, setSelectedAvatar] = React.useState<string | undefined>(undefined);
   const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>('private');
   const visibilityOptions: Array<{ value: 'public' | 'invite_only' | 'private'; label: string; icon: typeof Globe; hint: string }> = [
@@ -61,6 +62,37 @@ export function CreateAgentClient({ avatars }: Props) {
     sendContextRef.current.model = selectedModelId || undefined;
     sendContextRef.current.systemPrompt = systemPrompt;
   }, [selectedModelId, systemPrompt]);
+
+  const handleProviderChange = React.useCallback((modelId: string, provider: string | null) => {
+    if (!modelId) return;
+    setProviderSelections((prev) => {
+      const next = { ...prev };
+      if (!provider) {
+        delete next[modelId];
+      } else {
+        next[modelId] = provider;
+      }
+      return next;
+    });
+  }, []);
+
+  const activeModelIds = React.useMemo(() => {
+    const set = new Set<string>();
+    if (selectedModelId) set.add(selectedModelId);
+    secondaryModels.filter(Boolean).forEach((m) => set.add(m));
+    return set;
+  }, [secondaryModels, selectedModelId]);
+
+  const providerOptionsMap = React.useMemo(() => {
+    const map: Record<string, { order: string[]; only: string[] }> = {};
+    Object.entries(providerSelections).forEach(([modelId, provider]) => {
+      if (!activeModelIds.has(modelId)) return;
+      const clean = typeof provider === 'string' ? provider.trim().toLowerCase() : '';
+      if (!clean) return;
+      map[modelId] = { order: [clean], only: [clean] };
+    });
+    return map;
+  }, [activeModelIds, providerSelections]);
 
   // Pick random avatar
   React.useEffect(() => {
@@ -94,6 +126,7 @@ export function CreateAgentClient({ avatars }: Props) {
         systemPrompt: systemPrompt.trim(),
         model: selectedModelId,
         secondaryModels,
+        providerOptions: providerOptionsMap,
         avatar: selectedAvatarFile,
         visibility,
       });
@@ -199,6 +232,8 @@ export function CreateAgentClient({ avatars }: Props) {
                       onChange={setSelectedModelId}
                       placeholder="Select a primary model..."
                       width="100%"
+                      providerSelections={providerSelections}
+                      onProviderChange={handleProviderChange}
                     />
 
                     <div className="pt-2 border-t border-border dashed">
@@ -206,6 +241,8 @@ export function CreateAgentClient({ avatars }: Props) {
                         value={secondaryModels}
                         onChange={setSecondaryModels}
                         primaryModelId={selectedModelId}
+                        providerSelections={providerSelections}
+                        onProviderChange={handleProviderChange}
                       />
                     </div>
                   </div>

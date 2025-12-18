@@ -40,6 +40,13 @@ import {
   Brain,
   type LucideIcon
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type SlimModel = {
   id: string;
@@ -52,6 +59,9 @@ type SlimModel = {
   output_modalities: string[];
   supported_parameters: string[];
   default_parameters?: Record<string, string | number | boolean | null>;
+  provider?: string | null;
+  providers?: string[];
+  default_provider?: string | null;
 };
 
 type EnhancedModel = SlimModel & {
@@ -59,6 +69,8 @@ type EnhancedModel = SlimModel & {
   displayName: string;
   searchText: string;
   isFeatured: boolean;
+  providers: string[];
+  defaultProvider: string | null;
 };
 
 const FEATURED_MODEL_IDS = [
@@ -104,14 +116,22 @@ function enhanceModels(raw: SlimModel[]): EnhancedModel[] {
   const deduped = new Map<string, EnhancedModel>();
 
   raw.forEach((model) => {
-    const providerSlug = deriveProviderSlug(model.name, model.id);
+    const providerSlug = (model.provider || model.default_provider || deriveProviderSlug(model.name, model.id)) || null;
+    const providers = Array.isArray(model.providers)
+      ? Array.from(new Set(model.providers.filter(Boolean).map((p) => p.trim().toLowerCase()))).filter(Boolean)
+      : providerSlug
+        ? [providerSlug]
+        : [];
+    const defaultProvider = (model.default_provider || providerSlug || providers[0] || null) as string | null;
     const displayName = getDisplayName(model.name, model.id);
     const searchText = `${model.id} ${model.name} ${model.description} ${providerSlug || ""
-      }`.toLowerCase();
+      } ${providers.join(" ")}`.toLowerCase();
 
     const enhanced: EnhancedModel = {
       ...model,
       providerSlug,
+      providers,
+      defaultProvider,
       displayName,
       searchText,
       isFeatured: FEATURED_MODEL_SET.has(model.id),
@@ -196,7 +216,15 @@ function ModalityBadge({ modality }: { modality: string }) {
   );
 }
 
-function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
+function ModelDetailPanel({
+  model,
+  providerSelections,
+  onProviderChange,
+}: {
+  model: EnhancedModel | null;
+  providerSelections?: Record<string, string | null>;
+  onProviderChange?: (modelId: string, provider: string | null) => void;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopyId = useCallback(() => {
@@ -205,6 +233,27 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [model]);
+
+  const providerList = useMemo(() => {
+    if (!model) return [];
+    const raw = Array.isArray(model.providers) ? model.providers : [];
+    const fallback = model.providerSlug ? [model.providerSlug] : [];
+    return Array.from(new Set([...raw, ...fallback].filter(Boolean).map((p) => p.toLowerCase())));
+  }, [model]);
+
+  const selectedProvider = model ? providerSelections?.[model.id] ?? null : null;
+
+  const handleProviderSelect = useCallback(
+    (value: string) => {
+      if (!model || !onProviderChange) return;
+      if (value === "__auto__") {
+        onProviderChange(model.id, null);
+      } else {
+        onProviderChange(model.id, value);
+      }
+    },
+    [model, onProviderChange]
+  );
 
   if (!model) {
     return (
@@ -228,7 +277,7 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
       <div className="p-4 border-b border-border/50 bg-gradient-to-b from-[#BE6254]/5 dark:from-[#BE6254]/10 to-transparent">
         <div className="flex items-start gap-3">
           <div className="ring-2 ring-[#BE6254]/20 dark:ring-[#BE6254]/30 rounded-xl overflow-hidden">
-            <ProviderAvatar providerSlug={model.providerSlug || model.id.split('/')[0]} size={44} />
+            <ProviderAvatar providerSlug={selectedProvider || model.providerSlug || model.defaultProvider || model.id.split('/')[0]} size={44} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -237,7 +286,7 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
               </h3>
             </div>
             <p className="text-xs text-muted-foreground capitalize mt-0.5">
-              {model.providerSlug || "Unknown Provider"}
+              {selectedProvider || model.providerSlug || model.defaultProvider || "Unknown Provider"}
             </p>
             {model.isFeatured && (
               <Badge
@@ -265,6 +314,33 @@ function ModelDetailPanel({ model }: { model: EnhancedModel | null }) {
             <Copy className="size-3.5 text-muted-foreground group-hover:text-[#BE6254] transition-colors shrink-0" />
           )}
         </button>
+
+        <div className="mt-3 space-y-1.5">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Provider
+          </p>
+          {providerList.length > 0 ? (
+            <Select
+              value={selectedProvider || "__auto__"}
+              onValueChange={handleProviderSelect}
+              disabled={!onProviderChange}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Auto (Gateway default)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__auto__">Auto (Gateway default)</SelectItem>
+                {providerList.map((provider) => (
+                  <SelectItem key={provider} value={provider} className="capitalize">
+                    {provider}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-xs text-muted-foreground">No provider choices available.</p>
+          )}
+        </div>
       </div>
 
       {/* Details */}
@@ -377,6 +453,10 @@ export interface OpenRouterModelSelectProps {
   /** Optional primary model id for badge labeling */
   primaryId?: string;
   primaryLabel?: string;
+  /** Optional provider selections keyed by model id */
+  providerSelections?: Record<string, string | null>;
+  /** Callback when provider selection changes */
+  onProviderChange?: (modelId: string, provider: string | null) => void;
 }
 
 export function OpenRouterModelSelect({
@@ -393,6 +473,8 @@ export function OpenRouterModelSelect({
   keepOpenOnSelect = false,
   primaryId,
   primaryLabel = "Primary Model",
+  providerSelections,
+  onProviderChange,
 }: OpenRouterModelSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -450,6 +532,19 @@ export function OpenRouterModelSelect({
     () => models.find((m) => m.id === value),
     [models, value]
   );
+
+  const selectedProvider = useMemo(() => {
+    if (!selectedModel) return null;
+    const fromSelection = providerSelections?.[selectedModel.id];
+    return (fromSelection ?? null);
+  }, [providerSelections, selectedModel]);
+  const selectedProviderLabel = selectedProvider || selectedModel?.providerSlug || selectedModel?.defaultProvider || null;
+  const selectedProviderForAvatar =
+    selectedProviderLabel ||
+    selectedModel?.providerSlug ||
+    selectedModel?.defaultProvider ||
+    selectedModel?.providers?.[0] ||
+    (selectedModel ? selectedModel.id.split('/')[0] : undefined);
 
   // Set initial hovered model to selected model when dialog opens
   useEffect(() => {
@@ -565,6 +660,16 @@ export function OpenRouterModelSelect({
 
   const handleSelect = useCallback(
     (id: string) => {
+      const meta = models.find((m) => m.id === id);
+      if (meta && typeof window !== "undefined") {
+        const providersInfo = meta.providers?.length ? meta.providers : meta.providerSlug ? [meta.providerSlug] : [];
+        console.log("[ModelSelect] Selected model:", {
+          id: meta.id,
+          providers: providersInfo,
+          defaultProvider: meta.defaultProvider,
+          providerSlug: meta.providerSlug,
+        });
+      }
       if (keepOpenOnSelect && selectionSet.has(id)) {
         if (primaryId && id === primaryId) return;
         // Toggle off when already selected in multi-add mode
@@ -577,7 +682,7 @@ export function OpenRouterModelSelect({
         setQuery("");
       }
     },
-    [onChange, keepOpenOnSelect, selectionSet, value, primaryId]
+    [onChange, keepOpenOnSelect, selectionSet, value, primaryId, models]
   );
 
   const handleClear = useCallback(() => {
@@ -595,9 +700,9 @@ export function OpenRouterModelSelect({
       {label ? (
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-foreground">{label}</span>
-          {selectedModel?.providerSlug ? (
+          {selectedProviderLabel ? (
             <Badge variant="secondary" className="text-xs capitalize">
-              {selectedModel.providerSlug}
+              {selectedProviderLabel}
             </Badge>
           ) : null}
         </div>
@@ -628,9 +733,9 @@ export function OpenRouterModelSelect({
           >
             <span className="flex items-center gap-3 truncate">
               {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
-              {!loading && selectedModel?.providerSlug ? (
+              {!loading && selectedProviderForAvatar ? (
                 <div className="flex-shrink-0 ring-1 ring-border rounded-md overflow-hidden">
-                  <ProviderAvatar providerSlug={selectedModel.providerSlug} size={28} />
+                  <ProviderAvatar providerSlug={selectedProviderForAvatar} size={28} />
                 </div>
               ) : !loading && !selectedModel ? (
                 <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
@@ -640,7 +745,9 @@ export function OpenRouterModelSelect({
               {!loading && selectedModel ? (
                 <div className="flex flex-col items-start min-w-0">
                   <span className="truncate text-sm font-medium">{selectedModel.displayName}</span>
-                  <span className="text-[10px] text-muted-foreground capitalize">{selectedModel.providerSlug}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize">
+                    {selectedProviderLabel || selectedModel.providerSlug}
+                  </span>
                 </div>
               ) : (
                 !loading && (
@@ -778,7 +885,11 @@ export function OpenRouterModelSelect({
 
               {/* Right column - Model details */}
               <div className="hidden md:flex md:flex-col md:w-1/2 bg-muted/10">
-                <ModelDetailPanel model={hoveredModel} />
+                <ModelDetailPanel
+                  model={hoveredModel}
+                  providerSelections={providerSelections}
+                  onProviderChange={onProviderChange}
+                />
               </div>
             </div>
           </ModelSelectorContent>
@@ -865,4 +976,3 @@ const ModelListItem = React.memo(function ModelListItem({
     prev.isPrimary === next.isPrimary &&
     prev.primaryLabel === next.primaryLabel &&
     prev.isHovered === next.isHovered);
-

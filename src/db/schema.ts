@@ -7,6 +7,7 @@ export const agent = pgTable('agent', {
   systemPrompt: text('system_prompt').notNull(),
   model: varchar('model', { length: 128 }).notNull().default('openai/gpt-5-mini'),
   secondaryModels: jsonb('secondary_models').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  providerOptions: jsonb('provider_options').$type<Record<string, { order?: string[]; only?: string[] }>>().notNull().default(sql`'{}'::jsonb`),
   avatar: varchar('avatar', { length: 256 }),
   tagline: text('tagline'),
   description: text('description'),

@@ -34,8 +34,18 @@ async function saveAction(formData: FormData) {
       secondaryModels = undefined;
     }
   }
+  const providerOptionsRaw = formData.get('providerOptions') as string | undefined;
+  let providerOptions: Record<string, { order?: string[]; only?: string[] }> | undefined = undefined;
+  if (typeof providerOptionsRaw === 'string' && providerOptionsRaw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(providerOptionsRaw);
+      if (parsed && typeof parsed === 'object') providerOptions = parsed as Record<string, { order?: string[]; only?: string[] }>;
+    } catch {
+      providerOptions = undefined;
+    }
+  }
   const tag = `@${id}`;
-  await updateAgent({ tag, name, systemPrompt, model, secondaryModels, avatar, tagline: tagline ?? null, description: description ?? null, visibility, actorId, actorRole });
+  await updateAgent({ tag, name, systemPrompt, model, secondaryModels, providerOptions, avatar, tagline: tagline ?? null, description: description ?? null, visibility, actorId, actorRole });
   redirect(`/agent/${encodeURIComponent(id)}`);
 }
 
@@ -121,6 +131,7 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       initialDescription={a.description || undefined}
       initialVisibility={initialVisibility}
       inviteCode={a.inviteCode || undefined}
+      initialProviderOptions={(a.providerOptions as Record<string, { order?: string[]; only?: string[] }> | undefined) || {}}
       isAuthenticated={isAuthenticated}
       publishStatus={(a.publishStatus as 'draft' | 'pending_review' | 'approved' | 'rejected') || 'draft'}
       publishReviewNotes={a.publishReviewNotes || undefined}
