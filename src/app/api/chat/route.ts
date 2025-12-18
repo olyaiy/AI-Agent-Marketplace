@@ -7,6 +7,8 @@ import { agent, conversation, message } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { tavilyReadPageTool, tavilySearchTool } from '@/lib/tavily';
+import { applyCreditDelta } from '@/lib/billing/credit-store';
+import { priceGatewayCostOrNull } from '@/lib/billing/pricing';
 
 type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
@@ -501,6 +503,14 @@ export async function POST(req: Request) {
       // Get gateway cost data
       const gatewayData = resultWithMetadata.providerMetadata?.gateway;
       const cost = gatewayData?.cost ? parseFloat(gatewayData.cost) : null;
+      let pricing = null as ReturnType<typeof priceGatewayCostOrNull>;
+      try {
+        pricing = priceGatewayCostOrNull({
+          costUsd: gatewayData?.cost ?? cost ?? null,
+        });
+      } catch (error) {
+        debugLog('Failed to price gateway cost', error);
+      }
 
       // Log cost and token breakdown
       console.log('\n💰 GENERATION COST');
@@ -510,6 +520,11 @@ export async function POST(req: Request) {
       } else {
         console.log('   Total Cost:      N/A');
       }
+      if (pricing) {
+        console.log(`   Base Cost:       $${(pricing.baseCents / 100).toFixed(2)} USD`);
+        console.log(`   Markup (15%):    $${(pricing.markupCents / 100).toFixed(2)} USD`);
+        console.log(`   Billed Total:    $${(pricing.totalCents / 100).toFixed(2)} USD`);
+      }
       console.log(`   Input Tokens:    ${usage.inputTokens.toLocaleString()}`);
       console.log(`   Output Tokens:   ${usage.outputTokens.toLocaleString()}`);
       console.log(`   Cached Tokens:   ${usage.cachedInputTokens.toLocaleString()}`);
@@ -518,6 +533,8 @@ export async function POST(req: Request) {
       if (gatewayData?.generationId) {
         console.log(`   Generation ID:   ${gatewayData.generationId}`);
       }
+      console.log(`   User ID:         ${session.user.id}`);
+      console.log(`   Conversation ID: ${ensuredConversationId ?? 'N/A'}`);
       console.log('─'.repeat(40) + '\n');
 
       try {
@@ -540,6 +557,38 @@ export async function POST(req: Request) {
         }
       } catch (error) {
         debugLog('Failed to persist usage', error);
+      }
+
+      if (pricing && pricing.totalCents > 0) {
+        try {
+          await applyCreditDelta({
+            userId: session.user.id,
+            amountCents: -pricing.totalCents,
+            entryType: 'usage',
+            reason: `Chat usage (${modelId})`,
+            externalSource: 'gateway',
+            externalId: gatewayData?.generationId ?? null,
+            metadata: {
+              conversationId: ensuredConversationId,
+              modelId,
+              usage,
+              gatewayCostUsd: gatewayData?.cost ?? cost,
+              pricing: {
+                baseCents: pricing.baseCents,
+                markupCents: pricing.markupCents,
+                totalCents: pricing.totalCents,
+                baseMicrocents: pricing.baseMicrocents.toString(),
+                markupMicrocents: pricing.markupMicrocents.toString(),
+                totalMicrocents: pricing.totalMicrocents.toString(),
+              },
+            },
+          });
+          console.log(`💳 Credits debited: -$${(pricing.totalCents / 100).toFixed(2)} USD`);
+        } catch (error) {
+          debugLog('Failed to debit credits', error);
+        }
+      } else {
+        console.log('💳 Credits debited: N/A (missing gateway cost)');
       }
     },
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Search, UserPlus, Shield, Ban, Unlock, Trash2, Key, Check, X, Clock3 } from 'lucide-react';
+import { MoreHorizontal, Search, UserPlus, Shield, Ban, Unlock, Trash2, Key, Check, X, Clock3, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 
 type AdminRole = 'user' | 'admin';
@@ -99,6 +99,15 @@ interface AgentRequest {
   model?: string | null;
 }
 
+interface CreditLedgerEntry {
+  id: string;
+  amountCents: number;
+  entryType: string;
+  status: string;
+  reason: string;
+  createdAt: string;
+}
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
@@ -108,7 +117,7 @@ export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [dialogType, setDialogType] = useState<'role' | 'ban' | 'password' | 'create' | null>(null);
+  const [dialogType, setDialogType] = useState<'role' | 'ban' | 'password' | 'create' | 'credits' | null>(null);
   const [roleValue, setRoleValue] = useState<AdminRole>('user');
   const [banReason, setBanReason] = useState('');
   const [banDays, setBanDays] = useState('7');
@@ -116,8 +125,31 @@ export default function AdminDashboard() {
   const [createForm, setCreateForm] = useState<CreateFormState>(createInitialFormState());
   const [agentRequests, setAgentRequests] = useState<AgentRequest[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditReason, setCreditReason] = useState('');
+  const [creditNote, setCreditNote] = useState('');
+  const [creditLedger, setCreditLedger] = useState<CreditLedgerEntry[]>([]);
+  const [isCreditLoading, setIsCreditLoading] = useState(false);
+  const [isCreditSaving, setIsCreditSaving] = useState(false);
 
   const pageSize = 10;
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }),
+    []
+  );
+
+  const parseAmountToCents = (value: string) => {
+    const normalized = value.trim().replace(/[$,]/g, '');
+    if (!normalized) return null;
+    if (!/^-?\d+(?:\.\d{0,2})?$/.test(normalized)) return null;
+    const isNegative = normalized.startsWith('-');
+    const unsigned = isNegative ? normalized.slice(1) : normalized;
+    const [whole, fraction = ''] = unsigned.split('.');
+    const cents = Number.parseInt(whole, 10) * 100 + Number.parseInt(fraction.padEnd(2, '0'), 10);
+    if (!Number.isSafeInteger(cents)) return null;
+    return isNegative ? -cents : cents;
+  };
 
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
@@ -175,17 +207,91 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  const loadCreditsForUser = useCallback(async (userId: string) => {
+    setIsCreditLoading(true);
+    try {
+      const res = await fetch(`/api/admin/credits/account?userId=${encodeURIComponent(userId)}`, { cache: 'no-cache' });
+      if (!res.ok) throw new Error('Failed to load credits');
+      const data = await res.json();
+      setCreditBalance(data?.account?.balanceCents ?? null);
+      setCreditLedger(Array.isArray(data?.ledger) ? data.ledger : []);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load credit balance');
+    } finally {
+      setIsCreditLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
   useEffect(() => {
     void loadAgentRequests();
   }, [loadAgentRequests]);
+  useEffect(() => {
+    if (dialogType === 'credits' && selectedUser?.id) {
+      void loadCreditsForUser(selectedUser.id);
+    }
+  }, [dialogType, selectedUser?.id, loadCreditsForUser]);
 
   function handleSearch() {
     setCurrentPage(1);
     setSearchQuery(searchValue);
   }
+
+  async function handleAdjustCredits() {
+    if (!selectedUser) return;
+    const amountCents = parseAmountToCents(creditAmount);
+    if (amountCents == null || amountCents === 0) {
+      toast.error('Enter a non-zero amount in USD');
+      return;
+    }
+    const reason = creditReason.trim();
+    if (!reason) {
+      toast.error('Reason is required');
+      return;
+    }
+
+    setIsCreditSaving(true);
+    try {
+      const res = await fetch('/api/admin/credits/adjust', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          amountCents,
+          reason,
+          note: creditNote.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error?.error || 'Failed to adjust credits');
+      }
+      const data = await res.json();
+      setCreditBalance(typeof data?.balanceCents === 'number' ? data.balanceCents : creditBalance);
+      setCreditAmount('');
+      setCreditReason('');
+      setCreditNote('');
+      await loadCreditsForUser(selectedUser.id);
+      toast.success('Credits updated');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to adjust credits');
+    } finally {
+      setIsCreditSaving(false);
+    }
+  }
+
+  const closeCreditDialog = () => {
+    setDialogType(null);
+    setCreditAmount('');
+    setCreditReason('');
+    setCreditNote('');
+    setCreditLedger([]);
+    setCreditBalance(null);
+  };
 
   async function handleSetRole(userId: string, role: AdminRole) {
     try {
@@ -438,6 +544,15 @@ export default function AdminDashboard() {
                               <Key className="size-4 mr-2" />
                               Set Password
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setDialogType('credits');
+                              }}
+                            >
+                              <Coins className="size-4 mr-2" />
+                              Adjust Credits
+                            </DropdownMenuItem>
                             {user.banned ? (
                               <DropdownMenuItem onClick={() => handleUnbanUser(user.id)}>
                                 <Unlock className="size-4 mr-2" />
@@ -685,6 +800,108 @@ export default function AdminDashboard() {
               disabled={!newPassword}
             >
               Update Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogType === 'credits'} onOpenChange={(open) => !open && closeCreditDialog()}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Adjust Credits</DialogTitle>
+            <DialogDescription>
+              Update balance for {selectedUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md border px-3 py-2 text-sm">
+              <div className="text-muted-foreground">Current balance</div>
+              <div className="text-lg font-semibold">
+                {isCreditLoading || creditBalance == null
+                  ? 'Loading...'
+                  : currencyFormatter.format(creditBalance / 100)}
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Amount (USD, use negative to deduct)</Label>
+                <Input
+                  placeholder="10.00 or -5.00"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Reason</Label>
+                <Input
+                  placeholder="Manual adjustment"
+                  value={creditReason}
+                  onChange={(e) => setCreditReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Internal note (optional)</Label>
+              <Input
+                placeholder="Short note for audit"
+                value={creditNote}
+                onChange={(e) => setCreditNote(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Recent ledger entries</Label>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isCreditLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          Loading ledger...
+                        </TableCell>
+                      </TableRow>
+                    ) : creditLedger.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          No ledger entries yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      creditLedger.map((entry) => {
+                        const isPositive = entry.amountCents >= 0;
+                        return (
+                          <TableRow key={entry.id}>
+                            <TableCell className="text-muted-foreground">
+                              {new Date(entry.createdAt).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="capitalize">{entry.entryType.replace('_', ' ')}</TableCell>
+                            <TableCell className="text-muted-foreground">{entry.reason}</TableCell>
+                            <TableCell className={`text-right ${isPositive ? 'text-emerald-600' : 'text-destructive'}`}>
+                              {isPositive ? '+' : '-'}
+                              {currencyFormatter.format(Math.abs(entry.amountCents) / 100)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeCreditDialog}>
+              Cancel
+            </Button>
+            <Button onClick={handleAdjustCredits} disabled={isCreditSaving}>
+              Apply adjustment
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -76,6 +76,45 @@ export const user = pgTable('user', {
   banExpires: timestamp('banExpires'),
 });
 
+export const creditAccount = pgTable('credit_account', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  balanceCents: integer('balance_cents').notNull().default(100),
+  currency: varchar('currency', { length: 3 }).notNull().default('usd'),
+  stripeCustomerId: text('stripe_customer_id'),
+  defaultPaymentMethodId: text('default_payment_method_id'),
+  autoReloadEnabled: boolean('auto_reload_enabled').notNull().default(false),
+  autoReloadThresholdCents: integer('auto_reload_threshold_cents'),
+  autoReloadAmountCents: integer('auto_reload_amount_cents'),
+  lastAutoReloadAt: timestamp('last_auto_reload_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  stripeCustomerIdUnique: uniqueIndex('credit_account_stripe_customer_unique').on(table.stripeCustomerId),
+}));
+
+export const creditLedger = pgTable('credit_ledger', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  amountCents: integer('amount_cents').notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('usd'),
+  entryType: varchar('entry_type', { length: 32 }).notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('posted'),
+  reason: text('reason').notNull(),
+  externalSource: varchar('external_source', { length: 64 }),
+  externalId: text('external_id'),
+  metadata: jsonb('metadata'),
+  balanceAfterCents: integer('balance_after_cents'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIndex: index('credit_ledger_user_idx').on(table.userId),
+  createdAtIndex: index('credit_ledger_created_at_idx').on(table.createdAt),
+  externalUnique: uniqueIndex('credit_ledger_external_unique').on(table.externalSource, table.externalId),
+}));
+
 export const session = pgTable('session', {
   id: text('id').primaryKey(),
   userId: text('userId')
@@ -119,10 +158,29 @@ export const verification = pgTable('verification', {
 });
 
 // Relations
-export const userRelations = relations(user, ({ many }) => ({
+export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),
   createdAgents: many(agent),
+  creditAccount: one(creditAccount, {
+    fields: [user.id],
+    references: [creditAccount.userId],
+  }),
+  creditLedger: many(creditLedger),
+}));
+
+export const creditAccountRelations = relations(creditAccount, ({ one }) => ({
+  user: one(user, {
+    fields: [creditAccount.userId],
+    references: [user.id],
+  }),
+}));
+
+export const creditLedgerRelations = relations(creditLedger, ({ one }) => ({
+  user: one(user, {
+    fields: [creditLedger.userId],
+    references: [user.id],
+  }),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
