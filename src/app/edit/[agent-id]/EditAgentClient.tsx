@@ -5,6 +5,7 @@ import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
 import { KnowledgeManager } from "./KnowledgeManager";
 import { SecondaryModelsInput } from "@/components/SecondaryModelsInput";
 import { Copy, Check, Globe, Lock, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   agentTag: string;
@@ -149,19 +150,27 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   return (
     <div className="space-y-8">
       {/* Modern minimal tabs */}
-      <div className="flex items-center gap-1 border-b border-border pb-1 overflow-x-auto no-scrollbar">
+      <div className="relative flex items-center gap-0.5 overflow-x-auto no-scrollbar">
+        {/* Background track */}
+        <div className="absolute inset-x-0 bottom-0 h-px bg-border" />
+
         {(["behaviour", "details", "knowledge", "publish", "preview"] as const).map((tab) => (
-          <button
+          <Button
             key={tab}
             type="button"
-            className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all cursor-pointer whitespace-nowrap ${activeTab === tab
-              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            variant="ghost"
+            className={`relative px-4 py-2.5 h-auto text-sm font-medium rounded-none rounded-t-lg transition-all whitespace-nowrap hover:bg-muted/50 ${activeTab === tab
+                ? 'text-foreground bg-muted/30'
+                : 'text-muted-foreground hover:text-foreground'
               }`}
             onClick={() => setActiveTab(tab)}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
+            {/* Active indicator */}
+            {activeTab === tab && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
+            )}
+          </Button>
         ))}
       </div>
 
@@ -268,8 +277,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
               <div className="relative group">
                 {/* Timeline node */}
                 <div className={`absolute -left-10 top-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${promptStats.chars > 0
-                    ? 'bg-primary shadow-lg shadow-primary/30 ring-4 ring-primary/10'
-                    : 'bg-muted border-2 border-border group-hover:border-primary/50 group-hover:bg-primary/5'
+                  ? 'bg-primary shadow-lg shadow-primary/30 ring-4 ring-primary/10'
+                  : 'bg-muted border-2 border-border group-hover:border-primary/50 group-hover:bg-primary/5'
                   }`}>
                   {promptStats.chars > 0 ? (
                     <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
