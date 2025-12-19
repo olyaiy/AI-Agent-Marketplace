@@ -1,12 +1,23 @@
 "use client";
 
 import * as React from "react";
-import Chat from "@/components/Chat";
 import { EditAgentClient } from "./EditAgentClient";
 import { EditAvatarClient } from "./EditAvatarClient";
 import { buildKnowledgeSystemText } from "@/lib/knowledge";
+import { getKnowledgeByAgent } from "@/actions/knowledge";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { type KnowledgeItem } from "./KnowledgeManager";
+
+const Chat = dynamic(() => import('@/components/Chat'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
+      Loading preview...
+    </div>
+  ),
+});
 import { Button } from "@/components/ui/button";
 
 interface ServerAction {
@@ -35,7 +46,7 @@ interface Props {
   onDelete: ServerAction;
   onRequestPublic: ServerAction;
   onWithdrawPublic: ServerAction;
-  knowledgeItems?: { name: string; content: string }[];
+  initialKnowledgeItems?: KnowledgeItem[];
 }
 
 interface SendContext {
@@ -52,6 +63,8 @@ interface LeftFormProps extends Props {
   onModelPreviewChange: (model?: string) => void;
   onSecondaryPreviewChange: (models: string[]) => void;
   previewNode: React.ReactNode;
+  knowledgeItems?: KnowledgeItem[];
+  onKnowledgeItemsChange?: (items: KnowledgeItem[]) => void;
 }
 
 function LeftForm({
@@ -81,6 +94,8 @@ function LeftForm({
   publishRequestedAt,
   previewNode,
   initialProviderOptions,
+  knowledgeItems,
+  onKnowledgeItemsChange,
 }: LeftFormProps) {
   const [nameValue, setNameValue] = React.useState(initialName);
 
@@ -205,6 +220,8 @@ function LeftForm({
             onRequestPublic={onRequestPublic}
             onWithdrawPublic={onWithdrawPublic}
             previewContent={previewNode}
+            knowledgeItems={knowledgeItems}
+            onKnowledgeItemsChange={onKnowledgeItemsChange}
             formId="agent-form"
           />
         </div>
@@ -221,6 +238,9 @@ function TwoColumn(props: Props) {
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish" | "preview">("behaviour");
   const [previewModel, setPreviewModel] = React.useState<string | undefined>(props.initialModel);
   const [previewSecondaryModels, setPreviewSecondaryModels] = React.useState<string[]>(props.initialSecondaryModels || []);
+  const [knowledgeItems, setKnowledgeItems] = React.useState<KnowledgeItem[] | undefined>(props.initialKnowledgeItems);
+  const [knowledgeLoaded, setKnowledgeLoaded] = React.useState(props.initialKnowledgeItems !== undefined);
+  const [knowledgeLoading, setKnowledgeLoading] = React.useState(false);
 
   const sendContextRef = React.useRef<SendContext>({
     model: props.initialModel,
@@ -232,16 +252,45 @@ function TwoColumn(props: Props) {
   const getChatContext = React.useCallback(() => sendContextRef.current, []);
 
   // Build combined system + knowledge text live for the right-side Chat
+  const knowledgeItemsForPrompt = React.useMemo(
+    () => (knowledgeItems ?? []).map((item) => ({ name: item.name, content: item.content })),
+    [knowledgeItems]
+  );
   const combinedSystem = React.useMemo(() => {
     const sys = sendContextRef.current.systemPrompt?.trim() || "";
-    const kb = buildKnowledgeSystemText(props.knowledgeItems || []);
+    const kb = buildKnowledgeSystemText(knowledgeItemsForPrompt);
     return [sys, kb.trim()].filter(Boolean).join("\n\n");
-  }, [props.knowledgeItems]);
+  }, [knowledgeItemsForPrompt]);
 
   const modelOptions = React.useMemo(
     () => [previewModel, ...(previewSecondaryModels || [])].filter((m): m is string => typeof m === 'string' && m.length > 0),
     [previewModel, previewSecondaryModels]
   );
+
+  const loadKnowledge = React.useCallback(async () => {
+    if (knowledgeLoaded || knowledgeLoading) return;
+    setKnowledgeLoading(true);
+    try {
+      const data = await getKnowledgeByAgent(props.tag);
+      setKnowledgeItems(data);
+    } catch (error) {
+      console.error("Failed to load knowledge for preview:", error);
+      setKnowledgeItems([]);
+    } finally {
+      setKnowledgeLoaded(true);
+      setKnowledgeLoading(false);
+    }
+  }, [knowledgeLoaded, knowledgeLoading, props.tag]);
+
+  const handleKnowledgeItemsChange = React.useCallback((next: KnowledgeItem[]) => {
+    setKnowledgeItems(next);
+    setKnowledgeLoaded(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (activeTab !== "preview") return;
+    void loadKnowledge();
+  }, [activeTab, loadKnowledge]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -254,18 +303,28 @@ function TwoColumn(props: Props) {
             activeTab={activeTab}
             onModelPreviewChange={setPreviewModel}
             onSecondaryPreviewChange={setPreviewSecondaryModels}
+            knowledgeItems={knowledgeItems}
+            onKnowledgeItemsChange={handleKnowledgeItemsChange}
             previewNode={
-              <Chat
-                className="h-full"
-                systemPrompt={combinedSystem}
-                knowledgeText={combinedSystem}
-                model={previewModel}
-                modelOptions={modelOptions}
-                agentTag={props.tag}
-                getChatContext={getChatContext}
-                isAuthenticated={props.isAuthenticated}
-                showModelSelectorInPrompt
-              />
+              activeTab === "preview" ? (
+                knowledgeLoaded ? (
+                  <Chat
+                    className="h-full"
+                    systemPrompt={combinedSystem}
+                    knowledgeText={combinedSystem}
+                    model={previewModel}
+                    modelOptions={modelOptions}
+                    agentTag={props.tag}
+                    getChatContext={getChatContext}
+                    isAuthenticated={props.isAuthenticated}
+                    showModelSelectorInPrompt
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
+                    {knowledgeLoading ? "Loading knowledge..." : "Preparing preview..."}
+                  </div>
+                )
+              ) : null
             }
           />
         </div>

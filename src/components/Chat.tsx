@@ -149,6 +149,70 @@ interface BasicUIMessage {
   annotations?: BasicUIAnnotation[];
 }
 
+/**
+ * Lightweight text formatter for reasoning content.
+ * Handles **bold** and newlines without heavy markdown parsing.
+ * Optimized for streaming performance.
+ */
+function formatReasoningText(text: string): React.ReactNode[] {
+  if (!text) return [];
+
+  // Normalize escaped newlines (\n as literal characters) to actual newlines
+  const normalizedText = text.replace(/\\n/g, '\n');
+
+  // Split by newlines
+  const lines = normalizedText.split('\n');
+
+  return lines.map((line, lineIndex) => {
+    // Parse **bold** patterns within each line
+    const parts: React.ReactNode[] = [];
+    const boldRegex = /\*\*(.+?)\*\*/g;
+    let lastIndex = 0;
+    let match;
+    let partIndex = 0;
+
+    while ((match = boldRegex.exec(line)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push(
+          <span key={`${lineIndex}-${partIndex++}`}>
+            {line.slice(lastIndex, match.index)}
+          </span>
+        );
+      }
+      // Add the bold text
+      parts.push(
+        <strong key={`${lineIndex}-${partIndex++}`} className="font-semibold">
+          {match[1]}
+        </strong>
+      );
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text after last match
+    if (lastIndex < line.length) {
+      parts.push(
+        <span key={`${lineIndex}-${partIndex++}`}>
+          {line.slice(lastIndex)}
+        </span>
+      );
+    }
+
+    // If no bold patterns found, just use the line as-is
+    if (parts.length === 0 && line.length > 0) {
+      parts.push(<span key={`${lineIndex}-0`}>{line}</span>);
+    }
+
+    // Add a <br /> for each line except the last
+    return (
+      <span key={lineIndex}>
+        {parts}
+        {lineIndex < lines.length - 1 && <br />}
+      </span>
+    );
+  });
+}
+
 const ModelLabel = React.memo(function ModelLabel({ label, providerSlug }: { label: string; providerSlug: string | null }) {
   return (
     <div className="flex items-center gap-2 truncate">
@@ -1068,7 +1132,7 @@ const MessageItem = React.memo(
                                   status={stepStatus}
                                 >
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    {step.part.text}
+                                    {formatReasoningText(step.part.text ?? '')}
                                   </div>
                                 </ChainOfThoughtStep>
                               );
@@ -1082,9 +1146,8 @@ const MessageItem = React.memo(
                                 label="Analyzing..."
                                 status={stepStatus}
                               >
-                                <div className="text-xs text-muted-foreground mt-1 line-clamp-3">
-                                  {step.part.text?.slice(0, 200)}
-                                  {(step.part.text?.length ?? 0) > 200 ? '...' : ''}
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {formatReasoningText(step.part.text ?? '')}
                                 </div>
                               </ChainOfThoughtStep>
                             );
@@ -1121,7 +1184,7 @@ const MessageItem = React.memo(
                                 key={`step-${step.index}`}
                                 icon={isWebSearch ? SearchIcon : FileTextIcon}
                                 label={displayInfo.displayName}
-                                description={displayInfo.preview || undefined}
+                                description={displayInfo.fullPreview || undefined}
                                 status={isToolComplete ? 'complete' : 'active'}
                               >
                                 {searchResults.length > 0 && (
@@ -1394,10 +1457,15 @@ const Chat = React.memo(function Chat({
     return items;
   }, [model, modelOptions]);
   const [currentModel, setCurrentModel] = useState<string | undefined>(() => modelChoices[0]);
+  // Ref for synchronous access to current model - prevents stale closure issues in event handlers
+  const currentModelRef = useRef<string | undefined>(modelChoices[0]);
   useEffect(() => {
     setCurrentModel((prev) => {
       if (prev && modelChoices.includes(prev)) return prev;
-      return modelChoices[0] ?? prev ?? undefined;
+      const next = modelChoices[0] ?? prev ?? undefined;
+      // Keep ref in sync when model changes due to modelChoices updates
+      currentModelRef.current = next;
+      return next;
     });
   }, [modelChoices]);
 
@@ -1410,6 +1478,8 @@ const Chat = React.memo(function Chat({
       const targetTag = detail.agentTag;
       if (targetTag && agentTag && targetTag !== agentTag) return;
       if (targetTag && !agentTag) return;
+      // Update ref FIRST (synchronous) to ensure handleSubmit reads the latest value
+      currentModelRef.current = detail.modelId;
       setCurrentModel(detail.modelId);
       setContextModelId(detail.modelId);
       setContextMaxTokens(guessMaxTokens(detail.modelId));
@@ -1440,6 +1510,8 @@ const Chat = React.memo(function Chat({
   }, []);
 
   const handleInlineModelChange = useCallback((modelId: string) => {
+    // Update ref FIRST (synchronous) to ensure handleSubmit reads the latest value
+    currentModelRef.current = modelId;
     setCurrentModel(modelId);
     setContextModelId(modelId);
     setContextMaxTokens(guessMaxTokens(modelId));
@@ -1847,7 +1919,8 @@ const Chat = React.memo(function Chat({
     }
 
     const ctx = getChatContext ? getChatContext() || undefined : undefined;
-    const resolvedModel = ctx?.model ?? currentModel ?? model;
+    // Use ref for synchronous access to the latest model (avoids stale closure)
+    const resolvedModel = ctx?.model ?? currentModelRef.current ?? model;
     if (effectiveConversationId) {
       conversationIdRef.current = effectiveConversationId;
     }
@@ -2141,7 +2214,8 @@ const Chat = React.memo(function Chat({
 
       // Re-send the edited message to the model
       const ctx = getChatContext ? getChatContext() || undefined : undefined;
-      const resolvedModel = ctx?.model ?? currentModel ?? model;
+      // Use ref for synchronous access to the latest model (avoids stale closure)
+      const resolvedModel = ctx?.model ?? currentModelRef.current ?? model;
 
       if (process.env.NODE_ENV === 'development') {
         console.log('🔄 Re-sending edited message:', {
@@ -2211,7 +2285,8 @@ const Chat = React.memo(function Chat({
     });
 
     const ctx = getChatContext ? getChatContext() || undefined : undefined;
-    const resolvedModel = ctx?.model ?? currentModel ?? model;
+    // Use ref for synchronous access to the latest model (avoids stale closure)
+    const resolvedModel = ctx?.model ?? currentModelRef.current ?? model;
     const cid = conversationIdRef.current;
 
     try {

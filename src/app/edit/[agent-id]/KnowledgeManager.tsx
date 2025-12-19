@@ -3,24 +3,33 @@
 import * as React from "react";
 import { createKnowledge, updateKnowledge, deleteKnowledge, getKnowledgeByAgent } from "@/actions/knowledge";
 
-interface KnowledgeItem {
+export interface KnowledgeItem {
   id: string;
   name: string;
   content: string;
   type: string;
-  createdAt: Date | null;
-  updatedAt: Date | null;
+  createdAt: Date | string | null;
+  updatedAt: Date | string | null;
 }
 
 interface Props {
   agentTag: string;
+  initialItems?: KnowledgeItem[];
+  onItemsChange?: (items: KnowledgeItem[]) => void;
 }
 
-export function KnowledgeManager({ agentTag }: Props) {
-  const [items, setItems] = React.useState<KnowledgeItem[]>([]);
-  const [loading, setLoading] = React.useState(true);
+export function KnowledgeManager({ agentTag, initialItems, onItemsChange }: Props) {
+  const hasInitialItems = initialItems !== undefined;
+  const [items, setItems] = React.useState<KnowledgeItem[]>(() => initialItems ?? []);
+  const [loading, setLoading] = React.useState(!hasInitialItems);
   const [selectedItem, setSelectedItem] = React.useState<KnowledgeItem | null>(null);
   const [isCreating, setIsCreating] = React.useState(false);
+  const hasLoadedOnceRef = React.useRef(hasInitialItems);
+
+  const updateItems = React.useCallback((next: KnowledgeItem[]) => {
+    setItems(next);
+    onItemsChange?.(next);
+  }, [onItemsChange]);
 
   // Form state for editing/creating
   const [formName, setFormName] = React.useState("");
@@ -31,17 +40,26 @@ export function KnowledgeManager({ agentTag }: Props) {
     setLoading(true);
     try {
       const data = await getKnowledgeByAgent(agentTag);
-      setItems(data);
+      updateItems(data);
+      hasLoadedOnceRef.current = true;
     } catch (error) {
       console.error("Failed to load knowledge items:", error);
     } finally {
       setLoading(false);
     }
-  }, [agentTag]);
+  }, [agentTag, updateItems]);
 
   React.useEffect(() => {
+    if (hasInitialItems || hasLoadedOnceRef.current) return;
     loadItems();
-  }, [loadItems]);
+  }, [hasInitialItems, loadItems]);
+
+  React.useEffect(() => {
+    if (!hasInitialItems || hasLoadedOnceRef.current) return;
+    updateItems(initialItems ?? []);
+    setLoading(false);
+    hasLoadedOnceRef.current = true;
+  }, [hasInitialItems, initialItems, updateItems]);
 
   const handleCreate = async () => {
     if (!formName.trim() || !formContent.trim()) return;

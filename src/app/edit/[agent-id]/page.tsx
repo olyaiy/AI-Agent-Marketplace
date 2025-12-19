@@ -3,9 +3,41 @@ import { notFound, redirect } from 'next/navigation';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import EditAgentTwoColumnClient from './EditAgentTwoColumnClient';
-import { getKnowledgeByAgent } from '@/actions/knowledge';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
+
+const AVATAR_CACHE_TTL_MS = 5 * 60 * 1000;
+let avatarCache: { fetchedAt: number; avatars: string[] } | null = null;
+let avatarCachePromise: Promise<string[]> | null = null;
+
+async function loadAvatars() {
+  const now = Date.now();
+  if (avatarCache && now - avatarCache.fetchedAt < AVATAR_CACHE_TTL_MS) {
+    return avatarCache.avatars;
+  }
+  if (avatarCachePromise) return avatarCachePromise;
+
+  avatarCachePromise = (async () => {
+    const folder = path.join(process.cwd(), 'public', 'avatars');
+    try {
+      const entries = await readdir(folder, { withFileTypes: true });
+      const avatars = entries
+        .filter((entry) => entry.isFile())
+        .map((entry) => entry.name)
+        .filter((name) => /\.(png|jpe?g|webp|gif)$/i.test(name))
+        .map((name) => `/avatars/${name}`);
+      avatarCache = { fetchedAt: now, avatars };
+      return avatars;
+    } catch {
+      avatarCache = { fetchedAt: now, avatars: [] };
+      return [];
+    } finally {
+      avatarCachePromise = null;
+    }
+  })();
+
+  return avatarCachePromise;
+}
 
 async function saveAction(formData: FormData) {
   'use server';
@@ -91,32 +123,19 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
   const { 'agent-id': id } = await params;
   const tag = `@${id}`;
   const headerList = await headers();
-  const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
+  const sessionPromise = auth.api.getSession({ headers: headerList }).catch(() => null);
+  const agentPromise = getAgentByTag(tag);
+  const avatarsPromise = loadAvatars();
+  const [session, a, avatars] = await Promise.all([sessionPromise, agentPromise, avatarsPromise]);
   if (!session?.user) redirect('/');
   const isAuthenticated = Boolean(session.user);
-  const a = await getAgentByTag(tag);
   if (!a) notFound();
   const isAdmin = session.user.role === 'admin';
   const isOwner = Boolean(a.creatorId && session.user.id === a.creatorId);
   if (!isAdmin && !isOwner) notFound();
-  const knowledge = await getKnowledgeByAgent(tag);
-  const knowledgeItems = knowledge.map(k => ({ name: k.name, content: k.content }));
   const initialVisibility = a.visibility === 'public' || a.visibility === 'invite_only' || a.visibility === 'private'
     ? a.visibility
     : 'public';
-  const avatars = await (async () => {
-    const folder = path.join(process.cwd(), 'public', 'avatars');
-    try {
-      const entries = await readdir(folder, { withFileTypes: true });
-      return entries
-        .filter((entry) => entry.isFile())
-        .map((entry) => entry.name)
-        .filter((name) => /\.(png|jpe?g|webp|gif)$/i.test(name))
-        .map((name) => `/avatars/${name}`);
-    } catch {
-      return [] as string[];
-    }
-  })();
 
   return (
     <EditAgentTwoColumnClient
@@ -141,7 +160,6 @@ export default async function EditAgentPage({ params }: { params: Promise<{ 'age
       onDelete={deleteAction}
       onRequestPublic={requestPublicAction}
       onWithdrawPublic={withdrawPublicAction}
-      knowledgeItems={knowledgeItems}
     />
   );
 }

@@ -6,8 +6,7 @@ import {
 } from './chain-of-thought';
 import { cn } from '@/lib/utils';
 import type { ComponentProps } from 'react';
-import { createContext, memo, useContext, useEffect, useState } from 'react';
-import { Response } from './response';
+import React, { createContext, memo, useContext, useEffect, useState } from 'react';
 
 type ReasoningContextValue = {
   isStreaming: boolean;
@@ -135,15 +134,82 @@ export type ReasoningContentProps = ComponentProps<
   children?: string;
 };
 
+/**
+ * Lightweight text formatter for reasoning content.
+ * Handles **bold** and newlines without heavy markdown parsing.
+ * Optimized for streaming performance.
+ */
+const formatReasoningText = (text: string): React.ReactNode[] => {
+  if (!text) return [];
+
+  // First, normalize escaped newlines (\n as literal characters) to actual newlines
+  const normalizedText = text.replace(/\\n/g, '\n');
+
+  // Split by newlines first
+  const lines = normalizedText.split('\n');
+
+  return lines.map((line, lineIndex) => {
+    // Parse **bold** patterns within each line
+    const parts: React.ReactNode[] = [];
+    const boldRegex = /\*\*(.+?)\*\*/g;
+    let lastIndex = 0;
+    let match;
+    let partIndex = 0;
+
+    while ((match = boldRegex.exec(line)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push(
+          <span key={`${lineIndex}-${partIndex++}`}>
+            {line.slice(lastIndex, match.index)}
+          </span>
+        );
+      }
+      // Add the bold text
+      parts.push(
+        <strong key={`${lineIndex}-${partIndex++}`} className="font-semibold">
+          {match[1]}
+        </strong>
+      );
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text after last match
+    if (lastIndex < line.length) {
+      parts.push(
+        <span key={`${lineIndex}-${partIndex++}`}>
+          {line.slice(lastIndex)}
+        </span>
+      );
+    }
+
+    // If no bold patterns found, just use the line as-is
+    if (parts.length === 0 && line.length > 0) {
+      parts.push(<span key={`${lineIndex}-0`}>{line}</span>);
+    }
+
+    // Wrap in a fragment and add a <br /> for each line except the last
+    return (
+      <span key={lineIndex}>
+        {parts}
+        {lineIndex < lines.length - 1 && <br />}
+      </span>
+    );
+  });
+};
+
 export const ReasoningContent = memo(
   ({ className, children, ...props }: ReasoningContentProps) => {
     const { isStreaming } = useReasoning();
+
     return (
       <ChainOfThoughtContent
         className={cn(isStreaming && 'animate-shimmer', className)}
         {...props}
       >
-        <Response className="first:mt-0">{children}</Response>
+        <div className="text-sm leading-relaxed text-muted-foreground">
+          {formatReasoningText(children ?? '')}
+        </div>
       </ChainOfThoughtContent>
     );
   }

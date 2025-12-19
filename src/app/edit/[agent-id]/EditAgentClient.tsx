@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
-import { KnowledgeManager } from "./KnowledgeManager";
+import { KnowledgeManager, type KnowledgeItem } from "./KnowledgeManager";
 import { SecondaryModelsInput } from "@/components/SecondaryModelsInput";
-import { Copy, Check, Globe, Lock, Users } from "lucide-react";
+import { Copy, Check, Globe, Lock, Users, Pencil, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Response } from "@/components/ai-elements/response";
 
 interface Props {
   agentTag: string;
@@ -28,6 +29,8 @@ interface Props {
   onWithdrawPublic?: (formData: FormData) => void | Promise<void>;
   formId?: string;
   previewContent?: React.ReactNode;
+  knowledgeItems?: KnowledgeItem[];
+  onKnowledgeItemsChange?: (items: KnowledgeItem[]) => void;
 }
 
 export const EditAgentClient = React.memo(function EditAgentClient({
@@ -51,6 +54,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   onWithdrawPublic,
   previewContent,
   formId,
+  knowledgeItems,
+  onKnowledgeItemsChange,
 }: Props) {
   const resolvedFormId = formId || 'agent-form';
   const [selectedModel, setSelectedModel] = React.useState<string>(initialModel || "");
@@ -70,6 +75,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   const [activeTab, setActiveTab] = React.useState<"behaviour" | "details" | "knowledge" | "publish" | "preview">("behaviour");
   const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>(initialVisibility);
   const [copied, setCopied] = React.useState(false);
+  const [promptValue, setPromptValue] = React.useState(initialSystemPrompt || '');
+  const [promptEditorMode, setPromptEditorMode] = React.useState<'write' | 'preview'>('write');
   const [promptStats, setPromptStats] = React.useState(() => {
     const text = initialSystemPrompt || '';
     return { chars: text.length, lines: text.split('\n').length };
@@ -160,8 +167,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
             type="button"
             variant="ghost"
             className={`relative px-4 py-2.5 h-auto text-sm font-medium rounded-none rounded-t-lg transition-all whitespace-nowrap hover:bg-muted/50 ${activeTab === tab
-                ? 'text-foreground bg-muted/30'
-                : 'text-muted-foreground hover:text-foreground'
+              ? 'text-foreground bg-muted/30'
+              : 'text-muted-foreground hover:text-foreground'
               }`}
             onClick={() => setActiveTab(tab)}
           >
@@ -306,45 +313,56 @@ export const EditAgentClient = React.memo(function EditAgentClient({
 
                   {/* Editor container */}
                   <div className="rounded-xl border-2 border-border bg-card overflow-hidden transition-all duration-200 group-focus-within:border-primary/50 group-focus-within:ring-4 group-focus-within:ring-primary/10 shadow-sm">
-                    {/* Header bar */}
-                    <div className="flex items-center justify-between px-4 py-2.5 bg-muted/50 border-b border-border">
-                      <div className="flex items-center gap-2">
+                    {/* Header bar with Write/Preview toggle */}
+                    <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-border">
+                      <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5">
                           <div className="w-3 h-3 rounded-full bg-red-400/80"></div>
                           <div className="w-3 h-3 rounded-full bg-yellow-400/80"></div>
                           <div className="w-3 h-3 rounded-full bg-green-400/80"></div>
                         </div>
-                        <span className="text-xs text-muted-foreground font-mono ml-2">system-prompt.md</span>
+                        <span className="text-xs text-muted-foreground font-mono">system-prompt.md</span>
+
+                        {/* Write/Preview Toggle */}
+                        <div className="flex items-center bg-muted rounded-md p-0.5 ml-2">
+                          <button
+                            type="button"
+                            onClick={() => setPromptEditorMode('write')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${promptEditorMode === 'write'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Write
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPromptEditorMode('preview')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${promptEditorMode === 'preview'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                          >
+                            <Eye className="w-3 h-3" />
+                            Preview
+                          </button>
+                        </div>
                       </div>
                       <span className="text-xs text-muted-foreground font-mono">{promptStats.chars.toLocaleString()} chars</span>
                     </div>
 
-                    {/* Textarea */}
-                    <textarea
-                      name="systemPrompt"
-                      form={resolvedFormId}
-                      defaultValue={initialSystemPrompt}
-                      onInput={(e) => {
-                        const value = e.currentTarget.value;
-                        onContextChange && onContextChange({ systemPrompt: value });
-                        setPromptStats({ chars: value.length, lines: value.split('\n').length });
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Tab') {
-                          e.preventDefault();
-                          const target = e.currentTarget;
-                          const start = target.selectionStart;
-                          const end = target.selectionEnd;
-                          const value = target.value;
-                          target.value = value.substring(0, start) + '  ' + value.substring(end);
-                          target.selectionStart = target.selectionEnd = start + 2;
-                          const newValue = target.value;
-                          onContextChange && onContextChange({ systemPrompt: newValue });
-                          setPromptStats({ chars: newValue.length, lines: newValue.split('\n').length });
-                        }
-                      }}
-                      rows={14}
-                      placeholder="You are a helpful assistant specialized in...
+                    {/* Editor Content - Write or Preview mode */}
+                    {promptEditorMode === 'write' ? (
+                      /* Auto-growing Textarea Container */
+                      <div className="relative scrollbar-slick" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                        <div className="grid">
+                          {/* Invisible sizer - pushes the grid to match content height */}
+                          <div
+                            className="col-start-1 row-start-1 whitespace-pre-wrap break-words invisible pointer-events-none p-4 text-sm leading-relaxed font-mono"
+                            aria-hidden="true"
+                          >
+                            {promptValue || `You are a helpful assistant specialized in...
 
 # Example structure:
 
@@ -357,10 +375,69 @@ Describe the communication style (friendly, professional, etc.)
 ## Guidelines
 - List specific behaviors
 - Include any constraints
-- Define response format preferences"
-                      className="w-full bg-card border-0 p-4 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none text-sm leading-relaxed font-mono overflow-y-auto scrollbar-slick"
-                      style={{ minHeight: '320px', maxHeight: '500px' }}
-                    />
+- Define response format preferences`}{' '}
+                          </div>
+
+                          {/* Actual Textarea - overlays the sizer */}
+                          <textarea
+                            name="systemPrompt"
+                            form={resolvedFormId}
+                            value={promptValue}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setPromptValue(value);
+                              onContextChange && onContextChange({ systemPrompt: value });
+                              setPromptStats({ chars: value.length, lines: value.split('\n').length });
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Tab') {
+                                e.preventDefault();
+                                const target = e.currentTarget;
+                                const start = target.selectionStart;
+                                const end = target.selectionEnd;
+                                const value = target.value;
+                                const newValue = value.substring(0, start) + '  ' + value.substring(end);
+                                setPromptValue(newValue);
+                                // Set cursor position after state update
+                                requestAnimationFrame(() => {
+                                  target.selectionStart = target.selectionEnd = start + 2;
+                                });
+                                onContextChange && onContextChange({ systemPrompt: newValue });
+                                setPromptStats({ chars: newValue.length, lines: newValue.split('\n').length });
+                              }
+                            }}
+                            placeholder={`You are a helpful assistant specialized in...
+
+# Example structure:
+
+## Role
+Define the assistant's primary role and expertise.
+
+## Tone
+Describe the communication style (friendly, professional, etc.)
+
+## Guidelines
+- List specific behaviors
+- Include any constraints
+- Define response format preferences`}
+                            className="col-start-1 row-start-1 w-full bg-card border-0 p-4 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none text-sm leading-relaxed font-mono"
+                            style={{ minHeight: '200px' }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      /* Preview Mode - Rendered Markdown */
+                      <div
+                        className="p-4 scrollbar-slick"
+                        style={{ maxHeight: '70vh', overflowY: 'auto', minHeight: '200px' }}
+                      >
+                        {promptValue ? (
+                          <Response className="text-sm">{promptValue}</Response>
+                        ) : (
+                          <p className="text-muted-foreground/50 italic text-sm">Nothing to preview yet. Switch to Write mode and add your system prompt.</p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Footer */}
                     <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border">
@@ -469,7 +546,11 @@ For example:
           </div>
         ) : activeTab === "knowledge" ? (
           <div className="bg-muted/30 rounded-2xl border border-border/50 p-1">
-            <KnowledgeManager agentTag={agentTag} />
+            <KnowledgeManager
+              agentTag={agentTag}
+              initialItems={knowledgeItems}
+              onItemsChange={onKnowledgeItemsChange}
+            />
           </div>
         ) : activeTab === "preview" ? (
           <div className="h-[calc(100vh-300px)] min-h-[500px] bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
