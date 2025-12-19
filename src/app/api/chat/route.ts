@@ -169,6 +169,9 @@ function normalizeUsage(raw: unknown) {
   return { inputTokens, outputTokens, totalTokens, cachedInputTokens, reasoningTokens };
 }
 
+const hasUsageValues = (usage: ReturnType<typeof normalizeUsage>) =>
+  Object.values(usage).some((value) => value > 0);
+
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const qpSystem = url.searchParams.get('systemPrompt') || undefined;
@@ -346,6 +349,96 @@ export async function POST(req: Request) {
       debugLog('Failed to persist user message', error);
     }
   }
+
+  let assistantMessageId: string | null = null;
+  let assistantUsage: ReturnType<typeof normalizeUsage> | null = null;
+  let assistantGenerationId: string | null = null;
+  let assistantGatewayCostUsd: string | null = null;
+
+  const updateAssistantUsage = async () => {
+    if (!assistantMessageId) return;
+    const updateValues: Partial<typeof message.$inferInsert> = {
+      modelId,
+    };
+    if (assistantUsage) {
+      updateValues.tokenUsage = assistantUsage as unknown as typeof message.$inferInsert['tokenUsage'];
+    }
+    if (assistantGenerationId) {
+      updateValues.generationId = assistantGenerationId;
+    }
+    if (assistantGatewayCostUsd) {
+      updateValues.gatewayCostUsd = assistantGatewayCostUsd;
+    }
+    await db.update(message).set(updateValues).where(eq(message.id, assistantMessageId));
+  };
+
+  const persistAssistantMessage = async (responseMessage: UIMessage) => {
+    if (!ensuredConversationId || responseMessage.role !== 'assistant' || !responseMessage.id) return;
+    assistantMessageId = responseMessage.id;
+
+    const parts = Array.isArray(responseMessage.parts) ? responseMessage.parts : [];
+    const textPreview = extractTextFromParts(parts as Array<{ type?: string; text?: string }>)
+      .slice(0, MAX_PREVIEW_LENGTH)
+      .trim();
+
+    const insertValues: typeof message.$inferInsert = {
+      id: responseMessage.id,
+      conversationId: ensuredConversationId,
+      role: responseMessage.role,
+      uiParts: responseMessage.parts as unknown as typeof message.$inferInsert['uiParts'],
+      textPreview: textPreview || null,
+      hasToolCalls: false,
+      modelId,
+    };
+
+    if (responseMessage.annotations !== undefined) {
+      insertValues.annotations = responseMessage.annotations as unknown as typeof message.$inferInsert['annotations'];
+    }
+    if (assistantUsage) {
+      insertValues.tokenUsage = assistantUsage as unknown as typeof message.$inferInsert['tokenUsage'];
+    }
+    if (assistantGenerationId) {
+      insertValues.generationId = assistantGenerationId;
+    }
+    if (assistantGatewayCostUsd) {
+      insertValues.gatewayCostUsd = assistantGatewayCostUsd;
+    }
+
+    const updateValues: Partial<typeof message.$inferInsert> = {
+      uiParts: insertValues.uiParts,
+      textPreview: insertValues.textPreview,
+      hasToolCalls: insertValues.hasToolCalls,
+      modelId,
+    };
+    if (responseMessage.annotations !== undefined) {
+      updateValues.annotations = responseMessage.annotations as unknown as typeof message.$inferInsert['annotations'];
+    }
+    if (assistantUsage) {
+      updateValues.tokenUsage = assistantUsage as unknown as typeof message.$inferInsert['tokenUsage'];
+    }
+    if (assistantGenerationId) {
+      updateValues.generationId = assistantGenerationId;
+    }
+    if (assistantGatewayCostUsd) {
+      updateValues.gatewayCostUsd = assistantGatewayCostUsd;
+    }
+
+    await db
+      .insert(message)
+      .values(insertValues)
+      .onConflictDoUpdate({
+        target: message.id,
+        set: updateValues,
+      });
+
+    const now = new Date();
+    await db
+      .update(conversation)
+      .set({ updatedAt: now, lastMessageAt: now })
+      .where(eq(conversation.id, ensuredConversationId));
+
+    await updateAssistantUsage();
+  };
 
   // Create Vercel AI Gateway provider
   const gateway = createGateway({
@@ -532,10 +625,20 @@ export async function POST(req: Request) {
 
       // Get usage data
       const usage = normalizeUsage(result.usage);
+      const hasUsage = hasUsageValues(usage);
+      assistantUsage = hasUsage ? usage : null;
 
       // Get gateway cost data
       const gatewayData = resultWithMetadata.providerMetadata?.gateway;
       const cost = gatewayData?.cost ? parseFloat(gatewayData.cost) : null;
+      assistantGenerationId = gatewayData?.generationId ?? null;
+      assistantGatewayCostUsd = gatewayData?.cost ?? (Number.isFinite(cost) ? cost.toString() : null);
+
+      try {
+        await updateAssistantUsage();
+      } catch (error) {
+        debugLog('Failed to persist assistant usage metadata', error);
+      }
       let pricing = null as ReturnType<typeof priceGatewayCostOrNull>;
       try {
         pricing = priceGatewayCostOrNull({
@@ -571,7 +674,6 @@ export async function POST(req: Request) {
       console.log('─'.repeat(40) + '\n');
 
       try {
-        const hasUsage = Object.values(usage).some((value) => value > 0);
         if (hasUsage && ensuredConversationId) {
           const now = new Date();
           await db
@@ -627,8 +729,17 @@ export async function POST(req: Request) {
   });
 
   const response = result.toUIMessageStreamResponse({
+    originalMessages: messages as UIMessage[],
+    generateMessageId: randomUUID,
     sendReasoning: true,
     sendSources: true,
+    onFinish: async ({ responseMessage }) => {
+      try {
+        await persistAssistantMessage(responseMessage as UIMessage);
+      } catch (error) {
+        debugLog('Failed to persist assistant message', error);
+      }
+    },
   });
   response.headers.set('x-conversation-id', ensuredConversationId!);
   response.headers.set('x-reasoning-enabled', String(reasoningEnabled));

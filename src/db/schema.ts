@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, timestamp, jsonb, integer, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, boolean, timestamp, jsonb, integer, index, uniqueIndex, primaryKey, numeric } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 export const agent = pgTable('agent', {
@@ -297,6 +297,9 @@ export const message = pgTable('message', {
   textPreview: text('text_preview'),
   hasToolCalls: boolean('has_tool_calls').default(false),
   tokenUsage: jsonb('token_usage'),
+  modelId: varchar('model_id', { length: 128 }),
+  generationId: text('generation_id'),
+  gatewayCostUsd: numeric('gateway_cost_usd', { precision: 12, scale: 8 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

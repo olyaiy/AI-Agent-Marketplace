@@ -227,3 +227,132 @@
 .dark .scrollbar-slick::-webkit-scrollbar-thumb:hover {
   background: oklch(0.7 0 0 / 45%);
 }
+
+/* Tiptap Editor Styles */
+.tiptap {
+  outline: none;
+
+  /* Paragraphs */
+  p {
+    @apply my-2 leading-relaxed text-foreground;
+  }
+
+  p:first-child {
+    @apply mt-0;
+  }
+
+  p:last-child {
+    @apply mb-0;
+  }
+
+  /* Headings */
+  h1 {
+    @apply text-2xl font-bold mt-6 mb-4 text-foreground;
+  }
+
+  h2 {
+    @apply text-xl font-semibold mt-5 mb-3 text-foreground;
+  }
+
+  h3 {
+    @apply text-lg font-semibold mt-4 mb-2 text-foreground;
+  }
+
+  h4 {
+    @apply text-base font-medium mt-4 mb-2 text-foreground;
+  }
+
+  h5,
+  h6 {
+    @apply text-sm font-medium mt-3 mb-2 text-foreground;
+  }
+
+  h1:first-child,
+  h2:first-child,
+  h3:first-child,
+  h4:first-child,
+  h5:first-child,
+  h6:first-child {
+    @apply mt-0;
+  }
+
+  /* Lists */
+  ul {
+    @apply list-disc list-outside ml-5 my-2;
+  }
+
+  ol {
+    @apply list-decimal list-outside ml-5 my-2;
+  }
+
+  li {
+    @apply my-1 text-foreground;
+  }
+
+  li p {
+    @apply my-0;
+  }
+
+  /* Nested lists */
+  ul ul,
+  ol ul {
+    @apply mt-1 mb-0;
+  }
+
+  ul ol,
+  ol ol {
+    @apply mt-1 mb-0;
+  }
+
+  /* Code */
+  code {
+    @apply bg-muted text-foreground px-1.5 py-0.5 rounded font-mono text-sm;
+  }
+
+  pre {
+    @apply bg-muted rounded-lg p-4 my-3 overflow-x-auto;
+  }
+
+  pre code {
+    @apply bg-transparent p-0;
+  }
+
+  /* Blockquotes */
+  blockquote {
+    @apply border-l-4 border-primary/30 pl-4 my-3 italic text-muted-foreground;
+  }
+
+  blockquote p {
+    @apply my-0;
+  }
+
+  /* Horizontal rule */
+  hr {
+    @apply border-border my-6;
+  }
+
+  /* Links */
+  a {
+    @apply text-primary underline underline-offset-2 hover:opacity-80 transition-opacity;
+  }
+
+  /* Strong and emphasis */
+  strong {
+    @apply font-semibold text-foreground;
+  }
+
+  em {
+    @apply italic;
+  }
+
+  /* Strikethrough */
+  s {
+    @apply line-through opacity-60;
+  }
+
+  /* Placeholder */
+  p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground/50 float-left h-0 pointer-events-none;
+    content: attr(data-placeholder);
+  }
+}

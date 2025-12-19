@@ -4,9 +4,22 @@ import * as React from "react";
 import { OpenRouterModelSelect } from "@/components/OpenRouterModelSelect";
 import { KnowledgeManager, type KnowledgeItem } from "./KnowledgeManager";
 import { SecondaryModelsInput } from "@/components/SecondaryModelsInput";
-import { Copy, Check, Globe, Lock, Users, Pencil, Eye } from "lucide-react";
+import { Copy, Check, Globe, Lock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Response } from "@/components/ai-elements/response";
+import dynamic from 'next/dynamic';
+
+// Dynamically import Tiptap to avoid SSR issues
+const TiptapMarkdownEditor = dynamic(
+  () => import('@/components/TiptapMarkdownEditor').then(mod => mod.TiptapMarkdownEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-4 text-sm text-muted-foreground animate-pulse">
+        Loading editor...
+      </div>
+    )
+  }
+);
 
 interface Props {
   agentTag: string;
@@ -76,7 +89,6 @@ export const EditAgentClient = React.memo(function EditAgentClient({
   const [visibility, setVisibility] = React.useState<'public' | 'invite_only' | 'private'>(initialVisibility);
   const [copied, setCopied] = React.useState(false);
   const [promptValue, setPromptValue] = React.useState(initialSystemPrompt || '');
-  const [promptEditorMode, setPromptEditorMode] = React.useState<'write' | 'preview'>('write');
   const [promptStats, setPromptStats] = React.useState(() => {
     const text = initialSystemPrompt || '';
     return { chars: text.length, lines: text.split('\n').length };
@@ -312,8 +324,8 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                   </div>
 
                   {/* Editor container */}
-                  <div className="rounded-xl border-2 border-border bg-card overflow-hidden transition-all duration-200 group-focus-within:border-primary/50 group-focus-within:ring-4 group-focus-within:ring-primary/10 shadow-sm">
-                    {/* Header bar with Write/Preview toggle */}
+                  <div className="rounded-xl border-2 border-border bg-card overflow-hidden transition-all duration-200 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 shadow-sm">
+                    {/* Header bar */}
                     <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-border">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5">
@@ -322,91 +334,16 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                           <div className="w-3 h-3 rounded-full bg-green-400/80"></div>
                         </div>
                         <span className="text-xs text-muted-foreground font-mono">system-prompt.md</span>
-
-                        {/* Write/Preview Toggle */}
-                        <div className="flex items-center bg-muted rounded-md p-0.5 ml-2">
-                          <button
-                            type="button"
-                            onClick={() => setPromptEditorMode('write')}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${promptEditorMode === 'write'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                              }`}
-                          >
-                            <Pencil className="w-3 h-3" />
-                            Write
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPromptEditorMode('preview')}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${promptEditorMode === 'preview'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                              }`}
-                          >
-                            <Eye className="w-3 h-3" />
-                            Preview
-                          </button>
-                        </div>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">WYSIWYG</span>
                       </div>
                       <span className="text-xs text-muted-foreground font-mono">{promptStats.chars.toLocaleString()} chars</span>
                     </div>
 
-                    {/* Editor Content - Write or Preview mode */}
-                    {promptEditorMode === 'write' ? (
-                      /* Auto-growing Textarea Container */
-                      <div className="relative scrollbar-slick" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                        <div className="grid">
-                          {/* Invisible sizer - pushes the grid to match content height */}
-                          <div
-                            className="col-start-1 row-start-1 whitespace-pre-wrap break-words invisible pointer-events-none p-4 text-sm leading-relaxed font-mono"
-                            aria-hidden="true"
-                          >
-                            {promptValue || `You are a helpful assistant specialized in...
-
-# Example structure:
-
-## Role
-Define the assistant's primary role and expertise.
-
-## Tone
-Describe the communication style (friendly, professional, etc.)
-
-## Guidelines
-- List specific behaviors
-- Include any constraints
-- Define response format preferences`}{' '}
-                          </div>
-
-                          {/* Actual Textarea - overlays the sizer */}
-                          <textarea
-                            name="systemPrompt"
-                            form={resolvedFormId}
-                            value={promptValue}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setPromptValue(value);
-                              onContextChange && onContextChange({ systemPrompt: value });
-                              setPromptStats({ chars: value.length, lines: value.split('\n').length });
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Tab') {
-                                e.preventDefault();
-                                const target = e.currentTarget;
-                                const start = target.selectionStart;
-                                const end = target.selectionEnd;
-                                const value = target.value;
-                                const newValue = value.substring(0, start) + '  ' + value.substring(end);
-                                setPromptValue(newValue);
-                                // Set cursor position after state update
-                                requestAnimationFrame(() => {
-                                  target.selectionStart = target.selectionEnd = start + 2;
-                                });
-                                onContextChange && onContextChange({ systemPrompt: newValue });
-                                setPromptStats({ chars: newValue.length, lines: newValue.split('\n').length });
-                              }
-                            }}
-                            placeholder={`You are a helpful assistant specialized in...
+                    {/* Tiptap WYSIWYG Editor */}
+                    <div className="p-4">
+                      <TiptapMarkdownEditor
+                        initialContent={initialSystemPrompt}
+                        placeholder={`You are a helpful assistant specialized in...
 
 # Example structure:
 
@@ -420,29 +357,23 @@ Describe the communication style (friendly, professional, etc.)
 - List specific behaviors
 - Include any constraints
 - Define response format preferences`}
-                            className="col-start-1 row-start-1 w-full bg-card border-0 p-4 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-0 transition-all resize-none text-sm leading-relaxed font-mono"
-                            style={{ minHeight: '200px' }}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      /* Preview Mode - Rendered Markdown */
-                      <div
-                        className="p-4 scrollbar-slick"
-                        style={{ maxHeight: '70vh', overflowY: 'auto', minHeight: '200px' }}
-                      >
-                        {promptValue ? (
-                          <Response className="text-sm">{promptValue}</Response>
-                        ) : (
-                          <p className="text-muted-foreground/50 italic text-sm">Nothing to preview yet. Switch to Write mode and add your system prompt.</p>
-                        )}
-                      </div>
-                    )}
+                        onChange={(markdown) => {
+                          setPromptValue(markdown);
+                          onContextChange && onContextChange({ systemPrompt: markdown });
+                          setPromptStats({ chars: markdown.length, lines: markdown.split('\n').length });
+                        }}
+                        minHeight="200px"
+                        maxHeight="70vh"
+                      />
+                    </div>
+
+                    {/* Hidden input for form submission */}
+                    <input type="hidden" name="systemPrompt" form={resolvedFormId} value={promptValue} />
 
                     {/* Footer */}
                     <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border">
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground">Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">Tab</kbd> for indentation</span>
+                        <span className="text-xs text-muted-foreground">Markdown shortcuts: <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">#</kbd> heading, <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">**</kbd> bold, <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono border border-border">-</kbd> list</span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
                         <span>{promptStats.lines} lines</span>
@@ -693,6 +624,6 @@ For example:
       <input type="hidden" name="secondaryModels" value={JSON.stringify(secondaryModels || [])} form={resolvedFormId} />
       <input type="hidden" name="providerOptions" value={JSON.stringify(providerOptionsMap)} form={resolvedFormId} />
       <input type="hidden" name="visibility" value={visibility} form={resolvedFormId} />
-    </div>
+    </div >
   );
 });

@@ -81,7 +81,7 @@ export const Conversation = <T,>({
 
   return (
     <ConversationContext.Provider value={contextValue}>
-      <div className={cn('relative h-full', className)}>
+      <div className={cn('relative h-full ', className)}>
         <Virtuoso
           ref={virtuosoRef}
           data={items}
