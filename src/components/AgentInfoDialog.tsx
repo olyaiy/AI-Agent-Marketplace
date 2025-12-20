@@ -5,22 +5,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Plus, Copy, Check, Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { dispatchAgentModelChange, dispatchAgentNewChat } from '@/lib/agent-events';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
-import { ProviderAvatar } from '@/components/ProviderAvatar';
+import { dispatchAgentNewChat } from '@/lib/agent-events';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
-const ModelLabel = React.memo(function ModelLabel({ label, providerSlug }: { label: string; providerSlug: string | null }) {
-    return (
-        <div className="flex items-center gap-2 truncate">
-            <ProviderAvatar providerSlug={providerSlug} size={20} />
-            <span className="truncate text-sm">{label}</span>
-        </div>
-    );
-});
-ModelLabel.displayName = 'ModelLabel';
 
 interface AgentInfoDialogProps {
     open: boolean;
@@ -31,8 +18,6 @@ interface AgentInfoDialogProps {
     description?: string | null;
     agentTag?: string;
     canEdit?: boolean;
-    modelOptions?: string[];
-    activeModel?: string;
     visibility?: 'public' | 'invite_only' | 'private';
     inviteCode?: string | null;
     publishStatus?: 'draft' | 'pending_review' | 'approved' | 'rejected';
@@ -48,8 +33,6 @@ export function AgentInfoDialog({
     description,
     agentTag,
     canEdit,
-    modelOptions,
-    activeModel,
     visibility,
     inviteCode,
     publishStatus,
@@ -98,116 +81,6 @@ export function AgentInfoDialog({
             setIsMac(/Mac|iPod|iPhone|iPad/.test(navigator.platform));
         }
     }, []);
-
-    // Model selection state
-    const availableModels = React.useMemo(
-        () => Array.isArray(modelOptions) ? Array.from(new Set(modelOptions.filter(Boolean))) : [],
-        [modelOptions]
-    );
-    const [selectedModel, setSelectedModel] = React.useState<string | undefined>(() => activeModel || availableModels[0]);
-    const [modelMeta, setModelMeta] = React.useState<Record<string, { label: string; providerSlug: string | null; providers?: string[]; defaultProvider?: string | null }>>({});
-    const [selectedProvider, setSelectedProvider] = React.useState<string | null>(null);
-
-    const replaceModelParam = React.useCallback((modelId: string | undefined) => {
-        if (typeof window === 'undefined' || !modelId) return;
-        const url = new URL(window.location.href);
-        if (url.searchParams.get('model') === modelId) return;
-        url.searchParams.set('model', modelId);
-        const nextSearch = url.searchParams.toString();
-        const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${url.hash}`;
-        window.history.replaceState(null, '', nextUrl);
-    }, []);
-
-    const applyModelSelection = React.useCallback((modelId: string, emitEvent = true) => {
-        setSelectedModel(modelId);
-        setSelectedProvider(null);
-        replaceModelParam(modelId);
-        if (emitEvent) dispatchAgentModelChange(agentTag, modelId, null);
-    }, [agentTag, replaceModelParam]);
-
-    React.useEffect(() => {
-        if (!selectedModel) {
-            const first = activeModel || availableModels[0];
-            if (first) applyModelSelection(first, false);
-            return;
-        }
-        if (selectedModel && availableModels.length > 0 && !availableModels.includes(selectedModel)) {
-            const next = availableModels[0];
-            if (next) applyModelSelection(next);
-        }
-    }, [activeModel, applyModelSelection, availableModels, selectedModel]);
-
-    React.useEffect(() => {
-        const missing = availableModels.filter((id) => !modelMeta[id]);
-        if (missing.length === 0) return;
-        const controller = new AbortController();
-        (async () => {
-            try {
-                const url = new URL('/api/gateway/models', window.location.origin);
-                url.searchParams.set('ttlMs', '60000');
-                const res = await fetch(url.toString(), { signal: controller.signal });
-                if (!res.ok) throw new Error('failed');
-                const json = await res.json();
-                const items: Array<{ id: string; name: string; providers?: string[]; default_provider?: string | null }> = json?.data ?? [];
-                const nextUpdates: Record<string, { label: string; providerSlug: string | null; providers?: string[]; defaultProvider?: string | null }> = {};
-                missing.forEach((id) => {
-                    const hit = items.find((m) => m.id === id);
-                    const modelName = hit?.name;
-                    nextUpdates[id] = {
-                        label: getDisplayName(modelName, id),
-                        providerSlug: deriveProviderSlug(modelName, id),
-                        providers: hit?.providers,
-                        defaultProvider: hit?.default_provider ?? deriveProviderSlug(modelName, id),
-                    };
-                });
-                setModelMeta((prev) => ({ ...prev, ...nextUpdates }));
-            } catch {
-                setModelMeta((prev) => {
-                    const next = { ...prev };
-                    missing.forEach((id) => {
-                        next[id] = {
-                            label: getDisplayName(undefined, id),
-                            providerSlug: deriveProviderSlug(undefined, id),
-                            providers: [],
-                            defaultProvider: deriveProviderSlug(undefined, id),
-                        };
-                    });
-                    return next;
-                });
-            }
-        })();
-        return () => controller.abort();
-    }, [availableModels, modelMeta]);
-
-    const modelsWithMeta = React.useMemo(
-        () => availableModels.map((id) => {
-            const meta = modelMeta[id];
-            return {
-                id,
-                label: meta?.label || getDisplayName(undefined, id),
-                providerSlug: meta?.providerSlug || deriveProviderSlug(meta?.label, id),
-                providers: meta?.providers || [],
-                defaultProvider: meta?.defaultProvider || meta?.providerSlug || deriveProviderSlug(meta?.label, id),
-            };
-        }),
-        [availableModels, modelMeta]
-    );
-
-    const selectedValue = selectedModel ?? availableModels[0] ?? '';
-    const selectedMeta = React.useMemo(
-        () => modelsWithMeta.find((m) => m.id === selectedValue),
-        [modelsWithMeta, selectedValue]
-    );
-    const providerOptionsForSelected = React.useMemo(() => {
-        const set = new Set<string>();
-        if (selectedMeta?.providers) selectedMeta.providers.forEach((p) => set.add((p || '').toLowerCase()));
-        if (selectedMeta?.providerSlug) set.add((selectedMeta.providerSlug || '').toLowerCase());
-        return Array.from(set).filter(Boolean);
-    }, [selectedMeta]);
-
-    React.useEffect(() => {
-        setSelectedProvider(null);
-    }, [selectedValue]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -292,67 +165,6 @@ export function AgentInfoDialog({
                             {effectiveDescription}
                         </p>
                     </div>
-
-                    {/* Model Selector */}
-                    {availableModels.length > 0 && (
-                        <div className="space-y-1.5">
-                            <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-0.5">Model</h3>
-                            <Select
-                                value={selectedValue}
-                                onValueChange={(val) => {
-                                    applyModelSelection(val);
-                                }}
-                            >
-                                <SelectTrigger className="w-full h-10 px-3 rounded-lg bg-background border hover:bg-muted/40 transition-colors shadow-sm">
-                                    <SelectValue asChild>
-                                        <ModelLabel
-                                            label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
-                                            providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(null, selectedValue)}
-                                        />
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {modelsWithMeta.map((m) => (
-                                        <SelectItem key={m.id} value={m.id}>
-                                            <ModelLabel label={m.label} providerSlug={m.providerSlug} />
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-
-                            {providerOptionsForSelected.length > 0 && (
-                                <div className="pt-1">
-                                    <Select
-                                        value={selectedProvider || "__auto__"}
-                                        onValueChange={(val) => {
-                                            const provider = val === "__auto__" ? null : val;
-                                            setSelectedProvider(provider);
-                                            dispatchAgentModelChange(agentTag, selectedValue, provider);
-                                        }}
-                                    >
-                                        <SelectTrigger className="w-full h-10 px-3 rounded-lg bg-background border hover:bg-muted/40 transition-colors shadow-sm">
-                                            <SelectValue placeholder="Auto (gateway default)">
-                                                <div className="flex items-center gap-2">
-                                                    <ProviderAvatar providerSlug={selectedProvider || selectedMeta?.providerSlug || null} size={18} />
-                                                    <span className="text-sm truncate capitalize">
-                                                        {selectedProvider || selectedMeta?.defaultProvider || 'Auto'}
-                                                    </span>
-                                                </div>
-                                            </SelectValue>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="__auto__">Auto (gateway default)</SelectItem>
-                                            {providerOptionsForSelected.map((provider) => (
-                                                <SelectItem key={provider} value={provider} className="capitalize">
-                                                    {provider}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
 
                 {/* Footer Section (Bottom) - Secondary Actions */}
@@ -391,3 +203,4 @@ export function AgentInfoDialog({
         </Dialog>
     );
 }
+
