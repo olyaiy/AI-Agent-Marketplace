@@ -35,8 +35,6 @@ import {
   Image as ImageIcon,
   FileText,
   Zap,
-  Copy,
-  CheckCircle2,
   Brain,
   type LucideIcon
 } from "lucide-react";
@@ -225,15 +223,6 @@ function ModelDetailPanel({
   providerSelections?: Record<string, string | null>;
   onProviderChange?: (modelId: string, provider: string | null) => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyId = useCallback(() => {
-    if (!model) return;
-    navigator.clipboard.writeText(model.id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [model]);
-
   const providerList = useMemo(() => {
     if (!model) return [];
     const raw = Array.isArray(model.providers) ? model.providers : [];
@@ -300,20 +289,10 @@ function ModelDetailPanel({
           </div>
         </div>
 
-        {/* Model ID with copy */}
-        <button
-          onClick={handleCopyId}
-          className="mt-3 w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-background/50 dark:bg-background/30 hover:bg-background/80 dark:hover:bg-background/50 transition-colors group border border-border/50"
-        >
-          <code className="text-[11px] text-muted-foreground truncate flex-1 text-left font-mono">
-            {model.id}
-          </code>
-          {copied ? (
-            <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
-          ) : (
-            <Copy className="size-3.5 text-muted-foreground group-hover:text-[#BE6254] transition-colors shrink-0" />
-          )}
-        </button>
+        {/* Model ID */}
+        <p className="mt-2 text-[11px] text-muted-foreground font-mono truncate">
+          {model.id}
+        </p>
 
         <div className="mt-3 space-y-1.5">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -597,21 +576,36 @@ export function OpenRouterModelSelect({
   }, [filteredAll, filteredFeatured]);
 
   const featuredFilteredForDisplay = useMemo(() => {
-    if (!prioritizedSet.size) return filteredFeatured;
-    return filteredFeatured.filter((m) => !prioritizedSet.has(m.id));
-  }, [filteredFeatured, prioritizedSet]);
+    let filtered = filteredFeatured;
+    if (prioritizedSet.size) {
+      filtered = filtered.filter((m) => !prioritizedSet.has(m.id));
+    }
+    // Also exclude current selection if it will be shown at top
+    if (value && !prioritizedSet.has(value)) {
+      filtered = filtered.filter((m) => m.id !== value);
+    }
+    return filtered;
+  }, [filteredFeatured, prioritizedSet, value]);
 
   const remainingAfterPrioritized = useMemo(() => {
-    if (!prioritizedSet.size) return remaining;
-    const set = new Set(prioritizedModels.map((m) => m.id));
-    return remaining.filter((m) => !set.has(m.id));
-  }, [remaining, prioritizedModels, prioritizedSet]);
+    let filtered = remaining;
+    if (prioritizedSet.size) {
+      const set = new Set(prioritizedModels.map((m) => m.id));
+      filtered = filtered.filter((m) => !set.has(m.id));
+    }
+    // Also exclude current selection if it will be shown at top
+    if (value && !prioritizedSet.has(value)) {
+      filtered = filtered.filter((m) => m.id !== value);
+    }
+    return filtered;
+  }, [remaining, prioritizedModels, prioritizedSet, value]);
 
   const featuredToShow = featuredFilteredForDisplay.slice(0, 12);
   const remainingToShow = remainingAfterPrioritized.slice(
     0,
     Math.max(MAX_RESULTS - featuredToShow.length, 0)
   );
+  // Scroll to selected model when dropdown opens, or reset on query change
   useEffect(() => {
     if (!open) return;
     const listEl = listRef.current;
@@ -624,8 +618,21 @@ export function OpenRouterModelSelect({
       const capped = Math.min(nextVisible, remainingToShow.length || nextVisible);
       return current === capped ? current : capped;
     });
-    if (listEl) listEl.scrollTop = 0;
-  }, [deferredQuery, open, remainingToShow.length]);
+
+    // Scroll to selected model on initial open (not on query change)
+    if (listEl && value && !deferredQuery) {
+      // Small delay to let DOM render
+      requestAnimationFrame(() => {
+        const selectedEl = listEl.querySelector(`[data-model-id="${CSS.escape(value)}"]`);
+        if (selectedEl) {
+          selectedEl.scrollIntoView({ block: 'center', behavior: 'instant' });
+        }
+      });
+    } else if (listEl && deferredQuery) {
+      // Reset scroll on query change
+      listEl.scrollTop = 0;
+    }
+  }, [deferredQuery, open, remainingToShow.length, value]);
 
   const visibleRemaining = useMemo(() => {
     if (visibleCount >= remainingToShow.length) return remainingToShow;
@@ -801,6 +808,20 @@ export function OpenRouterModelSelect({
                     </ModelSelectorEmpty>
                   ) : (
                     <>
+                      {/* Show current selection at top if not already in prioritized list */}
+                      {selectedModel && !prioritizedSet.has(selectedModel.id) && !deferredQuery && (
+                        <ModelSelectorGroup heading="Current Selection">
+                          <ModelListItem
+                            model={selectedModel}
+                            onSelect={handleSelect}
+                            onHover={handleModelHover}
+                            isSelected={true}
+                            isInSelection={true}
+                            isPrimary={false}
+                            isHovered={hoveredModel?.id === selectedModel.id}
+                          />
+                        </ModelSelectorGroup>
+                      )}
                       {prioritizedModels.length > 0 && (
                         <ModelSelectorGroup heading={prioritizedLabel}>
                           {prioritizedModels.map((model) => (
@@ -931,9 +952,11 @@ const ModelListItem = React.memo(function ModelListItem({
       value={model.id}
       onSelect={() => onSelect(model.id)}
       onMouseEnter={() => onHover(model)}
+      data-model-id={model.id}
       className={cn(
         "cursor-pointer transition-colors py-2.5",
-        isHovered && "bg-accent"
+        isHovered && "bg-accent",
+        isSelected && "ring-2 ring-primary/30 bg-primary/5"
       )}
     >
       {/* ProviderAvatar now handles fallback with letter/icon */}
