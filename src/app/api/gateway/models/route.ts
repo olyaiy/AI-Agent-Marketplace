@@ -77,6 +77,13 @@ function normalizeBaseName(id: string): string {
     return withoutProvider.toLowerCase();
 }
 
+// Parse release_date string (e.g., "2024-12-15") to timestamp, fallback to 0
+function parseReleaseDate(dateStr: string | undefined | null): number {
+    if (!dateStr) return 0;
+    const parsed = Date.parse(dateStr);
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 async function fetchModelsDevData(): Promise<{ modelMap: Map<string, ModelsDevEntry>; baseProviders: Map<string, Set<string>>; }> {
     const now = Date.now();
     // Return cached if valid (5 minutes)
@@ -177,7 +184,8 @@ async function fetchGatewayModels(
                     description: model.description || `${extractProvider(model.id)} model`,
                     // Use models.dev context length if available
                     context_length: modelsDevModel?.limit?.context ?? null,
-                    created: Date.now(), // Placeholder - Gateway doesn't expose creation date
+                    // Use release_date from models.dev for sorting (newest first)
+                    created: parseReleaseDate(modelsDevModel?.release_date),
                     pricing: {
                         prompt: model.pricing?.input ? parseFloat(String(model.pricing.input)) : 0,
                         completion: model.pricing?.output ? parseFloat(String(model.pricing.output)) : 0,

@@ -66,20 +66,11 @@ type EnhancedModel = SlimModel & {
   providerSlug: string | null;
   displayName: string;
   searchText: string;
-  isFeatured: boolean;
   providers: string[];
   defaultProvider: string | null;
 };
 
-const FEATURED_MODEL_IDS = [
-  "google/gemini-3-pro-preview",
-  "openai/gpt-5.1-chat",
-  "anthropic/claude-haiku-4.5",
-  "anthropic/claude-sonnet-4.5",
-  "moonshotai/kimi-k2-thinking",
-];
 
-const FEATURED_MODEL_SET = new Set(FEATURED_MODEL_IDS);
 const CACHE_TTL_MS = 60_000;
 const MAX_RESULTS = 400;
 const INITIAL_VISIBLE_RESULTS = 80;
@@ -132,7 +123,6 @@ function enhanceModels(raw: SlimModel[]): EnhancedModel[] {
       defaultProvider,
       displayName,
       searchText,
-      isFeatured: FEATURED_MODEL_SET.has(model.id),
     };
 
     const existing = deduped.get(enhanced.id);
@@ -277,15 +267,6 @@ function ModelDetailPanel({
             <p className="text-xs text-muted-foreground capitalize mt-0.5">
               {selectedProvider || model.providerSlug || model.defaultProvider || "Unknown Provider"}
             </p>
-            {model.isFeatured && (
-              <Badge
-                variant="outline"
-                className="mt-1.5 gap-1 text-[10px] border-[#BE6254]/30 text-[#BE6254] dark:border-[#BE6254]/50 dark:text-[#BE6254]"
-              >
-                <Sparkles className="size-2.5" />
-                Featured
-              </Badge>
-            )}
           </div>
         </div>
 
@@ -499,13 +480,7 @@ export function OpenRouterModelSelect({
       .finally(() => setLoading(false));
   }, [category]);
 
-  const featuredModels = useMemo(() => {
-    if (models.length === 0) return [];
-    const map = new Map(models.map((m) => [m.id, m]));
-    return FEATURED_MODEL_IDS.map((id) => map.get(id)).filter(
-      (m): m is EnhancedModel => Boolean(m)
-    );
-  }, [models]);
+
 
   const selectedModel = useMemo(
     () => models.find((m) => m.id === value),
@@ -535,11 +510,7 @@ export function OpenRouterModelSelect({
     }
   }, [open, selectedModel, hoveredModel]);
 
-  const filteredFeatured = useMemo(() => {
-    const q = deferredQuery.trim().toLowerCase();
-    if (!q) return featuredModels;
-    return featuredModels.filter((m) => m.searchText.includes(q));
-  }, [featuredModels, deferredQuery]);
+
 
   const prioritizedSet = useMemo(
     () => new Set((prioritizedIds || []).filter(Boolean)),
@@ -571,21 +542,10 @@ export function OpenRouterModelSelect({
   }, [models, deferredQuery]);
 
   const remaining = useMemo(() => {
-    const featuredIds = new Set(filteredFeatured.map((m) => m.id));
-    return filteredAll.filter((m) => !featuredIds.has(m.id));
-  }, [filteredAll, filteredFeatured]);
+    return filteredAll;
+  }, [filteredAll]);
 
-  const featuredFilteredForDisplay = useMemo(() => {
-    let filtered = filteredFeatured;
-    if (prioritizedSet.size) {
-      filtered = filtered.filter((m) => !prioritizedSet.has(m.id));
-    }
-    // Also exclude current selection if it will be shown at top
-    if (value && !prioritizedSet.has(value)) {
-      filtered = filtered.filter((m) => m.id !== value);
-    }
-    return filtered;
-  }, [filteredFeatured, prioritizedSet, value]);
+
 
   const remainingAfterPrioritized = useMemo(() => {
     let filtered = remaining;
@@ -600,11 +560,7 @@ export function OpenRouterModelSelect({
     return filtered;
   }, [remaining, prioritizedModels, prioritizedSet, value]);
 
-  const featuredToShow = featuredFilteredForDisplay.slice(0, 12);
-  const remainingToShow = remainingAfterPrioritized.slice(
-    0,
-    Math.max(MAX_RESULTS - featuredToShow.length, 0)
-  );
+  const remainingToShow = remainingAfterPrioritized.slice(0, MAX_RESULTS);
   // Scroll to selected model when dropdown opens, or reset on query change
   useEffect(() => {
     if (!open) return;
@@ -642,7 +598,6 @@ export function OpenRouterModelSelect({
   const hasMoreRemaining = remainingToShow.length > visibleRemaining.length;
   const hasResults =
     prioritizedModels.length > 0 ||
-    featuredToShow.length > 0 ||
     remainingToShow.length > 0;
 
   const handleListScroll = useCallback(
@@ -763,15 +718,6 @@ export function OpenRouterModelSelect({
               )}
             </span>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {selectedModel?.isFeatured && (
-                <Badge
-                  variant="secondary"
-                  className="hidden sm:inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary border-0"
-                >
-                  <Sparkles className="size-2.5" />
-                  Featured
-                </Badge>
-              )}
               <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
             </div>
           </Button>
@@ -839,23 +785,7 @@ export function OpenRouterModelSelect({
                           ))}
                         </ModelSelectorGroup>
                       )}
-                      {featuredToShow.length > 0 && (
-                        <ModelSelectorGroup heading="Featured">
-                          {featuredToShow.map((model) => (
-                            <ModelListItem
-                              key={model.id}
-                              model={model}
-                              onSelect={handleSelect}
-                              onHover={handleModelHover}
-                              isSelected={model.id === value}
-                              isInSelection={selectionSet.has(model.id)}
-                              isPrimary={primaryId === model.id}
-                              primaryLabel={primaryLabel}
-                              isHovered={hoveredModel?.id === model.id}
-                            />
-                          ))}
-                        </ModelSelectorGroup>
-                      )}
+
 
                       {remainingToShow.length > 0 ? (
                         <ModelSelectorGroup
