@@ -153,7 +153,7 @@ export const ChainOfThoughtHeader = memo(
             "size-3.5 transition-transform duration-200",
             isStreaming && "animate-pulse"
           )} />
-          <span className="select-none">
+          <span className={cn("select-none", isStreaming && "animate-shimmer-inline")}>
             {children ?? defaultLabel}
           </span>
           <ChevronDownIcon
@@ -207,7 +207,10 @@ export const ChainOfThoughtStep = memo(
       >
         <div className="relative mt-0.5 w-4">
           {showIcon && IconComponent && (
-            <IconComponent className="size-4" />
+            <IconComponent className={cn(
+              "size-4",
+              status === "active" && "animate-pulse"
+            )} />
           )}
           <div className={cn(
             "-mx-px absolute bottom-0 left-1/2 w-px bg-border",
@@ -215,7 +218,7 @@ export const ChainOfThoughtStep = memo(
           )} />
         </div>
         <div className="flex-1 space-y-2 overflow-hidden">
-          <div>{label}</div>
+          <div className={cn(status === "active" && "animate-shimmer-inline")}>{label}</div>
           {description && (
             <div className="text-muted-foreground text-xs">{description}</div>
           )}

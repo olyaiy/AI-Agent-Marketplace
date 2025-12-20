@@ -928,6 +928,9 @@ const MessageItem = React.memo(
     onCancelEdit,
     onConfirmEdit,
   }: MessageItemProps) {
+    const isDeleteDisabled =
+      status === 'submitted' ||
+      (status === 'streaming' && isLastAssistant && message.role === 'assistant');
     const [editText, setEditText] = useState(() => {
       // Initialize with the message's text content
       const parts = Array.isArray(message.parts) ? message.parts : [];
@@ -1375,7 +1378,11 @@ const MessageItem = React.memo(
             {isCopied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
           </Action>
           {canDelete && (
-            <Action onClick={() => onDelete?.(message.id)} label="Delete message">
+            <Action
+              onClick={() => onDelete?.(message.id)}
+              label="Delete message"
+              disabled={isDeleteDisabled}
+            >
               <Trash2Icon className="size-4" />
             </Action>
           )}
@@ -2077,8 +2084,26 @@ const Chat = React.memo(function Chat({
   };
 
   const handleDeleteMessage = useCallback(async (messageId: string) => {
+    let rollbackMessages: UIMessage[] | null = null;
+    // Optimistically remove from the in-memory chat state so future sends don't include it
+    setMessages((prev) => {
+      rollbackMessages = prev;
+      return prev.filter((msg) => msg.id !== messageId);
+    });
+
     // Optimistically remove from UI
     setDeletedMessageIds((prev) => new Set(prev).add(messageId));
+
+    const rollback = () => {
+      if (rollbackMessages) {
+        setMessages(rollbackMessages);
+      }
+      setDeletedMessageIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    };
 
     try {
       const res = await fetch('/api/messages', {
@@ -2088,22 +2113,12 @@ const Chat = React.memo(function Chat({
       });
 
       if (!res.ok) {
-        // Rollback on error
-        setDeletedMessageIds((prev) => {
-          const next = new Set(prev);
-          next.delete(messageId);
-          return next;
-        });
+        rollback();
       }
     } catch {
-      // Rollback on error
-      setDeletedMessageIds((prev) => {
-        const next = new Set(prev);
-        next.delete(messageId);
-        return next;
-      });
+      rollback();
     }
-  }, []);
+  }, [setMessages]);
 
   const getMessageOriginalText = useCallback((message: BasicUIMessage): string => {
     const parts = Array.isArray(message.parts) ? message.parts : [];

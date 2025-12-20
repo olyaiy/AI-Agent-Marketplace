@@ -178,6 +178,16 @@
   animation: shimmer 2s linear infinite;
 }
 
+/* Inline shimmer for active labels - slightly faster and more noticeable */
+.animate-shimmer-inline {
+  background: linear-gradient(90deg, var(--muted-foreground) 0%, var(--foreground) 40%, var(--muted-foreground) 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 1.5s linear infinite;
+}
+
 /* Hide the global sidebar trigger and mobile header when chat header handles it */
 @media (max-width: 767px) {
   .hide-mobile-sidebar-trigger [data-sidebar="trigger"] {

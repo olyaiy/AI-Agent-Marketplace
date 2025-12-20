@@ -117,7 +117,7 @@ export const ReasoningTrigger = memo(
         {children ?? (
           <>
             {isStreaming || duration === 0 ? (
-              <span>Thinking...</span>
+              <span className={isStreaming ? 'animate-shimmer-inline' : undefined}>Thinking...</span>
             ) : (
               <span>Thought for {duration} seconds</span>
             )}

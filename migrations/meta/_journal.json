@@ -176,6 +176,13 @@
       "when": 1766081883169,
       "tag": "0024_perpetual_rogue",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1766188236543,
+      "tag": "0025_married_moonstone",
+      "breakpoints": true
     }
   ]
 }
