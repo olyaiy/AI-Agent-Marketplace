@@ -111,6 +111,18 @@ type UsageSnapshot = {
   reasoningTokens: number;
 };
 
+type UsageDetails = {
+  inputTokenDetails?: {
+    cacheReadTokens?: unknown;
+    cacheWriteTokens?: unknown;
+    noCacheTokens?: unknown;
+  };
+  outputTokenDetails?: {
+    reasoningTokens?: unknown;
+    textTokens?: unknown;
+  };
+};
+
 interface BasicUIPart {
   type: string;
   text?: string;
@@ -137,7 +149,7 @@ interface BasicUIPart {
     args: unknown;
     result?: unknown;
   };
-  state?: 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
+  state?: 'input-streaming' | 'input-available' | 'approval-requested' | 'approval-responded' | 'output-available' | 'output-denied' | 'output-error';
   error?: string;
 }
 interface BasicUISource { title: string; url: string }
@@ -148,6 +160,13 @@ interface BasicUIMessage {
   parts: BasicUIPart[];
   annotations?: BasicUIAnnotation[];
 }
+
+type RegenerationSnapshot = {
+  messages: UIMessage[];
+  deletedMessageIds: Set<string>;
+  hiddenMessageIds: Set<string>;
+  truncateFromMessageId: string;
+};
 
 /**
  * Lightweight text formatter for reasoning content.
@@ -588,10 +607,14 @@ function extractSources(text: string) {
 
 function getToolDisplayInfo(
   toolName: string,
-  state: 'input-streaming' | 'input-available' | 'output-available' | 'output-error',
+  state: ToolUIPart['state'],
   input?: unknown,
   output?: unknown
 ): { displayName: string; hideStatus: boolean; icon: React.ReactNode | null; preview: string | null; fullPreview: string | null } {
+  const isApprovalRequested = state === 'approval-requested';
+  const isApprovalResponded = state === 'approval-responded';
+  const isDenied = state === 'output-denied';
+  const isError = state === 'output-error';
   const isRunning = state === 'input-streaming' || state === 'input-available';
   const isComplete = state === 'output-available';
 
@@ -642,8 +665,22 @@ function getToolDisplayInfo(
   // Web search tool
   if (isSearchToolName(toolName)) {
     const { preview, fullPreview } = extractPreviewPair(['query', 'search_query', 'searchQuery', 'q', 'text', 'input']);
+    let displayName = toolName;
+    if (isApprovalRequested) {
+      displayName = 'Search Requires Approval';
+    } else if (isApprovalResponded) {
+      displayName = 'Search Awaiting Result';
+    } else if (isError) {
+      displayName = 'Search Failed';
+    } else if (isDenied) {
+      displayName = 'Search Denied';
+    } else if (isRunning) {
+      displayName = 'Searching The Web';
+    } else if (isComplete) {
+      displayName = 'Searched The Web';
+    }
     return {
-      displayName: isRunning ? 'Searching The Web' : isComplete ? 'Searched The Web' : toolName,
+      displayName,
       hideStatus: true,
       icon: <SearchIcon className={`size-4 shrink-0 ${isRunning ? 'text-blue-500 animate-pulse' : 'text-blue-500'}`} />,
       preview,
@@ -662,8 +699,23 @@ function getToolDisplayInfo(
       previewPair = extractPreviewPair(['url', 'page_url', 'pageUrl', 'link', 'href']);
     }
 
+    let displayName = toolName;
+    if (isApprovalRequested) {
+      displayName = 'Read Requires Approval';
+    } else if (isApprovalResponded) {
+      displayName = 'Read Awaiting Result';
+    } else if (isError) {
+      displayName = 'Read Failed';
+    } else if (isDenied) {
+      displayName = 'Read Denied';
+    } else if (isRunning) {
+      displayName = 'Reading Page';
+    } else if (isComplete) {
+      displayName = 'Read Page';
+    }
+
     return {
-      displayName: isRunning ? 'Reading Page' : isComplete ? 'Read Page' : toolName,
+      displayName,
       hideStatus: true,
       icon: <FileTextIcon className={`size-4 shrink-0 ${isRunning ? 'text-green-500 animate-pulse' : 'text-green-500'}`} />,
       preview: previewPair.preview,
@@ -1164,7 +1216,12 @@ const MessageItem = React.memo(
                                 : 'tool');
                             const toolState = part.state ||
                               (toolInvocation?.result || part.output ? 'output-available' : 'input-available');
-                            const isToolComplete = toolState === 'output-available';
+                            const isToolDone =
+                              toolState === 'output-available' ||
+                              toolState === 'output-error' ||
+                              toolState === 'output-denied';
+                            const isApprovalPending = toolState === 'approval-requested';
+                            const toolStepStatus = isToolDone ? 'complete' : isApprovalPending ? 'pending' : 'active';
                             const toolInput = toolInvocation?.args ?? part.input ?? part.args;
                             const toolOutput = toolInvocation?.result ?? part.output;
 
@@ -1188,7 +1245,7 @@ const MessageItem = React.memo(
                                 icon={isWebSearch ? SearchIcon : FileTextIcon}
                                 label={displayInfo.displayName}
                                 description={displayInfo.fullPreview || undefined}
-                                status={isToolComplete ? 'complete' : 'active'}
+                                status={toolStepStatus}
                               >
                                 {searchResults.length > 0 && (
                                   <ChainOfThoughtSearchResults className="mt-2">
@@ -1345,11 +1402,17 @@ const MessageItem = React.memo(
           className={`mt-1 opacity-100 md:opacity-0 md:group-hover/message:opacity-100 transition-opacity duration-150 ${message.role === 'user' ? 'justify-end' : 'justify-start'
             }`}
         >
-          {message.role === 'assistant' && isLastAssistant && (
+          {message.role === 'assistant' && (
             <Action
               onClick={() => onRegenerate(message)}
-              tooltip={isRegenerating ? 'Regenerating…' : 'Retry response'}
-              label="Retry response"
+              tooltip={
+                isRegenerating
+                  ? 'Regenerating…'
+                  : isLastAssistant
+                    ? 'Retry response'
+                    : 'Retry from here (removes later messages)'
+              }
+              label={isLastAssistant ? 'Retry response' : 'Retry from here'}
               disabled={status === 'submitted' || status === 'streaming'}
             >
               <RefreshCcwIcon
@@ -1423,7 +1486,8 @@ const Chat = React.memo(function Chat({
   const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
   const [hiddenMessageIds, setHiddenMessageIds] = useState<Set<string>>(new Set());
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
-  const regenerationSnapshotRef = useRef<{ message: UIMessage; index: number } | null>(null);
+  const regenerationSnapshotRef = useRef<RegenerationSnapshot | null>(null);
+  const pendingTruncateFromMessageIdRef = useRef<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
@@ -1498,16 +1562,22 @@ const Chat = React.memo(function Chat({
     };
   }, [agentTag, guessMaxTokens]);
 
-  const normalizeUsage = useCallback((usage?: Partial<UsageSnapshot> | null): UsageSnapshot => {
+  const normalizeUsage = useCallback((usage?: (Partial<UsageSnapshot> & UsageDetails) | null): UsageSnapshot => {
     const toInt = (value: unknown) => {
       const num = Number(value);
       return Number.isFinite(num) && num >= 0 ? Math.round(num) : 0;
     };
+    const cacheReadTokens = toInt(
+      usage?.inputTokenDetails?.cacheReadTokens ?? usage?.cachedInputTokens
+    );
+    const reasoningTokens = toInt(
+      usage?.outputTokenDetails?.reasoningTokens ?? usage?.reasoningTokens
+    );
     const normalized: UsageSnapshot = {
       inputTokens: toInt(usage?.inputTokens),
       outputTokens: toInt(usage?.outputTokens),
-      cachedInputTokens: toInt(usage?.cachedInputTokens),
-      reasoningTokens: toInt(usage?.reasoningTokens),
+      cachedInputTokens: cacheReadTokens,
+      reasoningTokens,
       totalTokens: 0,
     };
     const explicitTotal = toInt(usage?.totalTokens);
@@ -1579,6 +1649,12 @@ const Chat = React.memo(function Chat({
   const { messages, status, sendMessage, regenerate, stop, setMessages } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
     onFinish: async ({ message }) => {
+      const truncateFromMessageId = pendingTruncateFromMessageIdRef.current;
+      if (truncateFromMessageId) {
+        // Ensure we don't accidentally apply truncation to a later, unrelated assistant message.
+        pendingTruncateFromMessageIdRef.current = null;
+      }
+
       try {
         const cid = conversationIdRef.current;
         if (!cid || message.role !== 'assistant') return;
@@ -1588,11 +1664,19 @@ const Chat = React.memo(function Chat({
         }
 
         // Save the message (whether completed or aborted)
-        await fetch('/api/messages', {
+        const persistPayload = truncateFromMessageId
+          ? { conversationId: cid, message, truncateFromMessageId }
+          : { conversationId: cid, message };
+
+        const res = await fetch('/api/messages', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ conversationId: cid, message }),
+          body: JSON.stringify(persistPayload),
         });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '');
+          throw new Error(detail || `Failed to persist message (${res.status})`);
+        }
 
         // Revalidate conversations to update lastMessageAt timestamp
         try { revalidateConversations(); } catch { /* ignore */ }
@@ -1754,19 +1838,11 @@ const Chat = React.memo(function Chat({
   useEffect(() => {
     if (status === 'error' && regeneratingMessageId && regenerationSnapshotRef.current) {
       const snapshot = regenerationSnapshotRef.current;
-      setMessages((prev) => {
-        const alreadyExists = prev.some((m) => m.id === snapshot.message.id);
-        if (alreadyExists) return prev;
-        const next = [...prev];
-        const insertionIndex = Math.min(snapshot.index, next.length);
-        next.splice(insertionIndex, 0, snapshot.message as UIMessage);
-        return next;
-      });
-      setHiddenMessageIds((prev) => {
-        const next = new Set(prev);
-        next.delete(regeneratingMessageId);
-        return next;
-      });
+      // Roll back local chat state and optimistic UI hiding.
+      setMessages(snapshot.messages);
+      setDeletedMessageIds(new Set(snapshot.deletedMessageIds));
+      setHiddenMessageIds(new Set(snapshot.hiddenMessageIds));
+      pendingTruncateFromMessageIdRef.current = null;
       regenerationSnapshotRef.current = null;
       setRegeneratingMessageId(null);
     } else if (status === 'ready') {
@@ -1792,6 +1868,7 @@ const Chat = React.memo(function Chat({
     setHiddenMessageIds(new Set());
     setRegeneratingMessageId(null);
     regenerationSnapshotRef.current = null;
+    pendingTruncateFromMessageIdRef.current = null;
     setCopiedMessageId(null);
     setEditingMessageId(null);
     setContextUsage(null);
@@ -1851,6 +1928,57 @@ const Chat = React.memo(function Chat({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isDialogOpen, startNewChat]);
+
+  // Auto-focus textarea when user starts typing anywhere on the page
+  // This provides a better UX where users don't need to click the input first
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Skip if any modifier keys are held (Cmd, Ctrl, Alt, but NOT Shift alone)
+      // Shift alone is allowed for typing uppercase letters/symbols
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Skip non-printable keys (length > 1 means it's a special key like "Escape", "ArrowLeft", etc.)
+      // Exception: Allow "Backspace" and "Delete" to work when focused
+      if (e.key.length !== 1) return;
+
+      // Skip if the dialog is open (e.g., sign-in modal)
+      if (isDialogOpen) return;
+
+      // Skip if already focused on an editable element
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName;
+      const isEditable =
+        (target?.isContentEditable ?? false) ||
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        Boolean(target?.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'));
+
+      if (isEditable) return;
+
+      // Skip if inside a dropdown/popover/menu (radix-ui patterns)
+      if (target?.closest('[role="menu"], [role="listbox"], [role="dialog"], [data-radix-popper-content-wrapper]')) {
+        return;
+      }
+
+      // Skip during IME composition (for international keyboards)
+      if (e.isComposing) return;
+
+      // Focus the textarea and let the browser handle inserting the character
+      // We need to focus BEFORE the default action so the character lands in the textarea
+      const textarea = textareaRef.current;
+      if (textarea && document.activeElement !== textarea) {
+        textarea.focus();
+        // The character will be inserted by the browser's default behavior
+        // since we focused before preventing default
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown, { capture: true });
+  }, [isDialogOpen]);
 
   const handleSubmit = async (message: PromptInputMessage) => {
     const trimmed = message.text.trim();
@@ -2286,12 +2414,34 @@ const Chat = React.memo(function Chat({
       return;
     }
 
-    const snapshot: UIMessage =
-      typeof structuredClone === 'function'
-        ? structuredClone(message as UIMessage)
-        : JSON.parse(JSON.stringify(message));
+    const hasLaterMessages = messageIndex < messages.length - 1;
+    if (hasLaterMessages && typeof window !== 'undefined') {
+      const ok = window.confirm('Retrying from here will remove all later messages in this chat. Continue?');
+      if (!ok) return;
+    }
 
-    regenerationSnapshotRef.current = { message: snapshot, index: messageIndex };
+    const snapshotMessages: UIMessage[] =
+      typeof structuredClone === 'function'
+        ? structuredClone(messages as UIMessage[])
+        : JSON.parse(JSON.stringify(messages));
+
+    regenerationSnapshotRef.current = {
+      messages: snapshotMessages,
+      deletedMessageIds: new Set(deletedMessageIds),
+      hiddenMessageIds: new Set(hiddenMessageIds),
+      truncateFromMessageId: message.id,
+    };
+    pendingTruncateFromMessageIdRef.current = message.id;
+
+    const idsToDelete = messages.slice(messageIndex + 1).map((m) => m.id);
+    if (idsToDelete.length > 0) {
+      setDeletedMessageIds((prev) => {
+        const next = new Set(prev);
+        idsToDelete.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+
     setRegeneratingMessageId(message.id);
     setHiddenMessageIds((prev) => {
       const next = new Set(prev);
@@ -2317,15 +2467,23 @@ const Chat = React.memo(function Chat({
         },
       });
     } catch {
-      setHiddenMessageIds((prev) => {
-        const next = new Set(prev);
-        next.delete(message.id);
-        return next;
-      });
+      const snapshot = regenerationSnapshotRef.current;
+      if (snapshot) {
+        setMessages(snapshot.messages);
+        setDeletedMessageIds(new Set(snapshot.deletedMessageIds));
+        setHiddenMessageIds(new Set(snapshot.hiddenMessageIds));
+      } else {
+        setHiddenMessageIds((prev) => {
+          const next = new Set(prev);
+          next.delete(message.id);
+          return next;
+        });
+      }
+      pendingTruncateFromMessageIdRef.current = null;
       regenerationSnapshotRef.current = null;
       setRegeneratingMessageId(null);
     }
-  }, [agentTag, currentModel, getChatContext, isAuthenticated, messages, model, reasoningOn, regenerate, status, supportsReasoning, systemPrompt, webSearchOn]);
+  }, [agentTag, currentModel, deletedMessageIds, getChatContext, hiddenMessageIds, isAuthenticated, messages, model, reasoningOn, regenerate, setMessages, status, supportsReasoning, systemPrompt, webSearchOn]);
 
   const initialMessagesMemo = useMemo<BasicUIMessage[]>(() => {
     return (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
