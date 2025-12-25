@@ -46,7 +46,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon, FileTextIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from 'lucide-react';
+import { RefreshCcwIcon, Trash2Icon, CopyIcon, CheckIcon, Brain as BrainIcon, GlobeIcon, Download as DownloadIcon, PencilIcon, XIcon, SendIcon, FileTextIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, InfoIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authClient } from '@/lib/auth-client';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -56,6 +56,7 @@ import {
   generateConversationTitleAsync,
 } from '@/lib/conversations-cache';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
 import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent, dispatchAgentModelChange, dispatchAgentMessagesChange } from '@/lib/agent-events';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
@@ -159,6 +160,14 @@ interface BasicUIMessage {
   role: 'user' | 'assistant' | 'system';
   parts: BasicUIPart[];
   annotations?: BasicUIAnnotation[];
+  tokenUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    cachedInputTokens?: number;
+    reasoningTokens?: number;
+  };
+  gatewayCostUsd?: string | null;
 }
 
 type RegenerationSnapshot = {
@@ -1448,6 +1457,82 @@ const MessageItem = React.memo(
             >
               <Trash2Icon className="size-4" />
             </Action>
+          )}
+          {/* Cost breakdown info for assistant messages */}
+          {message.role === 'assistant' && (message.tokenUsage || message.gatewayCostUsd) && (
+            <HoverCard openDelay={200} closeDelay={100}>
+              <HoverCardTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center size-8 p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-accent transition-colors cursor-pointer"
+                  aria-label="View cost breakdown"
+                >
+                  <InfoIcon className="size-4" />
+                </button>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-72 p-3" side="top" align="end">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm text-foreground">Generation Info</h4>
+                  <div className="space-y-1.5 text-xs">
+                    {message.gatewayCostUsd && (
+                      <div className="flex justify-between items-center py-1 border-b border-border">
+                        <span className="text-muted-foreground">Cost</span>
+                        <span className="font-mono font-medium text-foreground">
+                          ${parseFloat(message.gatewayCostUsd).toFixed(6)}
+                        </span>
+                      </div>
+                    )}
+                    {message.tokenUsage && (
+                      <>
+                        {typeof message.tokenUsage.inputTokens === 'number' && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Input tokens</span>
+                            <span className="font-mono text-foreground">
+                              {message.tokenUsage.inputTokens.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {typeof message.tokenUsage.outputTokens === 'number' && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Output tokens</span>
+                            <span className="font-mono text-foreground">
+                              {message.tokenUsage.outputTokens.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {typeof message.tokenUsage.cachedInputTokens === 'number' && message.tokenUsage.cachedInputTokens > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Cached tokens</span>
+                            <span className="font-mono text-foreground">
+                              {message.tokenUsage.cachedInputTokens.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {typeof message.tokenUsage.reasoningTokens === 'number' && message.tokenUsage.reasoningTokens > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Reasoning tokens</span>
+                            <span className="font-mono text-foreground">
+                              {message.tokenUsage.reasoningTokens.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {typeof message.tokenUsage.totalTokens === 'number' && (
+                          <div className="flex justify-between items-center pt-1 border-t border-border">
+                            <span className="text-muted-foreground font-medium">Total tokens</span>
+                            <span className="font-mono font-medium text-foreground">
+                              {message.tokenUsage.totalTokens.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {!message.tokenUsage && !message.gatewayCostUsd && (
+                      <p className="text-muted-foreground">No usage data available</p>
+                    )}
+                  </div>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
           )}
         </Actions>
       </div>

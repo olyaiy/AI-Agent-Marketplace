@@ -20,6 +20,8 @@ interface UIMessageShape {
   id: string;
   role: 'user' | 'assistant' | 'system';
   parts: readonly UIMessagePartText[] | readonly unknown[];
+  tokenUsage?: unknown;
+  gatewayCostUsd?: string | null;
 }
 
 export default async function ConversationPage({ params, searchParams }: { params: Promise<{ 'agent-id': string; 'conversation-id': string }>; searchParams?: Promise<{ invite?: string; model?: string }> }) {
@@ -71,7 +73,14 @@ export default async function ConversationPage({ params, searchParams }: { param
 
     // Fetch messages
     db
-      .select({ id: message.id, role: message.role, uiParts: message.uiParts, createdAt: message.createdAt })
+      .select({
+        id: message.id,
+        role: message.role,
+        uiParts: message.uiParts,
+        createdAt: message.createdAt,
+        tokenUsage: message.tokenUsage,
+        gatewayCostUsd: message.gatewayCostUsd,
+      })
       .from(message)
       .where(sql`${message.conversationId} = ${conversationId} AND ${message.role} != 'system'`)
       .orderBy(sql`${message.createdAt} ASC`),
@@ -83,7 +92,13 @@ export default async function ConversationPage({ params, searchParams }: { param
   if (convo.length === 0) notFound();
   if (convo[0].agentTag !== tag) notFound();
 
-  const initialMessages: UIMessageShape[] = rows.map((r) => ({ id: r.id, role: r.role as UIMessageShape['role'], parts: r.uiParts as readonly unknown[] }));
+  const initialMessages: UIMessageShape[] = rows.map((r) => ({
+    id: r.id,
+    role: r.role as UIMessageShape['role'],
+    parts: r.uiParts as readonly unknown[],
+    tokenUsage: r.tokenUsage ?? undefined,
+    gatewayCostUsd: r.gatewayCostUsd ?? null,
+  }));
 
   const avatarUrl = found.avatar ? `/avatars/${found.avatar}` : undefined;
 
