@@ -24,8 +24,8 @@ export async function GET(req: Request) {
 
   const rows = await db
     .select({
-      totalSpentCents: sql<number>`COALESCE(SUM(CASE WHEN ${creditLedger.amountCents} < 0 THEN -${creditLedger.amountCents} ELSE 0 END), 0)`,
-      totalCreditsCents: sql<number>`COALESCE(SUM(CASE WHEN ${creditLedger.amountCents} > 0 THEN ${creditLedger.amountCents} ELSE 0 END), 0)`,
+      totalSpentMicrocents: sql<number>`COALESCE(SUM(CASE WHEN ${creditLedger.amountMicrocents} < 0 THEN -${creditLedger.amountMicrocents} ELSE 0 END), 0)`,
+      totalCreditsMicrocents: sql<number>`COALESCE(SUM(CASE WHEN ${creditLedger.amountMicrocents} > 0 THEN ${creditLedger.amountMicrocents} ELSE 0 END), 0)`,
     })
     .from(creditLedger)
     .where(
@@ -35,11 +35,11 @@ export async function GET(req: Request) {
       )
     );
 
-  const totals = rows[0] ?? { totalSpentCents: 0, totalCreditsCents: 0 };
-  const totalSpentCents = Number(totals.totalSpentCents ?? 0) || 0;
-  const totalCreditsCents = Number(totals.totalCreditsCents ?? 0) || 0;
+  const totals = rows[0] ?? { totalSpentMicrocents: 0, totalCreditsMicrocents: 0 };
+  const totalSpentMicrocents = Number(totals.totalSpentMicrocents ?? 0) || 0;
+  const totalCreditsMicrocents = Number(totals.totalCreditsMicrocents ?? 0) || 0;
 
-  return new Response(JSON.stringify({ windowDays, totalSpentCents, totalCreditsCents }), {
+  return new Response(JSON.stringify({ windowDays, totalSpentMicrocents, totalCreditsMicrocents }), {
     status: 200,
     headers: { 'content-type': 'application/json' },
   });

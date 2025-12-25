@@ -89,6 +89,28 @@ function extractTitleFromMessages(messages: UIMessage[]): string | null {
   return textContent || null;
 }
 
+async function loadPersistedSystemPrompt(conversationId: string, userId: string): Promise<string | undefined> {
+  try {
+    const rows = await db
+      .select({ uiParts: message.uiParts })
+      .from(message)
+      .innerJoin(conversation, eq(message.conversationId, conversation.id))
+      .where(sql`${message.role} = 'system' AND ${conversation.id} = ${conversationId} AND ${conversation.userId} = ${userId}`)
+      .orderBy(message.createdAt)
+      .limit(1);
+    if (rows.length === 0) return undefined;
+    const rawParts = rows[0].uiParts;
+    const parts = Array.isArray(rawParts)
+      ? (rawParts as Array<{ type?: string; text?: string }>)
+      : [];
+    const text = extractTextFromParts(parts).trim();
+    return text || undefined;
+  } catch (error) {
+    debugLog('Failed to load system prompt', error);
+    return undefined;
+  }
+}
+
 async function persistSystemPrompt(tx: typeof db, conversationId: string, systemPrompt?: string | null) {
   const trimmed = systemPrompt?.trim();
   if (!trimmed) return;
@@ -161,16 +183,64 @@ function normalizeUsage(raw: unknown) {
     return Number.isFinite(num) && num >= 0 ? Math.round(num) : 0;
   };
   const usage = (raw ?? {}) as Record<string, unknown>;
+  const inputTokenDetails = (usage.inputTokenDetails ?? {}) as Record<string, unknown>;
+  const outputTokenDetails = (usage.outputTokenDetails ?? {}) as Record<string, unknown>;
   const inputTokens = toInt(usage.inputTokens);
   const outputTokens = toInt(usage.outputTokens);
   const totalTokens = toInt(usage.totalTokens || inputTokens + outputTokens);
-  const cachedInputTokens = toInt(usage.cachedInputTokens);
-  const reasoningTokens = toInt(usage.reasoningTokens);
-  return { inputTokens, outputTokens, totalTokens, cachedInputTokens, reasoningTokens };
+  const cacheReadTokens = toInt(inputTokenDetails.cacheReadTokens ?? usage.cachedInputTokens);
+  const cacheWriteTokens = toInt(inputTokenDetails.cacheWriteTokens);
+  const noCacheTokens = toInt(inputTokenDetails.noCacheTokens);
+  const reasoningTokens = toInt(outputTokenDetails.reasoningTokens ?? usage.reasoningTokens);
+  const textTokens = toInt(outputTokenDetails.textTokens);
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    cachedInputTokens: cacheReadTokens,
+    reasoningTokens,
+    inputTokenDetails: {
+      noCacheTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+    },
+    outputTokenDetails: {
+      textTokens,
+      reasoningTokens,
+    },
+  };
 }
 
 const hasUsageValues = (usage: ReturnType<typeof normalizeUsage>) =>
   Object.values(usage).some((value) => value > 0);
+
+function applyAnthropicCacheControl(messages: Array<Record<string, unknown>>) {
+  const systemIndex = messages.findIndex((msg) => (msg as { role?: string }).role === 'system');
+  if (systemIndex === -1) return messages;
+
+  return messages.map((msg, index) => {
+    if (index !== systemIndex) return msg;
+    const current = msg as { providerOptions?: Record<string, unknown> };
+    const providerOptions = (current.providerOptions && typeof current.providerOptions === 'object')
+      ? current.providerOptions
+      : {};
+    const anthropicOptions = (providerOptions.anthropic && typeof providerOptions.anthropic === 'object')
+      ? providerOptions.anthropic as Record<string, unknown>
+      : {};
+    if ('cacheControl' in anthropicOptions) return msg;
+
+    return {
+      ...current,
+      providerOptions: {
+        ...providerOptions,
+        anthropic: {
+          ...anthropicOptions,
+          cacheControl: { type: 'ephemeral' },
+        },
+      },
+    };
+  });
+}
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
@@ -221,7 +291,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const systemPrompt = (bodySystem ?? qpSystem)?.trim() || undefined;
+  let systemPrompt = (bodySystem ?? qpSystem)?.trim() || undefined;
   const rawModelInput = bodyModel ?? qpModel;
   const requestedModelId = normalizeModelId(rawModelInput);
   if (rawModelInput && !requestedModelId) {
@@ -339,6 +409,10 @@ export async function POST(req: Request) {
     } catch (error) {
       debugLog('Failed to update conversation model', error);
     }
+  }
+
+  if (!systemPrompt && ensuredConversationId) {
+    systemPrompt = await loadPersistedSystemPrompt(ensuredConversationId, session.user.id);
   }
 
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
@@ -519,6 +593,15 @@ export async function POST(req: Request) {
     }
   }
 
+  if (isOpenAIModel && ensuredConversationId) {
+    const openaiOptions = (providerOptions.openai ?? {}) as Record<string, JsonValue>;
+    openaiOptions.promptCacheKey = `chat:${ensuredConversationId}:${modelId}`;
+    if (modelIdLower.includes('gpt-5.1')) {
+      openaiOptions.promptCacheRetention = '24h';
+    }
+    providerOptions.openai = openaiOptions;
+  }
+
   // Build headers for provider-specific features
   const streamHeaders: Record<string, string> = {};
 
@@ -529,7 +612,21 @@ export async function POST(req: Request) {
   }
 
   // Debug logging
-  const convertedMessages = convertToModelMessages(messages as UIMessage[]);
+  const hasSystemMessage = (messages as UIMessage[]).some((m) => m.role === 'system');
+  const messagesWithSystem = systemPrompt && !hasSystemMessage
+    ? [
+        {
+          id: randomUUID(),
+          role: 'system',
+          parts: [{ type: 'text', text: systemPrompt }],
+        } satisfies UIMessage,
+        ...(messages as UIMessage[]),
+      ]
+    : (messages as UIMessage[]);
+  const convertedMessages = await convertToModelMessages(messagesWithSystem);
+  const messagesWithCacheControl = isAnthropicModel
+    ? (applyAnthropicCacheControl(convertedMessages as Array<Record<string, unknown>>) as typeof convertedMessages)
+    : convertedMessages;
   console.log('🔍 Debug - Model:', modelId);
   console.log('🔍 Debug - Provider:', isAnthropicModel ? 'anthropic' : isOpenAIModel ? 'openai' : isDeepSeekModel ? 'deepseek' : isGoogleModel ? 'google' : 'unknown');
   console.log('🔍 Debug - Reasoning enabled:', reasoningEnabled);
@@ -547,8 +644,7 @@ export async function POST(req: Request) {
       chunking: 'word',
     }),
     tools,
-    system: systemPrompt,
-    messages: convertedMessages,
+    messages: messagesWithCacheControl,
     stopWhen: tools ? stepCountIs(10) : undefined,
     onStepFinish: (stepResult) => {
       if (process.env.NODE_ENV === 'production') return;
@@ -620,11 +716,22 @@ export async function POST(req: Request) {
             marketCost?: string;
             generationId?: string;
           };
+          openai?: {
+            cachedPromptTokens?: number;
+          };
         };
       };
 
       // Get usage data
       const usage = normalizeUsage(result.usage);
+      const openaiCachedPromptTokens = resultWithMetadata.providerMetadata?.openai?.cachedPromptTokens;
+      if (typeof openaiCachedPromptTokens === 'number' && Number.isFinite(openaiCachedPromptTokens)) {
+        const rounded = Math.max(0, Math.round(openaiCachedPromptTokens));
+        if (rounded > 0) {
+          usage.cachedInputTokens = Math.max(usage.cachedInputTokens, rounded);
+          usage.inputTokenDetails.cacheReadTokens = Math.max(usage.inputTokenDetails.cacheReadTokens, rounded);
+        }
+      }
       const hasUsage = hasUsageValues(usage);
       assistantUsage = hasUsage ? usage : null;
 
@@ -694,11 +801,15 @@ export async function POST(req: Request) {
         debugLog('Failed to persist usage', error);
       }
 
-      if (pricing && pricing.totalCents > 0) {
+      if (pricing && pricing.totalMicrocents > 0n) {
         try {
+          const totalMicrocents = Number(pricing.totalMicrocents);
+          if (!Number.isSafeInteger(totalMicrocents)) {
+            throw new Error('Gateway cost exceeds safe integer range');
+          }
           await applyCreditDelta({
             userId: session.user.id,
-            amountCents: -pricing.totalCents,
+            amountMicrocents: -totalMicrocents,
             entryType: 'usage',
             reason: `Chat usage (${modelId})`,
             externalSource: 'gateway',
@@ -718,7 +829,8 @@ export async function POST(req: Request) {
               },
             },
           });
-          console.log(`💳 Credits debited: -$${(pricing.totalCents / 100).toFixed(2)} USD`);
+          const billedUsd = totalMicrocents / 100000000;
+          console.log(`💳 Credits debited: -$${billedUsd.toFixed(8)} USD`);
         } catch (error) {
           debugLog('Failed to debit credits', error);
         }

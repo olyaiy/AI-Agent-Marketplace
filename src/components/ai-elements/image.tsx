@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import type { Experimental_GeneratedImage } from 'ai';
+import type { GeneratedFile } from 'ai';
 import NextImage from 'next/image';
 import type { ComponentProps } from 'react';
 
@@ -8,7 +8,7 @@ type NextImageBaseProps = Omit<
   'src' | 'alt' | 'className' | 'width' | 'height' | 'fill'
 >;
 
-export type ImageProps = Experimental_GeneratedImage &
+export type ImageProps = GeneratedFile &
   NextImageBaseProps & {
     className?: string;
     alt?: string;

@@ -23,6 +23,16 @@ const isTextPart = (part: unknown): part is UIMessagePartText =>
   'text' in part &&
   typeof (part as { text: unknown }).text === 'string';
 
+type PersistMessagePayload = {
+  conversationId: string;
+  message: UIMessageShape;
+  /**
+   * When provided, delete this message and all later messages in the conversation
+   * before inserting the new `message`. Used for "retry from here" regeneration.
+   */
+  truncateFromMessageId?: string;
+};
+
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers }).catch(() => null);
   if (!session?.user) {
@@ -32,23 +42,26 @@ export async function POST(req: Request) {
     });
   }
 
-  const { conversationId, message: uiMessage }: { conversationId: string; message: UIMessageShape } = await req.json();
-  if (!conversationId || !uiMessage) {
-    return new Response(JSON.stringify({ error: 'Invalid payload' }), {
+  let payload: PersistMessagePayload;
+  try {
+    payload = (await req.json()) as PersistMessagePayload;
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
       headers: { 'content-type': 'application/json' },
     });
   }
 
-  // Verify ownership
-  const convo = await db
-    .select({ id: conversation.id })
-    .from(conversation)
-    .where(sql`${conversation.id} = ${conversationId} AND ${conversation.userId} = ${session.user.id}`)
-    .limit(1);
-  if (convo.length === 0) {
-    return new Response(JSON.stringify({ error: 'Conversation not found' }), {
-      status: 404,
+  const conversationId = payload?.conversationId;
+  const uiMessage = payload?.message;
+  const truncateFromMessageId =
+    typeof payload?.truncateFromMessageId === 'string' && payload.truncateFromMessageId.trim()
+      ? payload.truncateFromMessageId.trim()
+      : null;
+
+  if (!conversationId || !uiMessage) {
+    return new Response(JSON.stringify({ error: 'Invalid payload' }), {
+      status: 400,
       headers: { 'content-type': 'application/json' },
     });
   }
@@ -60,23 +73,72 @@ export async function POST(req: Request) {
     .join(' ')
     .slice(0, 280);
 
-  await db
-    .insert(message)
-    .values({
-      id: uiMessage.id,
-      conversationId,
-      role: uiMessage.role,
-      uiParts: uiMessage.parts as typeof message.$inferInsert['uiParts'],
-      annotations: uiMessage.annotations as typeof message.$inferInsert['annotations'],
-      textPreview: textPreview || null,
-      hasToolCalls: false,
-    })
-    .onConflictDoNothing();
+  try {
+    await db.transaction(async (tx) => {
+      // Verify ownership
+      const convo = await tx
+        .select({ id: conversation.id })
+        .from(conversation)
+        .where(sql`${conversation.id} = ${conversationId} AND ${conversation.userId} = ${session.user.id}`)
+        .limit(1);
+      if (convo.length === 0) {
+        throw new Error('CONVERSATION_NOT_FOUND');
+      }
 
-  await db
-    .update(conversation)
-    .set({ updatedAt: new Date(), lastMessageAt: new Date() })
-    .where(sql`${conversation.id} = ${conversationId}`);
+      if (truncateFromMessageId) {
+        const cutoff = await tx
+          .select({ id: message.id, createdAt: message.createdAt })
+          .from(message)
+          .where(sql`${message.id} = ${truncateFromMessageId} AND ${message.conversationId} = ${conversationId}`)
+          .limit(1);
+
+        if (cutoff.length === 0) {
+          throw new Error('TRUNCATE_MESSAGE_NOT_FOUND');
+        }
+
+        // Delete this message and everything after it (based on createdAt ordering).
+        await tx
+          .delete(message)
+          .where(sql`${message.conversationId} = ${conversationId} AND ${message.createdAt} >= ${cutoff[0]!.createdAt}`);
+      }
+
+      await tx
+        .insert(message)
+        .values({
+          id: uiMessage.id,
+          conversationId,
+          role: uiMessage.role,
+          uiParts: uiMessage.parts as typeof message.$inferInsert['uiParts'],
+          annotations: uiMessage.annotations as typeof message.$inferInsert['annotations'],
+          textPreview: textPreview || null,
+          hasToolCalls: false,
+        })
+        .onConflictDoNothing();
+
+      await tx
+        .update(conversation)
+        .set({ updatedAt: new Date(), lastMessageAt: new Date() })
+        .where(sql`${conversation.id} = ${conversationId}`);
+    });
+  } catch (error) {
+    const messageText = error instanceof Error ? error.message : '';
+    if (messageText === 'CONVERSATION_NOT_FOUND') {
+      return new Response(JSON.stringify({ error: 'Conversation not found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (messageText === 'TRUNCATE_MESSAGE_NOT_FOUND') {
+      return new Response(JSON.stringify({ error: 'Truncate message not found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return new Response(JSON.stringify({ error: 'Failed to persist message' }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
   return new Response(JSON.stringify({ ok: true }), {
     status: 201,

@@ -101,7 +101,7 @@ interface AgentRequest {
 
 interface CreditLedgerEntry {
   id: string;
-  amountCents: number;
+  amountMicrocents: number;
   entryType: string;
   status: string;
   reason: string;
@@ -125,6 +125,8 @@ export default function AdminDashboard() {
   const [createForm, setCreateForm] = useState<CreateFormState>(createInitialFormState());
   const [agentRequests, setAgentRequests] = useState<AgentRequest[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
+  const [creditBalances, setCreditBalances] = useState<Record<string, number>>({});
+  const [isCreditBalancesLoading, setIsCreditBalancesLoading] = useState(false);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [creditAmount, setCreditAmount] = useState('');
   const [creditReason, setCreditReason] = useState('');
@@ -139,7 +141,10 @@ export default function AdminDashboard() {
     []
   );
 
-  const parseAmountToCents = (value: string) => {
+  const MICROCENTS_PER_CENT = 1000000;
+  const MICROCENTS_PER_DOLLAR = 100000000;
+
+  const parseAmountToMicrocents = (value: string) => {
     const normalized = value.trim().replace(/[$,]/g, '');
     if (!normalized) return null;
     if (!/^-?\d+(?:\.\d{0,2})?$/.test(normalized)) return null;
@@ -148,8 +153,41 @@ export default function AdminDashboard() {
     const [whole, fraction = ''] = unsigned.split('.');
     const cents = Number.parseInt(whole, 10) * 100 + Number.parseInt(fraction.padEnd(2, '0'), 10);
     if (!Number.isSafeInteger(cents)) return null;
-    return isNegative ? -cents : cents;
+    const microcents = cents * MICROCENTS_PER_CENT;
+    if (!Number.isSafeInteger(microcents)) return null;
+    return isNegative ? -microcents : microcents;
   };
+
+  const loadCreditBalances = useCallback(async (userIds: string[]) => {
+    if (userIds.length === 0) {
+      setCreditBalances({});
+      return;
+    }
+    setIsCreditBalancesLoading(true);
+    setCreditBalances({});
+    try {
+      const res = await fetch('/api/admin/credits/balances', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userIds }),
+      });
+      if (!res.ok) throw new Error('Failed to load credit balances');
+      const data = await res.json();
+      const balances = Array.isArray(data?.balances) ? data.balances : [];
+      const next: Record<string, number> = {};
+      balances.forEach((entry) => {
+        if (entry && typeof entry.userId === 'string' && typeof entry.balanceMicrocents === 'number') {
+          next[entry.userId] = entry.balanceMicrocents;
+        }
+      });
+      setCreditBalances(next);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load credit balances');
+    } finally {
+      setIsCreditBalancesLoading(false);
+    }
+  }, []);
 
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
@@ -167,8 +205,14 @@ export default function AdminDashboard() {
 
       const data = response.data as ListUsersResponse | null;
       if (data) {
-        setUsers(data.users.map(normalizeUser));
+        const normalizedUsers = data.users.map(normalizeUser);
+        setUsers(normalizedUsers);
         setTotal(data.total);
+        void loadCreditBalances(normalizedUsers.map((user) => user.id));
+      } else {
+        setUsers([]);
+        setTotal(0);
+        setCreditBalances({});
       }
     } catch (error) {
       toast.error('Failed to load users');
@@ -176,7 +220,7 @@ export default function AdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, pageSize, searchField, searchQuery]);
+  }, [currentPage, pageSize, searchField, searchQuery, loadCreditBalances]);
 
   const loadAgentRequests = useCallback(async () => {
     setIsLoadingAgents(true);
@@ -213,7 +257,7 @@ export default function AdminDashboard() {
       const res = await fetch(`/api/admin/credits/account?userId=${encodeURIComponent(userId)}`, { cache: 'no-cache' });
       if (!res.ok) throw new Error('Failed to load credits');
       const data = await res.json();
-      setCreditBalance(data?.account?.balanceCents ?? null);
+      setCreditBalance(data?.account?.balanceMicrocents ?? null);
       setCreditLedger(Array.isArray(data?.ledger) ? data.ledger : []);
     } catch (error) {
       console.error(error);
@@ -242,8 +286,8 @@ export default function AdminDashboard() {
 
   async function handleAdjustCredits() {
     if (!selectedUser) return;
-    const amountCents = parseAmountToCents(creditAmount);
-    if (amountCents == null || amountCents === 0) {
+    const amountMicrocents = parseAmountToMicrocents(creditAmount);
+    if (amountMicrocents == null || amountMicrocents === 0) {
       toast.error('Enter a non-zero amount in USD');
       return;
     }
@@ -260,7 +304,7 @@ export default function AdminDashboard() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           userId: selectedUser.id,
-          amountCents,
+          amountMicrocents,
           reason,
           note: creditNote.trim() || undefined,
         }),
@@ -270,7 +314,7 @@ export default function AdminDashboard() {
         throw new Error(error?.error || 'Failed to adjust credits');
       }
       const data = await res.json();
-      setCreditBalance(typeof data?.balanceCents === 'number' ? data.balanceCents : creditBalance);
+      setCreditBalance(typeof data?.balanceMicrocents === 'number' ? data.balanceMicrocents : creditBalance);
       setCreditAmount('');
       setCreditReason('');
       setCreditNote('');
@@ -478,6 +522,7 @@ export default function AdminDashboard() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Credits</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-[70px]"></TableHead>
                 </TableRow>
@@ -485,13 +530,13 @@ export default function AdminDashboard() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Loading users...
                     </TableCell>
                   </TableRow>
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -511,6 +556,13 @@ export default function AdminDashboard() {
                         ) : (
                           <Badge variant="outline">Active</Badge>
                         )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {isCreditBalancesLoading
+                          ? '...'
+                          : Object.prototype.hasOwnProperty.call(creditBalances, user.id)
+                          ? currencyFormatter.format(creditBalances[user.id] / MICROCENTS_PER_DOLLAR)
+                          : '—'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {new Date(user.createdAt).toLocaleDateString()}
@@ -819,7 +871,7 @@ export default function AdminDashboard() {
               <div className="text-lg font-semibold">
                 {isCreditLoading || creditBalance == null
                   ? 'Loading...'
-                  : currencyFormatter.format(creditBalance / 100)}
+                  : currencyFormatter.format(creditBalance / MICROCENTS_PER_DOLLAR)}
               </div>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
@@ -875,7 +927,7 @@ export default function AdminDashboard() {
                       </TableRow>
                     ) : (
                       creditLedger.map((entry) => {
-                        const isPositive = entry.amountCents >= 0;
+                        const isPositive = entry.amountMicrocents >= 0;
                         return (
                           <TableRow key={entry.id}>
                             <TableCell className="text-muted-foreground">
@@ -885,7 +937,7 @@ export default function AdminDashboard() {
                             <TableCell className="text-muted-foreground">{entry.reason}</TableCell>
                             <TableCell className={`text-right ${isPositive ? 'text-emerald-600' : 'text-destructive'}`}>
                               {isPositive ? '+' : '-'}
-                              {currencyFormatter.format(Math.abs(entry.amountCents) / 100)}
+                              {currencyFormatter.format(Math.abs(entry.amountMicrocents) / MICROCENTS_PER_DOLLAR)}
                             </TableCell>
                           </TableRow>
                         );

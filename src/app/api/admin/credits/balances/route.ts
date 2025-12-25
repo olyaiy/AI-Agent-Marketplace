@@ -1,12 +1,11 @@
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
-import { applyCreditDelta } from '@/lib/billing/credit-store';
+import { db } from '@/db/drizzle';
+import { creditAccount } from '@/db/schema';
+import { inArray } from 'drizzle-orm';
 
 const bodySchema = z.object({
-  userId: z.string().min(1),
-  amountMicrocents: z.number().int(),
-  reason: z.string().min(1).max(256),
-  note: z.string().max(500).optional(),
+  userIds: z.array(z.string().min(1)).min(1).max(100),
 });
 
 async function requireAdmin(req: Request) {
@@ -17,7 +16,7 @@ async function requireAdmin(req: Request) {
   if (session.user.role !== 'admin') {
     return { ok: false, status: 403, error: 'Forbidden' } as const;
   }
-  return { ok: true, adminId: session.user.id } as const;
+  return { ok: true } as const;
 }
 
 export async function POST(req: Request) {
@@ -47,26 +46,32 @@ export async function POST(req: Request) {
     });
   }
 
-  if (payload.amountMicrocents === 0) {
-    return new Response(JSON.stringify({ error: 'amountMicrocents must be non-zero' }), {
+  const uniqueUserIds = Array.from(
+    new Set(payload.userIds.map((id) => id.trim()).filter(Boolean))
+  ).slice(0, 100);
+
+  if (uniqueUserIds.length === 0) {
+    return new Response(JSON.stringify({ error: 'userIds is required' }), {
       status: 400,
       headers: { 'content-type': 'application/json' },
     });
   }
 
-  const balanceMicrocents = await applyCreditDelta({
-    userId: payload.userId,
-    amountMicrocents: payload.amountMicrocents,
-    entryType: 'adjustment',
-    reason: payload.reason,
-    externalSource: 'admin',
-    metadata: {
-      adminUserId: admin.adminId,
-      note: payload.note ?? null,
-    },
-  });
+  await db
+    .insert(creditAccount)
+    .values(uniqueUserIds.map((userId) => ({ userId })))
+    .onConflictDoNothing();
 
-  return new Response(JSON.stringify({ balanceMicrocents }), {
+  const balances = await db
+    .select({
+      userId: creditAccount.userId,
+      balanceMicrocents: creditAccount.balanceMicrocents,
+      currency: creditAccount.currency,
+    })
+    .from(creditAccount)
+    .where(inArray(creditAccount.userId, uniqueUserIds));
+
+  return new Response(JSON.stringify({ balances }), {
     status: 200,
     headers: { 'content-type': 'application/json' },
   });

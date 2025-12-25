@@ -4,8 +4,8 @@ import { ensureCreditAccount, serializeCreditAccount, updateCreditAccountSetting
 
 const updateSchema = z.object({
   autoReloadEnabled: z.boolean().optional(),
-  autoReloadThresholdCents: z.number().int().nonnegative().nullable().optional(),
-  autoReloadAmountCents: z.number().int().nonnegative().nullable().optional(),
+  autoReloadThresholdMicrocents: z.number().int().nonnegative().nullable().optional(),
+  autoReloadAmountMicrocents: z.number().int().nonnegative().nullable().optional(),
 });
 
 export async function GET(req: Request) {
@@ -55,20 +55,20 @@ export async function PATCH(req: Request) {
   const existing = await ensureCreditAccount(session.user.id);
   const next = {
     autoReloadEnabled: payload.autoReloadEnabled ?? existing.autoReloadEnabled,
-    autoReloadThresholdCents: payload.autoReloadThresholdCents ?? existing.autoReloadThresholdCents,
-    autoReloadAmountCents: payload.autoReloadAmountCents ?? existing.autoReloadAmountCents,
+    autoReloadThresholdMicrocents: payload.autoReloadThresholdMicrocents ?? existing.autoReloadThresholdMicrocents,
+    autoReloadAmountMicrocents: payload.autoReloadAmountMicrocents ?? existing.autoReloadAmountMicrocents,
   };
 
   if (next.autoReloadEnabled) {
-    if (next.autoReloadThresholdCents == null || next.autoReloadAmountCents == null || next.autoReloadAmountCents <= 0) {
+    if (next.autoReloadThresholdMicrocents == null || next.autoReloadAmountMicrocents == null || next.autoReloadAmountMicrocents <= 0) {
       return new Response(JSON.stringify({ error: 'Auto-reload requires threshold and amount' }), {
         status: 400,
         headers: { 'content-type': 'application/json' },
       });
     }
   } else {
-    next.autoReloadThresholdCents = null;
-    next.autoReloadAmountCents = null;
+    next.autoReloadThresholdMicrocents = null;
+    next.autoReloadAmountMicrocents = null;
   }
 
   const updated = await updateCreditAccountSettings(session.user.id, next);

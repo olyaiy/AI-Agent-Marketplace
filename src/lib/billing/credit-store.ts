@@ -6,13 +6,13 @@ import type { CreditAccount, CreditLedgerEntryInput, CreditStore } from '@/lib/b
 
 const accountColumns = {
   userId: creditAccount.userId,
-  balanceCents: creditAccount.balanceCents,
+  balanceMicrocents: creditAccount.balanceMicrocents,
   currency: creditAccount.currency,
   stripeCustomerId: creditAccount.stripeCustomerId,
   defaultPaymentMethodId: creditAccount.defaultPaymentMethodId,
   autoReloadEnabled: creditAccount.autoReloadEnabled,
-  autoReloadThresholdCents: creditAccount.autoReloadThresholdCents,
-  autoReloadAmountCents: creditAccount.autoReloadAmountCents,
+  autoReloadThresholdMicrocents: creditAccount.autoReloadThresholdMicrocents,
+  autoReloadAmountMicrocents: creditAccount.autoReloadAmountMicrocents,
   lastAutoReloadAt: creditAccount.lastAutoReloadAt,
   createdAt: creditAccount.createdAt,
   updatedAt: creditAccount.updatedAt,
@@ -22,23 +22,23 @@ type CreditAccountRow = typeof creditAccount.$inferSelect;
 
 const toCreditAccount = (row: CreditAccountRow): CreditAccount => ({
   userId: row.userId,
-  balanceCents: row.balanceCents,
+  balanceMicrocents: row.balanceMicrocents,
   currency: row.currency === 'usd' ? 'usd' : 'usd',
   autoReloadEnabled: row.autoReloadEnabled,
-  autoReloadThresholdCents: row.autoReloadThresholdCents,
-  autoReloadAmountCents: row.autoReloadAmountCents,
+  autoReloadThresholdMicrocents: row.autoReloadThresholdMicrocents,
+  autoReloadAmountMicrocents: row.autoReloadAmountMicrocents,
   defaultPaymentMethodId: row.defaultPaymentMethodId,
 });
 
 export const serializeCreditAccount = (row: CreditAccountRow) => ({
   userId: row.userId,
-  balanceCents: row.balanceCents,
+  balanceMicrocents: row.balanceMicrocents,
   currency: row.currency,
   stripeCustomerId: row.stripeCustomerId,
   defaultPaymentMethodId: row.defaultPaymentMethodId,
   autoReloadEnabled: row.autoReloadEnabled,
-  autoReloadThresholdCents: row.autoReloadThresholdCents,
-  autoReloadAmountCents: row.autoReloadAmountCents,
+  autoReloadThresholdMicrocents: row.autoReloadThresholdMicrocents,
+  autoReloadAmountMicrocents: row.autoReloadAmountMicrocents,
   lastAutoReloadAt: row.lastAutoReloadAt,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -77,8 +77,8 @@ export async function updateCreditAccountSettings(
   userId: string,
   updates: {
     autoReloadEnabled?: boolean;
-    autoReloadThresholdCents?: number | null;
-    autoReloadAmountCents?: number | null;
+    autoReloadThresholdMicrocents?: number | null;
+    autoReloadAmountMicrocents?: number | null;
     defaultPaymentMethodId?: string | null;
     stripeCustomerId?: string | null;
   }
@@ -110,7 +110,7 @@ export async function listCreditLedger(
   return db
     .select({
       id: creditLedger.id,
-      amountCents: creditLedger.amountCents,
+      amountMicrocents: creditLedger.amountMicrocents,
       currency: creditLedger.currency,
       entryType: creditLedger.entryType,
       status: creditLedger.status,
@@ -118,7 +118,7 @@ export async function listCreditLedger(
       externalSource: creditLedger.externalSource,
       externalId: creditLedger.externalId,
       metadata: creditLedger.metadata,
-      balanceAfterCents: creditLedger.balanceAfterCents,
+      balanceAfterMicrocents: creditLedger.balanceAfterMicrocents,
       createdAt: creditLedger.createdAt,
     })
     .from(creditLedger)
@@ -133,18 +133,18 @@ export const drizzleCreditStore: CreditStore = {
     const row = await ensureCreditAccount(userId);
     return toCreditAccount(row);
   },
-  async updateBalance(userId: string, balanceCents: number) {
+  async updateBalance(userId: string, balanceMicrocents: number) {
     const now = new Date();
     await db
       .update(creditAccount)
-      .set({ balanceCents, updatedAt: now })
+      .set({ balanceMicrocents, updatedAt: now })
       .where(eq(creditAccount.userId, userId));
   },
   async insertLedger(entry: CreditLedgerEntryInput) {
     await db.insert(creditLedger).values({
       id: randomUUID(),
       userId: entry.userId,
-      amountCents: entry.amountCents,
+      amountMicrocents: entry.amountMicrocents,
       currency: entry.currency,
       entryType: entry.type,
       status: entry.status ?? 'posted',
@@ -152,7 +152,7 @@ export const drizzleCreditStore: CreditStore = {
       externalSource: entry.externalSource ?? null,
       externalId: entry.externalId,
       metadata: entry.metadata,
-      balanceAfterCents: entry.balanceAfterCents ?? null,
+      balanceAfterMicrocents: entry.balanceAfterMicrocents ?? null,
       createdAt: entry.createdAt ?? new Date(),
     });
   },
@@ -160,7 +160,7 @@ export const drizzleCreditStore: CreditStore = {
 
 export async function applyCreditDelta(input: {
   userId: string;
-  amountCents: number;
+  amountMicrocents: number;
   entryType: string;
   reason: string;
   metadata?: Record<string, unknown>;
@@ -168,6 +168,9 @@ export async function applyCreditDelta(input: {
   externalId?: string | null;
 }) {
   const now = new Date();
+  if (!Number.isFinite(input.amountMicrocents) || !Number.isSafeInteger(input.amountMicrocents)) {
+    throw new Error('amountMicrocents must be a safe integer');
+  }
   await ensureCreditAccount(input.userId);
   const hasExternalId = Boolean(input.externalSource && input.externalId);
   if (hasExternalId) {
@@ -184,23 +187,23 @@ export async function applyCreditDelta(input: {
 
     if (existing[0]) {
       const current = await db
-        .select({ balanceCents: creditAccount.balanceCents })
+        .select({ balanceMicrocents: creditAccount.balanceMicrocents })
         .from(creditAccount)
         .where(eq(creditAccount.userId, input.userId))
         .limit(1);
-      return current[0]?.balanceCents ?? 0;
+      return current[0]?.balanceMicrocents ?? 0;
     }
   }
 
   const updated = await db
     .update(creditAccount)
     .set({
-      balanceCents: sql`COALESCE(${creditAccount.balanceCents}, 0) + ${input.amountCents}`,
+      balanceMicrocents: sql`COALESCE(${creditAccount.balanceMicrocents}, 0) + ${input.amountMicrocents}`,
       updatedAt: now,
     })
     .where(eq(creditAccount.userId, input.userId))
     .returning({
-      balanceCents: creditAccount.balanceCents,
+      balanceMicrocents: creditAccount.balanceMicrocents,
       currency: creditAccount.currency,
     });
 
@@ -211,7 +214,7 @@ export async function applyCreditDelta(input: {
   await db.insert(creditLedger).values({
     id: randomUUID(),
     userId: input.userId,
-    amountCents: input.amountCents,
+    amountMicrocents: input.amountMicrocents,
     currency: updated[0].currency,
     entryType: input.entryType,
     status: 'posted',
@@ -219,9 +222,9 @@ export async function applyCreditDelta(input: {
     externalSource: input.externalSource ?? null,
     externalId: input.externalId ?? null,
     metadata: input.metadata,
-    balanceAfterCents: updated[0].balanceCents,
+    balanceAfterMicrocents: updated[0].balanceMicrocents,
     createdAt: now,
   });
 
-  return updated[0].balanceCents;
+  return updated[0].balanceMicrocents;
 }

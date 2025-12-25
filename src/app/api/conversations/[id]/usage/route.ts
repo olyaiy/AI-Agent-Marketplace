@@ -47,10 +47,16 @@ export async function GET(
 
   const row = rows[0];
   const usage = (row.lastUsage as Record<string, unknown> | null) ?? {};
+  const inputTokenDetails = (usage.inputTokenDetails ?? {}) as Record<string, unknown>;
+  const outputTokenDetails = (usage.outputTokenDetails ?? {}) as Record<string, unknown>;
   const inputTokens = coalesceNumber(usage.inputTokens);
   const outputTokens = coalesceNumber(usage.outputTokens);
-  const cachedInputTokens = coalesceNumber(usage.cachedInputTokens);
-  const reasoningTokens = coalesceNumber(usage.reasoningTokens);
+  const cachedInputTokens = coalesceNumber(
+    inputTokenDetails.cacheReadTokens ?? usage.cachedInputTokens
+  );
+  const reasoningTokens = coalesceNumber(
+    outputTokenDetails.reasoningTokens ?? usage.reasoningTokens
+  );
   const totalTokens = usage.totalTokens != null
     ? coalesceNumber(usage.totalTokens)
     : inputTokens + outputTokens + reasoningTokens;

@@ -24,46 +24,51 @@ import { cn } from "@/lib/utils";
 
 type CreditAccount = {
   userId: string;
-  balanceCents: number;
+  balanceMicrocents: number;
   currency: string;
   stripeCustomerId?: string | null;
   defaultPaymentMethodId?: string | null;
   autoReloadEnabled: boolean;
-  autoReloadThresholdCents: number | null;
-  autoReloadAmountCents: number | null;
+  autoReloadThresholdMicrocents: number | null;
+  autoReloadAmountMicrocents: number | null;
   lastAutoReloadAt?: string | null;
 };
 
 type LedgerEntry = {
   id: string;
-  amountCents: number;
+  amountMicrocents: number;
   currency: string;
   entryType: string;
   status: string;
   reason: string;
-  balanceAfterCents?: number | null;
+  balanceAfterMicrocents?: number | null;
   createdAt: string;
 };
 
 type Summary = {
   windowDays: number;
-  totalSpentCents: number;
-  totalCreditsCents: number;
+  totalSpentMicrocents: number;
+  totalCreditsMicrocents: number;
 };
 
-const formatCentsInput = (value: number | null | undefined) => {
+const MICROCENTS_PER_CENT = 1000000;
+const MICROCENTS_PER_DOLLAR = 100000000;
+
+const formatMicrocentsInput = (value: number | null | undefined) => {
   if (value == null) return "";
-  return (value / 100).toFixed(2);
+  return (value / MICROCENTS_PER_DOLLAR).toFixed(2);
 };
 
-const parseCentsInput = (value: string) => {
+const parseMicrocentsInput = (value: string) => {
   const normalized = value.trim().replace(/[$,]/g, "");
   if (!normalized) return null;
   if (!/^\d+(?:\.\d{0,2})?$/.test(normalized)) return null;
   const [whole, fraction = ""] = normalized.split(".");
   const cents = Number.parseInt(whole, 10) * 100 + Number.parseInt(fraction.padEnd(2, "0"), 10);
   if (!Number.isSafeInteger(cents)) return null;
-  return cents;
+  const microcents = cents * MICROCENTS_PER_CENT;
+  if (!Number.isSafeInteger(microcents)) return null;
+  return microcents;
 };
 
 function formatRelativeTime(date: Date): string {
@@ -107,8 +112,8 @@ export default function BillingSettings() {
     }
     setAccount(next);
     setAutoReloadEnabled(next.autoReloadEnabled);
-    setThresholdInput(formatCentsInput(next.autoReloadThresholdCents));
-    setAmountInput(formatCentsInput(next.autoReloadAmountCents));
+    setThresholdInput(formatMicrocentsInput(next.autoReloadThresholdMicrocents));
+    setAmountInput(formatMicrocentsInput(next.autoReloadAmountMicrocents));
   }, []);
 
   const loadLedger = useCallback(async () => {
@@ -129,8 +134,8 @@ export default function BillingSettings() {
     const data = await res.json();
     setSummary({
       windowDays: data?.windowDays ?? 30,
-      totalSpentCents: data?.totalSpentCents ?? 0,
-      totalCreditsCents: data?.totalCreditsCents ?? 0,
+      totalSpentMicrocents: data?.totalSpentMicrocents ?? 0,
+      totalCreditsMicrocents: data?.totalCreditsMicrocents ?? 0,
     });
   }, []);
 
@@ -154,11 +159,11 @@ export default function BillingSettings() {
 
   const handleSave = async () => {
     if (!account) return;
-    const thresholdCents = parseCentsInput(thresholdInput);
-    const amountCents = parseCentsInput(amountInput);
+    const thresholdMicrocents = parseMicrocentsInput(thresholdInput);
+    const amountMicrocents = parseMicrocentsInput(amountInput);
 
     if (autoReloadEnabled) {
-      if (thresholdCents == null || amountCents == null || amountCents <= 0) {
+      if (thresholdMicrocents == null || amountMicrocents == null || amountMicrocents <= 0) {
         toast.error("Enter a valid threshold and reload amount.");
         return;
       }
@@ -171,8 +176,8 @@ export default function BillingSettings() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           autoReloadEnabled,
-          autoReloadThresholdCents: autoReloadEnabled ? thresholdCents : null,
-          autoReloadAmountCents: autoReloadEnabled ? amountCents : null,
+          autoReloadThresholdMicrocents: autoReloadEnabled ? thresholdMicrocents : null,
+          autoReloadAmountMicrocents: autoReloadEnabled ? amountMicrocents : null,
         }),
       });
 
@@ -186,8 +191,8 @@ export default function BillingSettings() {
       if (next) {
         setAccount(next);
         setAutoReloadEnabled(next.autoReloadEnabled);
-        setThresholdInput(formatCentsInput(next.autoReloadThresholdCents));
-        setAmountInput(formatCentsInput(next.autoReloadAmountCents));
+        setThresholdInput(formatMicrocentsInput(next.autoReloadThresholdMicrocents));
+        setAmountInput(formatMicrocentsInput(next.autoReloadAmountMicrocents));
       }
       toast.success("Auto-reload settings updated");
     } catch (error) {
@@ -198,7 +203,7 @@ export default function BillingSettings() {
     }
   };
 
-  const balanceValue = account ? account.balanceCents / 100 : 0;
+  const balanceValue = account ? account.balanceMicrocents / MICROCENTS_PER_DOLLAR : 0;
   const isLowBalance = balanceValue < 5;
 
   if (isLoading) {
@@ -278,7 +283,7 @@ export default function BillingSettings() {
           {summary && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <TrendingUp className="w-4 h-4" />
-              <span>{summary.windowDays}-day spend: {formatter.format(summary.totalSpentCents / 100)}</span>
+              <span>{summary.windowDays}-day spend: {formatter.format(summary.totalSpentMicrocents / MICROCENTS_PER_DOLLAR)}</span>
             </div>
           )}
         </div>
@@ -536,8 +541,8 @@ export default function BillingSettings() {
           ) : (
             <AnimatePresence mode="popLayout">
               {ledger.map((entry, index) => {
-                const amount = entry.amountCents / 100;
-                const isPositive = entry.amountCents >= 0;
+                const amount = entry.amountMicrocents / MICROCENTS_PER_DOLLAR;
+                const isPositive = entry.amountMicrocents >= 0;
                 const date = new Date(entry.createdAt);
 
                 return (

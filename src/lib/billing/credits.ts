@@ -4,17 +4,17 @@ export type LedgerEntryStatus = 'posted' | 'pending' | 'failed';
 
 export interface CreditAccount {
   userId: string;
-  balanceCents: number;
+  balanceMicrocents: number;
   currency: Currency;
   autoReloadEnabled: boolean;
-  autoReloadThresholdCents: number | null;
-  autoReloadAmountCents: number | null;
+  autoReloadThresholdMicrocents: number | null;
+  autoReloadAmountMicrocents: number | null;
   defaultPaymentMethodId: string | null;
 }
 
 export interface CreditLedgerEntryInput {
   userId: string;
-  amountCents: number;
+  amountMicrocents: number;
   currency: Currency;
   type: LedgerEntryType;
   status?: LedgerEntryStatus;
@@ -22,13 +22,13 @@ export interface CreditLedgerEntryInput {
   externalSource?: string | null;
   metadata?: Record<string, unknown>;
   externalId?: string;
-  balanceAfterCents?: number | null;
+  balanceAfterMicrocents?: number | null;
   createdAt?: Date;
 }
 
 export interface CreditStore {
   getAccount(userId: string): Promise<CreditAccount | null>;
-  updateBalance(userId: string, balanceCents: number): Promise<void>;
+  updateBalance(userId: string, balanceMicrocents: number): Promise<void>;
   insertLedger(entry: CreditLedgerEntryInput): Promise<void>;
   withTransaction?<T>(fn: (tx: CreditStore) => Promise<T>): Promise<T>;
 }
@@ -36,33 +36,33 @@ export interface CreditStore {
 export interface CreditServiceOptions {
   currency?: Currency;
   allowNegative?: boolean;
-  minBalanceCents?: number;
+  minBalanceMicrocents?: number;
   now?: () => Date;
 }
 
 export interface CreditChangeResult {
-  balanceBeforeCents: number;
-  balanceAfterCents: number;
+  balanceBeforeMicrocents: number;
+  balanceAfterMicrocents: number;
   ledger: CreditLedgerEntryInput;
 }
 
 export interface AutoReloadDecision {
   shouldReload: boolean;
-  amountCents?: number;
+  amountMicrocents?: number;
   reason: 'disabled' | 'missing-config' | 'above-threshold' | 'below-threshold';
 }
 
 export class InsufficientCreditsError extends Error {
-  balanceCents: number;
-  requiredCents: number;
-  minBalanceCents: number;
+  balanceMicrocents: number;
+  requiredMicrocents: number;
+  minBalanceMicrocents: number;
 
-  constructor(message: string, options: { balanceCents: number; requiredCents: number; minBalanceCents: number }) {
+  constructor(message: string, options: { balanceMicrocents: number; requiredMicrocents: number; minBalanceMicrocents: number }) {
     super(message);
     this.name = 'InsufficientCreditsError';
-    this.balanceCents = options.balanceCents;
-    this.requiredCents = options.requiredCents;
-    this.minBalanceCents = options.minBalanceCents;
+    this.balanceMicrocents = options.balanceMicrocents;
+    this.requiredMicrocents = options.requiredMicrocents;
+    this.minBalanceMicrocents = options.minBalanceMicrocents;
   }
 }
 
@@ -76,19 +76,19 @@ export class MissingCreditAccountError extends Error {
   }
 }
 
-const ensureIntegerCents = (value: number, label: string): number => {
+const ensureIntegerMicrocents = (value: number, label: string): number => {
   if (!Number.isFinite(value) || !Number.isSafeInteger(value)) {
     throw new Error(`${label} must be a safe integer`);
   }
   return value;
 };
 
-const ensurePositiveCents = (value: number, label: string): number => {
-  const cents = ensureIntegerCents(value, label);
-  if (cents <= 0) {
+const ensurePositiveMicrocents = (value: number, label: string): number => {
+  const microcents = ensureIntegerMicrocents(value, label);
+  if (microcents <= 0) {
     throw new Error(`${label} must be greater than zero`);
   }
-  return cents;
+  return microcents;
 };
 
 const resolveNow = (options?: CreditServiceOptions): Date => {
@@ -99,7 +99,7 @@ const resolveMinBalance = (options?: CreditServiceOptions): number => {
   if (options?.allowNegative) {
     return Number.NEGATIVE_INFINITY;
   }
-  return options?.minBalanceCents ?? 0;
+  return options?.minBalanceMicrocents ?? 0;
 };
 
 const runInTransaction = async <T>(store: CreditStore, fn: (tx: CreditStore) => Promise<T>): Promise<T> => {
@@ -122,18 +122,18 @@ export const getAutoReloadDecision = (account: CreditAccount): AutoReloadDecisio
     return { shouldReload: false, reason: 'disabled' };
   }
   if (
-    account.autoReloadThresholdCents === null ||
-    account.autoReloadAmountCents === null ||
-    account.autoReloadAmountCents <= 0
+    account.autoReloadThresholdMicrocents === null ||
+    account.autoReloadAmountMicrocents === null ||
+    account.autoReloadAmountMicrocents <= 0
   ) {
     return { shouldReload: false, reason: 'missing-config' };
   }
-  if (account.balanceCents > account.autoReloadThresholdCents) {
+  if (account.balanceMicrocents > account.autoReloadThresholdMicrocents) {
     return { shouldReload: false, reason: 'above-threshold' };
   }
   return {
     shouldReload: true,
-    amountCents: account.autoReloadAmountCents,
+    amountMicrocents: account.autoReloadAmountMicrocents,
     reason: 'below-threshold',
   };
 };
@@ -144,84 +144,84 @@ export const createCreditService = (store: CreditStore, options?: CreditServiceO
 
   const credit = async (input: {
     userId: string;
-    amountCents: number;
+    amountMicrocents: number;
     reason: string;
     metadata?: Record<string, unknown>;
     externalId?: string;
   }): Promise<CreditChangeResult> => {
-    const delta = ensurePositiveCents(input.amountCents, 'amountCents');
+    const delta = ensurePositiveMicrocents(input.amountMicrocents, 'amountMicrocents');
     const now = resolveNow(options);
 
     return runInTransaction(store, async (tx) => {
       const account = await requireAccount(tx, input.userId);
-      const balanceBefore = ensureIntegerCents(account.balanceCents, 'balanceCents');
+      const balanceBefore = ensureIntegerMicrocents(account.balanceMicrocents, 'balanceMicrocents');
       const balanceAfter = balanceBefore + delta;
       const ledger: CreditLedgerEntryInput = {
         userId: input.userId,
-        amountCents: delta,
+        amountMicrocents: delta,
         currency,
         type: 'credit',
         status: 'posted',
         reason: input.reason,
         metadata: input.metadata,
         externalId: input.externalId,
-        balanceAfterCents: balanceAfter,
+        balanceAfterMicrocents: balanceAfter,
         createdAt: now,
       };
 
       await tx.updateBalance(input.userId, balanceAfter);
       await tx.insertLedger(ledger);
 
-      return { balanceBeforeCents: balanceBefore, balanceAfterCents: balanceAfter, ledger };
+      return { balanceBeforeMicrocents: balanceBefore, balanceAfterMicrocents: balanceAfter, ledger };
     });
   };
 
   const debit = async (input: {
     userId: string;
-    amountCents: number;
+    amountMicrocents: number;
     reason: string;
     metadata?: Record<string, unknown>;
     externalId?: string;
   }): Promise<CreditChangeResult> => {
-    const delta = ensurePositiveCents(input.amountCents, 'amountCents');
+    const delta = ensurePositiveMicrocents(input.amountMicrocents, 'amountMicrocents');
     const now = resolveNow(options);
 
     return runInTransaction(store, async (tx) => {
       const account = await requireAccount(tx, input.userId);
-      const balanceBefore = ensureIntegerCents(account.balanceCents, 'balanceCents');
+      const balanceBefore = ensureIntegerMicrocents(account.balanceMicrocents, 'balanceMicrocents');
       const balanceAfter = balanceBefore - delta;
 
       if (balanceAfter < minBalance) {
         throw new InsufficientCreditsError('Insufficient credits', {
-          balanceCents: balanceBefore,
-          requiredCents: delta,
-          minBalanceCents: minBalance,
+          balanceMicrocents: balanceBefore,
+          requiredMicrocents: delta,
+          minBalanceMicrocents: minBalance,
         });
       }
 
       const ledger: CreditLedgerEntryInput = {
         userId: input.userId,
-        amountCents: -delta,
+        amountMicrocents: -delta,
         currency,
         type: 'debit',
         status: 'posted',
         reason: input.reason,
         metadata: input.metadata,
         externalId: input.externalId,
-        balanceAfterCents: balanceAfter,
+        balanceAfterMicrocents: balanceAfter,
         createdAt: now,
       };
 
       await tx.updateBalance(input.userId, balanceAfter);
       await tx.insertLedger(ledger);
 
-      return { balanceBeforeCents: balanceBefore, balanceAfterCents: balanceAfter, ledger };
+      return { balanceBeforeMicrocents: balanceBefore, balanceAfterMicrocents: balanceAfter, ledger };
     });
   };
 
   const getBalance = async (userId: string): Promise<number> => {
     const account = await requireAccount(store, userId);
-    return ensureIntegerCents(account.balanceCents, 'balanceCents');
+    return ensureIntegerMicrocents(account.balanceMicrocents, 'balanceMicrocents');
   };
 
   const getAccount = async (userId: string): Promise<CreditAccount | null> => {

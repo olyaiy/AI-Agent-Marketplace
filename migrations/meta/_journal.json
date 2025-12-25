@@ -183,6 +183,13 @@
       "when": 1766188236543,
       "tag": "0025_married_moonstone",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1766621765546,
+      "tag": "0026_precise_credits",
+      "breakpoints": true
     }
   ]
 }

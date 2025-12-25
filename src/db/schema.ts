@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, timestamp, jsonb, integer, index, uniqueIndex, primaryKey, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, boolean, timestamp, jsonb, integer, index, uniqueIndex, primaryKey, numeric, bigint } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 export const agent = pgTable('agent', {
@@ -81,13 +81,13 @@ export const creditAccount = pgTable('credit_account', {
   userId: text('user_id')
     .primaryKey()
     .references(() => user.id, { onDelete: 'cascade' }),
-  balanceCents: integer('balance_cents').notNull().default(100),
+  balanceMicrocents: bigint('balance_microcents', { mode: 'number' }).notNull().default(100000000),
   currency: varchar('currency', { length: 3 }).notNull().default('usd'),
   stripeCustomerId: text('stripe_customer_id'),
   defaultPaymentMethodId: text('default_payment_method_id'),
   autoReloadEnabled: boolean('auto_reload_enabled').notNull().default(false),
-  autoReloadThresholdCents: integer('auto_reload_threshold_cents'),
-  autoReloadAmountCents: integer('auto_reload_amount_cents'),
+  autoReloadThresholdMicrocents: bigint('auto_reload_threshold_microcents', { mode: 'number' }),
+  autoReloadAmountMicrocents: bigint('auto_reload_amount_microcents', { mode: 'number' }),
   lastAutoReloadAt: timestamp('last_auto_reload_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -100,7 +100,7 @@ export const creditLedger = pgTable('credit_ledger', {
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  amountCents: integer('amount_cents').notNull(),
+  amountMicrocents: bigint('amount_microcents', { mode: 'number' }).notNull(),
   currency: varchar('currency', { length: 3 }).notNull().default('usd'),
   entryType: varchar('entry_type', { length: 32 }).notNull(),
   status: varchar('status', { length: 32 }).notNull().default('posted'),
@@ -108,7 +108,7 @@ export const creditLedger = pgTable('credit_ledger', {
   externalSource: varchar('external_source', { length: 64 }),
   externalId: text('external_id'),
   metadata: jsonb('metadata'),
-  balanceAfterCents: integer('balance_after_cents'),
+  balanceAfterMicrocents: bigint('balance_after_microcents', { mode: 'number' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   userIndex: index('credit_ledger_user_idx').on(table.userId),
