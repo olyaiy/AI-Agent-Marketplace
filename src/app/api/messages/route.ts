@@ -74,52 +74,49 @@ export async function POST(req: Request) {
     .slice(0, 280);
 
   try {
-    await db.transaction(async (tx) => {
-      // Verify ownership
-      const convo = await tx
-        .select({ id: conversation.id })
-        .from(conversation)
-        .where(sql`${conversation.id} = ${conversationId} AND ${conversation.userId} = ${session.user.id}`)
+    // Neon HTTP driver doesn't support transactions; do the steps sequentially.
+    const convo = await db
+      .select({ id: conversation.id })
+      .from(conversation)
+      .where(sql`${conversation.id} = ${conversationId} AND ${conversation.userId} = ${session.user.id}`)
+      .limit(1);
+    if (convo.length === 0) {
+      throw new Error('CONVERSATION_NOT_FOUND');
+    }
+
+    if (truncateFromMessageId) {
+      const cutoff = await db
+        .select({ id: message.id, createdAt: message.createdAt })
+        .from(message)
+        .where(sql`${message.id} = ${truncateFromMessageId} AND ${message.conversationId} = ${conversationId}`)
         .limit(1);
-      if (convo.length === 0) {
-        throw new Error('CONVERSATION_NOT_FOUND');
+
+      if (cutoff.length === 0) {
+        throw new Error('TRUNCATE_MESSAGE_NOT_FOUND');
       }
 
-      if (truncateFromMessageId) {
-        const cutoff = await tx
-          .select({ id: message.id, createdAt: message.createdAt })
-          .from(message)
-          .where(sql`${message.id} = ${truncateFromMessageId} AND ${message.conversationId} = ${conversationId}`)
-          .limit(1);
+      await db
+        .delete(message)
+        .where(sql`${message.conversationId} = ${conversationId} AND ${message.createdAt} >= ${cutoff[0]!.createdAt}`);
+    }
 
-        if (cutoff.length === 0) {
-          throw new Error('TRUNCATE_MESSAGE_NOT_FOUND');
-        }
+    await db
+      .insert(message)
+      .values({
+        id: uiMessage.id,
+        conversationId,
+        role: uiMessage.role,
+        uiParts: uiMessage.parts as typeof message.$inferInsert['uiParts'],
+        annotations: uiMessage.annotations as typeof message.$inferInsert['annotations'],
+        textPreview: textPreview || null,
+        hasToolCalls: false,
+      })
+      .onConflictDoNothing();
 
-        // Delete this message and everything after it (based on createdAt ordering).
-        await tx
-          .delete(message)
-          .where(sql`${message.conversationId} = ${conversationId} AND ${message.createdAt} >= ${cutoff[0]!.createdAt}`);
-      }
-
-      await tx
-        .insert(message)
-        .values({
-          id: uiMessage.id,
-          conversationId,
-          role: uiMessage.role,
-          uiParts: uiMessage.parts as typeof message.$inferInsert['uiParts'],
-          annotations: uiMessage.annotations as typeof message.$inferInsert['annotations'],
-          textPreview: textPreview || null,
-          hasToolCalls: false,
-        })
-        .onConflictDoNothing();
-
-      await tx
-        .update(conversation)
-        .set({ updatedAt: new Date(), lastMessageAt: new Date() })
-        .where(sql`${conversation.id} = ${conversationId}`);
-    });
+    await db
+      .update(conversation)
+      .set({ updatedAt: new Date(), lastMessageAt: new Date() })
+      .where(sql`${conversation.id} = ${conversationId}`);
   } catch (error) {
     const messageText = error instanceof Error ? error.message : '';
     if (messageText === 'CONVERSATION_NOT_FOUND') {

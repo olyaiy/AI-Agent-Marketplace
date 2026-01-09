@@ -1733,6 +1733,7 @@ const Chat = React.memo(function Chat({
 
   const { messages, status, sendMessage, regenerate, stop, setMessages } = useChat({
     messages: Array.isArray(initialMessages) ? (initialMessages as unknown as UIMessage[]) : [],
+
     onFinish: async ({ message }) => {
       const truncateFromMessageId = pendingTruncateFromMessageIdRef.current;
       if (truncateFromMessageId) {
