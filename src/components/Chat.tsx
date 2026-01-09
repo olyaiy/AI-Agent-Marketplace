@@ -884,77 +884,6 @@ function useThrottledValue<T>(value: T, fps: number): T {
   return throttledValue;
 }
 
-type StableMarkdownSplit = { stable: string; live: string };
-
-/**
- * Split text into a "stable" prefix (safe to render as markdown) and a "live" suffix.
- * Boundaries are more aggressive: blank lines, closed fences, and sentence punctuation
- * every ~80 chars. This surfaces formatting sooner while keeping markdown rerenders bounded.
- */
-function splitStableMarkdown(text: string): StableMarkdownSplit {
-  if (!text) return { stable: '', live: '' };
-
-  const MIN_CHARS_BETWEEN_BOUNDARIES = 80;
-  const MAX_LIVE_CHARS = 320;
-
-  let inFence = false;
-  let lastBoundary = 0;
-  let cursor = 0;
-
-  const maybeMarkBoundary = (pos: number) => {
-    if (pos - lastBoundary >= MIN_CHARS_BETWEEN_BOUNDARIES) {
-      lastBoundary = pos;
-    }
-  };
-
-  const lines = text.split('\n');
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    const endsWithNewline = i < lines.length - 1;
-    const lineLen = line.length + (endsWithNewline ? 1 : 0);
-    const trimmedStart = line.trimStart();
-    const isFence = trimmedStart.startsWith('```') || trimmedStart.startsWith('~~~');
-
-    if (isFence) {
-      inFence = !inFence;
-      if (!inFence) {
-        // Closing fence: mark everything through this line as stable.
-        maybeMarkBoundary(cursor + lineLen);
-      }
-    } else if (!inFence) {
-      const isBlankLine = line.trim().length === 0 && endsWithNewline;
-      if (isBlankLine) {
-        maybeMarkBoundary(cursor + lineLen);
-      }
-
-      // Prefer sentence punctuation as soft boundaries to drip markdown sooner.
-      const punctuationRegex = /[.!?]/g;
-      let match: RegExpExecArray | null;
-      while ((match = punctuationRegex.exec(line)) !== null) {
-        const boundaryPos = cursor + match.index + 1;
-        maybeMarkBoundary(boundaryPos);
-      }
-
-      // If the live tail is getting long, force a boundary at line end.
-      if (cursor + lineLen - lastBoundary >= MAX_LIVE_CHARS) {
-        maybeMarkBoundary(cursor + lineLen);
-      }
-    }
-
-    cursor += lineLen;
-  }
-
-  // If no boundary was found, keep everything live to avoid thrashing markdown renders.
-  if (lastBoundary <= 0) return { stable: '', live: text };
-  if (lastBoundary >= text.length) return { stable: text, live: '' };
-
-  return {
-    stable: text.slice(0, lastBoundary),
-    live: text.slice(lastBoundary),
-  };
-}
-
 type MessageItemProps = {
   message: BasicUIMessage;
   status: ChatStatus;
@@ -1287,29 +1216,11 @@ const MessageItem = React.memo(
                   switch (part.type) {
                     case 'text':
                       if (!part.text) return;
-                      if (isStreamingActive) {
-                        const { stable, live } = splitStableMarkdown(part.text);
-                        elements.push(
-                          <div key={`${message.id}-${i}`} className="flex flex-col gap-2 text-[15px] md:text-base leading-relaxed">
-                            {stable ? (
-                              <Response sources={sources}>
-                                {stable}
-                              </Response>
-                            ) : null}
-                            {live ? (
-                              <pre className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
-                                {live}
-                              </pre>
-                            ) : null}
-                          </div>
-                        );
-                      } else {
-                        elements.push(
-                          <Response key={`${message.id}-${i}`} sources={sources}>
-                            {part.text}
-                          </Response>
-                        );
-                      }
+                      elements.push(
+                        <Response key={`${message.id}-${i}`} sources={sources}>
+                          {part.text}
+                        </Response>
+                      );
                       break;
                     case 'file': {
                       // Render image grid once when we encounter the first file part
