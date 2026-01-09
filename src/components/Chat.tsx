@@ -1061,14 +1061,6 @@ const MessageItem = React.memo(
 
     // Render edit mode for user messages
     if (isEditing && message.role === 'user') {
-      // Auto-size textarea effect
-      const autoSizeTextarea = () => {
-        if (editTextareaRef.current) {
-          editTextareaRef.current.style.height = 'auto';
-          editTextareaRef.current.style.height = `${Math.min(editTextareaRef.current.scrollHeight, 400)}px`;
-        }
-      };
-
       return (
         <div className="group/message flex w-full justify-end py-0">
           <div className="flex flex-col gap-2 w-full max-w-[600px]">
@@ -2483,7 +2475,7 @@ const Chat = React.memo(function Chat({
         return next;
       });
     }
-  }, [agentTag, currentModel, getChatContext, initialMessages, isAuthenticated, messages, model, reasoningOn, sendMessage, status, supportsReasoning, systemPrompt, webSearchOn]);
+  }, [agentTag, getChatContext, initialMessages, isAuthenticated, messages, model, reasoningOn, sendMessage, status, supportsReasoning, systemPrompt, webSearchOn]);
 
   const handleRegenerateMessage = useCallback(async (message: BasicUIMessage) => {
     if (!isAuthenticated) {
@@ -2569,7 +2561,7 @@ const Chat = React.memo(function Chat({
       regenerationSnapshotRef.current = null;
       setRegeneratingMessageId(null);
     }
-  }, [agentTag, currentModel, deletedMessageIds, getChatContext, hiddenMessageIds, isAuthenticated, messages, model, reasoningOn, regenerate, setMessages, status, supportsReasoning, systemPrompt, webSearchOn]);
+  }, [agentTag, deletedMessageIds, getChatContext, hiddenMessageIds, isAuthenticated, messages, model, reasoningOn, regenerate, setMessages, status, supportsReasoning, systemPrompt, webSearchOn]);
 
   const initialMessagesMemo = useMemo<BasicUIMessage[]>(() => {
     return (Array.isArray(initialMessages) ? (initialMessages as BasicUIMessage[]) : []) as BasicUIMessage[];
