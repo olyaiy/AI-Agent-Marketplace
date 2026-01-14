@@ -1217,7 +1217,7 @@ const MessageItem = React.memo(
                     case 'text':
                       if (!part.text) return;
                       elements.push(
-                        <Response key={`${message.id}-${i}`} sources={sources}>
+                        <Response key={`${message.id}-${i}`} sources={sources} isAnimating={isStreamingActive}>
                           {part.text}
                         </Response>
                       );

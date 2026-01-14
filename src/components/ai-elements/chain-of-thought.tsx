@@ -275,7 +275,7 @@ export const ChainOfThoughtContent = memo(
 
     // If children is a string, render it through Response for markdown support
     const content = typeof children === 'string'
-      ? <Response className="first:mt-0">{children}</Response>
+      ? <Response className="first:mt-0" isAnimating={isStreaming}>{children}</Response>
       : children;
 
     return (
