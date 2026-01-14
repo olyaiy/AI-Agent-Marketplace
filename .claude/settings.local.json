@@ -6,7 +6,9 @@
       "Bash(pnpm dlx:*)",
       "Bash(mkdir:*)",
       "Bash(gh repo create:*)",
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm list:*)"
     ],
     "deny": [],
     "ask": []

@@ -51,6 +51,7 @@ export const TiptapMarkdownEditor = forwardRef<TiptapMarkdownEditorRef, TiptapMa
                 }),
             ],
             content: initialContent,
+            contentType: 'markdown',
             immediatelyRender: false, // SSR-safe
             onUpdate: ({ editor }) => {
                 if (onChange) {
@@ -70,7 +71,7 @@ export const TiptapMarkdownEditor = forwardRef<TiptapMarkdownEditorRef, TiptapMa
                 },
                 setMarkdown: (markdown: string) => {
                     if (editor) {
-                        editor.commands.setContent(markdown);
+                        editor.commands.setContent(markdown, { contentType: 'markdown' });
                     }
                 },
             }),
@@ -80,7 +81,7 @@ export const TiptapMarkdownEditor = forwardRef<TiptapMarkdownEditorRef, TiptapMa
         // Sync external content changes (only on mount)
         useEffect(() => {
             if (editor && initialContent && !editor.getText()) {
-                editor.commands.setContent(initialContent);
+                editor.commands.setContent(initialContent, { contentType: 'markdown' });
             }
         }, [editor, initialContent]);
 
