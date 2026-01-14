@@ -1,5 +1,6 @@
 import { getAgentByTag, updateAgent, deleteAgent, requestAgentReview, withdrawAgentReview } from '@/actions/agents';
 import { notFound, redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import EditAgentTwoColumnClient from './EditAgentTwoColumnClient';
@@ -78,7 +79,7 @@ async function saveAction(formData: FormData) {
   }
   const tag = `@${id}`;
   await updateAgent({ tag, name, systemPrompt, model, secondaryModels, providerOptions, avatar, tagline: tagline ?? null, description: description ?? null, visibility, actorId, actorRole });
-  redirect(`/agent/${encodeURIComponent(id)}`);
+  revalidatePath(`/edit/${encodeURIComponent(id)}`);
 }
 
 async function deleteAction(formData: FormData) {

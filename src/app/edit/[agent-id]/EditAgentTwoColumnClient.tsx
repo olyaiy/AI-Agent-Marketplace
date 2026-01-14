@@ -5,7 +5,7 @@ import { EditAgentClient } from "./EditAgentClient";
 import { EditAvatarClient } from "./EditAvatarClient";
 import { buildKnowledgeSystemText } from "@/lib/knowledge";
 import { getKnowledgeByAgent } from "@/actions/knowledge";
-import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Loader2, Check } from "lucide-react";
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { type KnowledgeItem } from "./KnowledgeManager";
@@ -19,6 +19,40 @@ const Chat = dynamic(() => import('@/components/Chat'), {
   ),
 });
 import { Button } from "@/components/ui/button";
+
+interface SaveButtonProps {
+  isPending: boolean;
+  showSuccess: boolean;
+  onClick: () => void;
+}
+
+function SaveButton({ isPending, showSuccess, onClick }: SaveButtonProps) {
+  return (
+    <Button
+      type="button"
+      onClick={onClick}
+      disabled={isPending}
+      className="rounded-full px-5 gap-2 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+    >
+      {isPending ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Saving...</span>
+        </>
+      ) : showSuccess ? (
+        <>
+          <Check className="w-4 h-4" />
+          <span>Saved!</span>
+        </>
+      ) : (
+        <>
+          <Save className="w-4 h-4" />
+          <span>Save Changes</span>
+        </>
+      )}
+    </Button>
+  );
+}
 
 interface ServerAction {
   (formData: FormData): Promise<void>;
@@ -98,10 +132,23 @@ function LeftForm({
   onKnowledgeItemsChange,
 }: LeftFormProps) {
   const [nameValue, setNameValue] = React.useState(initialName);
+  const [isPending, startTransition] = React.useTransition();
+  const [showSuccess, setShowSuccess] = React.useState(false);
+  const formRef = React.useRef<HTMLFormElement>(null);
+
+  const handleSave = React.useCallback(() => {
+    if (!formRef.current || isPending) return;
+    const formData = new FormData(formRef.current);
+    startTransition(async () => {
+      await onSave(formData);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+    });
+  }, [isPending, onSave]);
 
   return (
     <div className="w-full pb-20 lg:pb-0">
-      <form id="agent-form" action={onSave} className="hidden" />
+      <form ref={formRef} id="agent-form" action={onSave} className="hidden" />
       <div className="flex flex-col">
         <input type="hidden" name="id" value={id} form="agent-form" />
 
@@ -125,14 +172,7 @@ function LeftForm({
                 >
                   <Trash2 className="w-5 h-5" />
                 </Button>
-                <Button
-                  type="submit"
-                  form="agent-form"
-                  className="rounded-full px-5 gap-2 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Save Changes</span>
-                </Button>
+                <SaveButton isPending={isPending} showSuccess={showSuccess} onClick={handleSave} />
               </>
             )}
           </div>

@@ -334,7 +334,6 @@ export const EditAgentClient = React.memo(function EditAgentClient({
                           <div className="w-3 h-3 rounded-full bg-green-400/80"></div>
                         </div>
                         <span className="text-xs text-muted-foreground font-mono">system-prompt.md</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">WYSIWYG</span>
                       </div>
                       <span className="text-xs text-muted-foreground font-mono">{promptStats.chars.toLocaleString()} chars</span>
                     </div>
