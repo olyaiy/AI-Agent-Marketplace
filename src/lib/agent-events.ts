@@ -1,5 +1,7 @@
 'use client';
 
+import { setAgentModelPreference } from '@/lib/agent-model-preferences';
+
 export const AGENT_NEW_CHAT_EVENT = 'agent:new-chat';
 export const AGENT_MODEL_CHANGE_EVENT = 'agent:model-change';
 export const AGENT_MESSAGES_CHANGE_EVENT = 'agent:messages-change';
@@ -27,6 +29,7 @@ export function dispatchAgentNewChat(agentTag?: string | null) {
 
 export function dispatchAgentModelChange(agentTag: string | undefined | null, modelId: string, providerId?: string | null) {
   if (typeof window === 'undefined') return;
+  setAgentModelPreference(agentTag, modelId);
   const event: AgentModelChangeEvent = new CustomEvent(AGENT_MODEL_CHANGE_EVENT, {
     detail: { agentTag, modelId, providerId: providerId ?? null },
   });

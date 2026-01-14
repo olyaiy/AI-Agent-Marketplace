@@ -138,9 +138,15 @@ function LeftForm({
 
   const handleSave = React.useCallback(() => {
     if (!formRef.current || isPending) return;
+    console.time('[CLIENT] Total save time');
+    console.time('[CLIENT] FormData creation');
     const formData = new FormData(formRef.current);
+    console.timeEnd('[CLIENT] FormData creation');
+    console.time('[CLIENT] Server action call');
     startTransition(async () => {
       await onSave(formData);
+      console.timeEnd('[CLIENT] Server action call');
+      console.timeEnd('[CLIENT] Total save time');
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
     });

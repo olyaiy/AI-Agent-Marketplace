@@ -3,9 +3,11 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Plus, Pencil } from 'lucide-react';
 import { dispatchAgentModelChange, dispatchAgentNewChat } from '@/lib/agent-events';
+import { getAgentModelPreference } from '@/lib/agent-model-preferences';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
 import { ProviderAvatar } from '@/components/ProviderAvatar';
@@ -53,6 +55,7 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
   }, [agentTag, inviteCode, visibility]);
   const [copiedInvite, setCopiedInvite] = React.useState(false);
   const [isMac, setIsMac] = React.useState(false);
+  const searchParams = useSearchParams();
   React.useEffect(() => {
     if (!copiedInvite) return;
     const t = setTimeout(() => setCopiedInvite(false), 2000);
@@ -81,6 +84,13 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
     [modelOptions]
   );
   const [selectedModel, setSelectedModel] = React.useState<string | undefined>(() => activeModel || availableModels[0]);
+  const preferredModel = React.useMemo(() => {
+    const paramModel = searchParams?.get('model')?.trim();
+    if (paramModel && availableModels.includes(paramModel)) return paramModel;
+    const storedModel = getAgentModelPreference(agentTag);
+    if (storedModel && availableModels.includes(storedModel)) return storedModel;
+    return activeModel;
+  }, [activeModel, agentTag, availableModels, searchParams]);
   const [modelMeta, setModelMeta] = React.useState<Record<string, { label: string; providerSlug: string | null }>>({});
   const replaceModelParam = React.useCallback((modelId: string | undefined) => {
     if (typeof window === 'undefined' || !modelId) return;
@@ -98,16 +108,20 @@ export default function AgentInfoSidebar({ name, avatarUrl, tagline, description
   }, [agentTag, replaceModelParam]);
   React.useEffect(() => {
     if (!selectedModel) {
-      const first = activeModel || availableModels[0];
+      const first = preferredModel || availableModels[0];
       if (first) applyModelSelection(first, false);
+      return;
+    }
+    if (preferredModel && preferredModel !== selectedModel && availableModels.includes(preferredModel)) {
+      applyModelSelection(preferredModel, false);
       return;
     }
     // keep selection if still available, otherwise fall back
     if (selectedModel && availableModels.length > 0 && !availableModels.includes(selectedModel)) {
-      const next = availableModels[0];
+      const next = preferredModel && availableModels.includes(preferredModel) ? preferredModel : availableModels[0];
       if (next) applyModelSelection(next);
     }
-  }, [activeModel, applyModelSelection, availableModels, selectedModel]);
+  }, [applyModelSelection, availableModels, preferredModel, selectedModel]);
 
   // Fetch model metadata (name + provider) for available models to render nicer labels/icons
   React.useEffect(() => {

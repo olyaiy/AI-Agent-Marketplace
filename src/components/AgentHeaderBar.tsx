@@ -3,9 +3,11 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Plus, ChevronDown } from 'lucide-react';
 import { AgentInfoDialog } from '@/components/AgentInfoDialog';
 import { dispatchAgentModelChange, dispatchAgentNewChat } from '@/lib/agent-events';
+import { getAgentModelPreference } from '@/lib/agent-model-preferences';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
@@ -55,6 +57,7 @@ export function AgentHeaderBar({
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [isMac, setIsMac] = React.useState(false);
     const agentId = agentTag ? agentTag.replace('@', '') : null;
+    const searchParams = useSearchParams();
 
     React.useEffect(() => {
         if (typeof navigator !== 'undefined') {
@@ -68,6 +71,13 @@ export function AgentHeaderBar({
         [modelOptions]
     );
     const [selectedModel, setSelectedModel] = React.useState<string | undefined>(() => activeModel || availableModels[0]);
+    const preferredModel = React.useMemo(() => {
+        const paramModel = searchParams?.get('model')?.trim();
+        if (paramModel && availableModels.includes(paramModel)) return paramModel;
+        const storedModel = getAgentModelPreference(agentTag);
+        if (storedModel && availableModels.includes(storedModel)) return storedModel;
+        return activeModel;
+    }, [activeModel, agentTag, availableModels, searchParams]);
     const [modelMeta, setModelMeta] = React.useState<Record<string, { label: string; providerSlug: string | null }>>({});
 
     const replaceModelParam = React.useCallback((modelId: string | undefined) => {
@@ -88,15 +98,19 @@ export function AgentHeaderBar({
 
     React.useEffect(() => {
         if (!selectedModel) {
-            const first = activeModel || availableModels[0];
+            const first = preferredModel || availableModels[0];
             if (first) applyModelSelection(first, false);
             return;
         }
+        if (preferredModel && preferredModel !== selectedModel && availableModels.includes(preferredModel)) {
+            applyModelSelection(preferredModel, false);
+            return;
+        }
         if (selectedModel && availableModels.length > 0 && !availableModels.includes(selectedModel)) {
-            const next = availableModels[0];
+            const next = preferredModel && availableModels.includes(preferredModel) ? preferredModel : availableModels[0];
             if (next) applyModelSelection(next);
         }
-    }, [activeModel, applyModelSelection, availableModels, selectedModel]);
+    }, [applyModelSelection, availableModels, preferredModel, selectedModel]);
 
     React.useEffect(() => {
         const missing = availableModels.filter((id) => !modelMeta[id]);

@@ -274,9 +274,11 @@ export interface UpdateAgentInput {
 }
 
 export async function updateAgent(input: UpdateAgentInput) {
+  console.time('[DB] updateAgent total');
   const { tag, name, systemPrompt, model, secondaryModels, providerOptions, avatar, tagline, description, actorId, actorRole } = input;
   if (!tag) return { ok: false, error: 'Missing tag' };
 
+  console.time('[DB] SELECT current agent');
   const currentRows = await db
     .select({
       visibility: agent.visibility,
@@ -291,6 +293,7 @@ export async function updateAgent(input: UpdateAgentInput) {
     .from(agent)
     .where(eq(agent.tag, tag))
     .limit(1);
+  console.timeEnd('[DB] SELECT current agent');
   const current = currentRows[0];
   if (!current) return { ok: false, error: 'Agent not found' };
 
@@ -415,9 +418,15 @@ export async function updateAgent(input: UpdateAgentInput) {
   values.publishReviewedBy = publishReviewedBy;
   values.publishReviewNotes = publishReviewNotes;
 
-  if (!Object.keys(values).length) return { ok: true };
+  if (!Object.keys(values).length) {
+    console.timeEnd('[DB] updateAgent total');
+    return { ok: true };
+  }
   values.updatedAt = new Date();
+  console.time('[DB] UPDATE agent');
   await db.update(agent).set(values).where(eq(agent.tag, tag));
+  console.timeEnd('[DB] UPDATE agent');
+  console.timeEnd('[DB] updateAgent total');
   return { ok: true, publishStatus: nextPublishStatus };
 }
 

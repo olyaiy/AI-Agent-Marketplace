@@ -42,6 +42,8 @@ async function loadAvatars() {
 
 async function saveAction(formData: FormData) {
   'use server';
+  console.time('[SERVER] Total saveAction');
+  console.time('[SERVER] Parse formData');
   const id = (formData.get('id') as string)?.trim();
   const name = (formData.get('name') as string)?.trim();
   const systemPrompt = (formData.get('systemPrompt') as string)?.trim();
@@ -54,8 +56,11 @@ async function saveAction(formData: FormData) {
   const visibility = typeof visibilityRaw === 'string' && (visibilityRaw === 'public' || visibilityRaw === 'invite_only' || visibilityRaw === 'private')
     ? visibilityRaw
     : undefined;
+  console.timeEnd('[SERVER] Parse formData');
+  console.time('[SERVER] Get session (auth)');
   const headerList = await headers();
   const session = await auth.api.getSession({ headers: headerList }).catch(() => null);
+  console.timeEnd('[SERVER] Get session (auth)');
   const actorId = session?.user?.id ?? null;
   const actorRole = session?.user?.role ?? null;
   let secondaryModels: string[] | undefined = undefined;
@@ -78,8 +83,13 @@ async function saveAction(formData: FormData) {
     }
   }
   const tag = `@${id}`;
+  console.time('[SERVER] updateAgent()');
   await updateAgent({ tag, name, systemPrompt, model, secondaryModels, providerOptions, avatar, tagline: tagline ?? null, description: description ?? null, visibility, actorId, actorRole });
+  console.timeEnd('[SERVER] updateAgent()');
+  console.time('[SERVER] revalidatePath()');
   revalidatePath(`/edit/${encodeURIComponent(id)}`);
+  console.timeEnd('[SERVER] revalidatePath()');
+  console.timeEnd('[SERVER] Total saveAction');
 }
 
 async function deleteAction(formData: FormData) {

@@ -59,6 +59,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
 import { AGENT_MODEL_CHANGE_EVENT, AGENT_NEW_CHAT_EVENT, AgentModelChangeEvent, AgentNewChatEvent, dispatchAgentModelChange, dispatchAgentMessagesChange } from '@/lib/agent-events';
+import { getAgentModelPreference } from '@/lib/agent-model-preferences';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
 import { ProviderAvatar } from '@/components/ProviderAvatar';
 import {
@@ -1527,6 +1528,19 @@ const Chat = React.memo(function Chat({
       return next;
     });
   }, [modelChoices]);
+
+  useEffect(() => {
+    if (!agentTag || modelChoices.length === 0) return;
+    const paramModel = searchParams?.get('model')?.trim();
+    const explicitModel = paramModel && modelChoices.includes(paramModel) ? paramModel : undefined;
+    const storedModel = getAgentModelPreference(agentTag);
+    const preferredModel = explicitModel ?? (storedModel && modelChoices.includes(storedModel) ? storedModel : undefined);
+    if (!preferredModel || preferredModel === currentModelRef.current) return;
+    currentModelRef.current = preferredModel;
+    setCurrentModel(preferredModel);
+    setContextModelId(preferredModel);
+    setContextMaxTokens(guessMaxTokens(preferredModel));
+  }, [agentTag, guessMaxTokens, modelChoices, searchParams]);
 
   // Listen for model changes emitted from AgentInfoSidebar
   useEffect(() => {

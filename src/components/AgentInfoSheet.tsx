@@ -7,10 +7,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Plus, Pencil } from 'lucide-react';
 import { dispatchAgentModelChange, dispatchAgentNewChat } from '@/lib/agent-events';
+import { getAgentModelPreference } from '@/lib/agent-model-preferences';
 import { deriveProviderSlug, getDisplayName } from '@/lib/model-display';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProviderAvatar } from '@/components/ProviderAvatar';
 import { useSidebar } from '@/components/ui/sidebar';
+import { useSearchParams } from 'next/navigation';
 
 interface AgentInfoSheetProps {
   name: string;
@@ -40,6 +42,7 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const { toggleSidebar } = useSidebar();
+  const searchParams = useSearchParams();
 
   // Hide the global sidebar trigger on mobile when this component is mounted
   useEffect(() => {
@@ -53,6 +56,13 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
     [modelOptions]
   );
   const [selectedModel, setSelectedModel] = useState<string | undefined>(() => activeModel || availableModels[0]);
+  const preferredModel = useMemo(() => {
+    const paramModel = searchParams?.get('model')?.trim();
+    if (paramModel && availableModels.includes(paramModel)) return paramModel;
+    const storedModel = getAgentModelPreference(agentTag);
+    if (storedModel && availableModels.includes(storedModel)) return storedModel;
+    return activeModel;
+  }, [activeModel, agentTag, availableModels, searchParams]);
   const [modelMeta, setModelMeta] = useState<Record<string, { label: string; providerSlug: string | null; providers?: string[]; defaultProvider?: string | null }>>({});
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
 
@@ -100,19 +110,19 @@ export function AgentInfoSheet({ name, avatarUrl, tagline, description, agentTag
   }, [agentTag, replaceModelParam]);
   useEffect(() => {
     if (!selectedModel) {
-      const first = activeModel || availableModels[0];
+      const first = preferredModel || availableModels[0];
       if (first) applyModelSelection(first, false);
       return;
     }
-    if (activeModel && activeModel !== selectedModel && availableModels.includes(activeModel)) {
-      applyModelSelection(activeModel, false);
+    if (preferredModel && preferredModel !== selectedModel && availableModels.includes(preferredModel)) {
+      applyModelSelection(preferredModel, false);
       return;
     }
     if (availableModels.length > 0 && !availableModels.includes(selectedModel)) {
-      const next = activeModel && availableModels.includes(activeModel) ? activeModel : availableModels[0];
+      const next = preferredModel && availableModels.includes(preferredModel) ? preferredModel : availableModels[0];
       if (next) applyModelSelection(next, false);
     }
-  }, [activeModel, applyModelSelection, availableModels, selectedModel]);
+  }, [applyModelSelection, availableModels, preferredModel, selectedModel]);
 
   useEffect(() => {
     const missing = availableModels.filter((id) => !modelMeta[id]);
