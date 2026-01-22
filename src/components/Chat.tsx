@@ -100,7 +100,6 @@ interface ChatProps {
   initialMessages?: unknown[];
   // Optional knowledge text to persist as a system message at conversation creation time
   knowledgeText?: string;
-  showModelSelectorInPrompt?: boolean;
   // Optional props for displaying the AgentIntroHero in empty state (no messages)
   agentHeroProps?: AgentHeroProps;
 }
@@ -252,71 +251,7 @@ const ModelLabel = React.memo(function ModelLabel({ label, providerSlug }: { lab
 });
 ModelLabel.displayName = 'ModelLabel';
 
-const InlineModelSelector = React.memo(function InlineModelSelector({
-  models,
-  value,
-  onChange,
-}: {
-  models: string[];
-  value?: string;
-  onChange: (modelId: string) => void;
-}) {
-  const availableModels = useMemo(
-    () => Array.from(new Set(models.filter((m) => typeof m === 'string' && m.trim().length > 0))),
-    [models]
-  );
-  const selectedValue = useMemo(() => {
-    if (value && availableModels.includes(value)) return value;
-    return availableModels[0] ?? '';
-  }, [availableModels, value]);
-  const modelsWithMeta = useMemo(
-    () =>
-      availableModels.map((id) => ({
-        id,
-        label: getDisplayName(undefined, id),
-        providerSlug: deriveProviderSlug(undefined, id),
-      })),
-    [availableModels]
-  );
-  const selectedMeta = useMemo(
-    () => modelsWithMeta.find((m) => m.id === selectedValue),
-    [modelsWithMeta, selectedValue]
-  );
 
-  if (!selectedValue) return null;
-
-  if (availableModels.length <= 1) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border bg-muted/60 px-3 py-1.5">
-        <ModelLabel
-          label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
-          providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(undefined, selectedValue)}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <Select value={selectedValue} onValueChange={onChange}>
-      <SelectTrigger className="h-9 w-full min-w-[140px] max-w-[240px] text-sm">
-        <SelectValue asChild>
-          <ModelLabel
-            label={selectedMeta?.label || getDisplayName(undefined, selectedValue)}
-            providerSlug={selectedMeta?.providerSlug || deriveProviderSlug(undefined, selectedValue)}
-          />
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {modelsWithMeta.map((m) => (
-          <SelectItem key={m.id} value={m.id}>
-            <ModelLabel label={m.label} providerSlug={m.providerSlug} />
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-});
-InlineModelSelector.displayName = 'InlineModelSelector';
 
 const isSearchToolName = (toolName: string): boolean => {
   const lowerName = toolName.toLowerCase();
@@ -360,10 +295,6 @@ type PromptInputFormProps = {
   supportsReasoning: boolean;
   reasoningOn: boolean;
   onToggleReasoning: () => void;
-  showModelSelectorInPrompt: boolean;
-  modelChoices: string[];
-  currentModel?: string;
-  onModelChange: (modelId: string) => void;
   className?: string;
 };
 
@@ -380,10 +311,6 @@ const PromptInputForm = React.memo(function PromptInputForm({
   supportsReasoning,
   reasoningOn,
   onToggleReasoning,
-  showModelSelectorInPrompt,
-  modelChoices,
-  currentModel,
-  onModelChange,
   className,
 }: PromptInputFormProps) {
   const isSubmitDisabled = status !== 'streaming' && !text.trim();
@@ -476,15 +403,6 @@ const PromptInputForm = React.memo(function PromptInputForm({
               )}
             </div>
           </div>
-          {showModelSelectorInPrompt && modelChoices.length > 0 && (
-            <div className="row-start-2 col-start-2 flex justify-center md:justify-end">
-              <InlineModelSelector
-                models={modelChoices}
-                value={currentModel}
-                onChange={onModelChange}
-              />
-            </div>
-          )}
           <div className="row-start-2 col-start-3">
             <PromptInputSubmit
               disabled={isSubmitDisabled}
@@ -1462,7 +1380,6 @@ const Chat = React.memo(function Chat({
   agentTag,
   initialConversationId,
   initialMessages,
-  showModelSelectorInPrompt = false,
   agentHeroProps,
 }: ChatProps) {
   const [text, setText] = useState<string>('');
@@ -2726,10 +2643,6 @@ const Chat = React.memo(function Chat({
               supportsReasoning={supportsReasoning}
               reasoningOn={reasoningOn}
               onToggleReasoning={handleToggleReasoning}
-              showModelSelectorInPrompt={showModelSelectorInPrompt}
-              modelChoices={modelChoices}
-              currentModel={currentModel}
-              onModelChange={handleInlineModelChange}
               className="w-full max-w-3xl mx-auto"
             />
           </div>
@@ -2767,10 +2680,6 @@ const Chat = React.memo(function Chat({
             supportsReasoning={supportsReasoning}
             reasoningOn={reasoningOn}
             onToggleReasoning={handleToggleReasoning}
-            showModelSelectorInPrompt={false}
-            modelChoices={modelChoices}
-            currentModel={currentModel}
-            onModelChange={handleInlineModelChange}
             className="w-full max-w-2xl pb-4 md:pb-0"
           />
         </div>

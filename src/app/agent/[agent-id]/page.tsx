@@ -134,7 +134,6 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
             avatarUrl={avatarUrl}
             isAuthenticated={isAuthenticated}
             agentTag={found.tag}
-            showModelSelectorInPrompt
             agentHeroProps={heroProps}
           />
         </div>
@@ -165,7 +164,6 @@ export default async function AgentPage({ params, searchParams }: { params: Prom
           avatarUrl,
           isAuthenticated,
           agentTag: found.tag,
-          showModelSelectorInPrompt: true,
           agentHeroProps: heroProps,
         }}
       />

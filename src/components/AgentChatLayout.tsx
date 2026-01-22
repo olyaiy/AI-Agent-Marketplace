@@ -48,7 +48,6 @@ interface ChatProps {
     initialMessages?: unknown[];
     agentHeroProps?: AgentHeroProps;
     knowledgeText?: string;
-    showModelSelectorInPrompt?: boolean;
 }
 
 interface AgentChatLayoutProps {

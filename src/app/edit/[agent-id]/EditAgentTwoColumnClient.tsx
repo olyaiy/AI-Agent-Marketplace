@@ -363,7 +363,6 @@ function TwoColumn(props: Props) {
                     agentTag={props.tag}
                     getChatContext={getChatContext}
                     isAuthenticated={props.isAuthenticated}
-                    showModelSelectorInPrompt
                   />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
