@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/hover-card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import type { LanguageModelUsage } from "ai";
 import { type ComponentProps, createContext, useContext } from "react";
 import { getUsage } from "tokenlens";
 
@@ -20,10 +19,34 @@ const ICON_STROKE_WIDTH = 2;
 
 type ModelId = string;
 
+/**
+ * Flexible token usage type that accepts both:
+ * - Full LanguageModelUsage from AI SDK (with nested inputTokenDetails/outputTokenDetails)
+ * - Simpler flat format used for database storage (with flat reasoningTokens/cachedInputTokens)
+ */
+type TokenUsage = {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  // Nested detail objects (from AI SDK) - optional
+  inputTokenDetails?: {
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+    noCacheTokens?: number;
+  };
+  outputTokenDetails?: {
+    reasoningTokens?: number;
+    textTokens?: number;
+  };
+  // Flat fields (from database/deprecated SDK fields)
+  reasoningTokens?: number;
+  cachedInputTokens?: number;
+};
+
 type ContextSchema = {
   usedTokens: number;
   maxTokens: number;
-  usage?: LanguageModelUsage;
+  usage?: TokenUsage;
   modelId?: ModelId;
 };
 
